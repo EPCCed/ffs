@@ -1,0 +1,14 @@
+This directory contains the following:
+
+./DFFS_CODE:
+Rosalind's original code for direct FFS for Gillespie problem
+
+./FFS_CODE:
+Rosalind's original code for a 2d Ising system with shear. This
+version stores some path information based on parent and
+random number generator seed.
+
+./REGENERATE:
+This takes the path data from the Ising model in ./FFS_CODE and
+regenerates a chosen path by rerunning the appropriate simulations.
+
