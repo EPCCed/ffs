@@ -1,0 +1,21 @@
+100.0		equil_time
+1000		Number_of_start_points
+10		take_every_nth_crossing
+-24.0		lambda_1
+25.0		lambda_2
+49		Number_of_bins
+12 		Number_sects
+-24.0	 -22.0  	3	Sec_0
+-22.0	 -20.0	  	3	Sec_1
+-20.0	-18.0	  	3	Sec_2
+-18.0	-15.0	  	3	Sec_3
+-15.0	-12.0	  	3	Sec_4
+-12.0	-9.0	  	3	Sec_5
+-9.0	-5.0	  	3	Sec_6
+-5.0	0.0	  	2      	Sec_7
+0.0	7.0	  	1      	Sec_8
+7.0	15.0	  	1      	Sec_7
+15.0	20.0	  	1      	Sec_8
+20.0	25.0	  	1      	Sec_8
+
+
