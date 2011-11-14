@@ -1,5 +1,8 @@
 This directory contains the following:
 
+./BRANCHED_CODE:
+Rosalin's original code for branched FFS for Gillespie problem
+
 ./DFFS_CODE:
 Rosalind's original code for direct FFS for Gillespie problem
 
