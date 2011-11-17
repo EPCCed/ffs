@@ -1,0 +1,206 @@
+\documentclass[11pt]{article}
+
+% The following gives 21mm margin on all sides.
+
+\setlength{\hoffset}{-1.0in}
+\setlength{\voffset}{-1.0in}
+
+\setlength{\headheight}{0.0cm}
+\setlength{\headsep}{0.0cm}
+\setlength{\topmargin}{3.1cm}
+\setlength{\evensidemargin}{2.6cm}
+\setlength{\oddsidemargin}{2.6cm}
+
+\setlength{\textwidth}{15.8cm}
+\setlength{\textheight}{22.9cm}
+
+\setlength{\footskip}{0.7cm}
+\setlength{\parindent}{0mm}
+\setlength{\parskip}{\smallskipamount}
+
+\usepackage{graphics}
+\usepackage{graphicx}
+\usepackage{epsf}
+\usepackage{epic}
+
+\begin{document}
+
+%\frenchspacing
+
+\section{Requirements}
+
+\subsection{High Level Requirements}
+
+In broad terms, the requirements for the FFS code are the following:
+\begin{enumerate}
+\item To provide a portable framework for FFS calculations
+independent of the details of the simulation used.
+\item To allow serial FFS calculations.
+\item To allow trivially parallel FFS calculations (several FFS
+``instances'' running concurrently), the statistics for which are
+collated at the end.
+\item To allow non-trivial parallelism, i.e., a single FFS ``instance''
+decomposed in parallel, and/or using parallel simulation.
+\item To provide at least direct and branched FFS implementations
+\end{enumerate}
+
+There are two specific simulation targets, with associated science:
+\begin{enumerate}
+\item FFS with LAMMPS, applied to enamtiomer formation.
+\item FFS with lattice Boltzmann via \textit{Ludwig}, applied to
+a liquid crystal problem.
+\end{enumerate}
+
+
+\section{Architecture}
+
+\subsection{Overview}
+
+We specify three main components of the system (see Figure~1).
+
+\begin{figure}[h]
+\end{figure}
+
+\subsubsection{FFS core}
+
+This is responsible for control of the overall FFS workflow. It should
+accept input which specifies the details of algorithm to be used
+(direct or branched, etc.), the number and duration of trials, and the
+details of the number and poistion of the order parameter interfaces.
+It must also allow control of the number of FFS instances, the number
+of MPI tasks per instance, and the number of MPI tasks per simulation
+trial.
+
+The FFS core must be responsible for overall program control, for maintaining
+an account of the trajectory or trajectories associated with the trials,  
+issuing requests for new trials, control of random number seed information,
+and so on.
+
+The FFS core must output the final results in a digestable format, and
+allow control over storage of the history of trajectories to an
+appropriate level of detail.
+
+\subsubsection{Controller}
+
+This mediates the exchanges between the FFS core and the simulation
+code so that the FFS core does not require any direct knowledge of
+the simulation being undertaken.
+
+The controller must handle the initiation trials as required by
+the FFS algorithm, and return appropriate information on successful
+and unsuccessful tirals.
+
+It is imagined that the Controller will specify a fixed interface
+by means of an abstract class. Any given simulation code will
+require a concrete implementation of the class tailored to the
+specific details of the simulation.
+
+\subsubsection{Simulation}
+
+This is reponsible for advancing the state in time, and computing
+a relevant order parameter from the simulation state. It need have
+no knowledge of the FFS procedure beyond what is dictated by the
+Controller.
+
+\begin{figure}[t]
+\begin{center}
+\input{./arch1.epic}
+\end{center}
+\caption{Architecture: Within \texttt{MPI\_COMM\_WORLD}, the driver
+is expected to control one or more independent instances of the
+FFS calculation (here two are illustrated). In each case, the FFS
+library is responsible for the implementation of the appropriate
+FFS algorithm, which will spawn a number of trials.
+FFS issues requests for trial simulations to the Scheduler,
+responsible for load balance. Requests are passed to the
+Controller, which needs to be able to control the relevant
+simulation, and return results to the FFS instance. For more than
+one FFS instance, the driver
+should collect the necessary aggregate statistics from the ensemble.}
+\end{figure}
+
+
+\section{Example: Gillespie Problem}
+
+
+
+
+\section{Detailed Requirements}
+
+The user will be concerned with specifying the details of the FFS
+algorithm and related choices, and the particular parameters for
+the simulation at hand. The user should not be concerned with the
+details of scheduling, and the controller, which are the rightful
+concerns of the developer. We set out here the requirements from
+the user's view point.
+
+\subsection{User Requirements}
+
+\subsubsection{FFS Method}
+\begin{itemize}
+\item
+MUST: Allow the user to specify a set of interfaces $\lambda_i$ explicitly
+via an appropriate input mechnaism.
+\item
+SHOULD: Allow the user to specify a set of evenly spaced interfaces
+implicitly, by specifying the number of interfaces, and $\lambda_{min}$
+and $\lambda_{max}$.
+\item
+COULD: Allow the user some automatic choice, or dynamic repositioning, of
+interfaces via appropriate algorithm given $\lambda_{}$ and $\lambda_{max}$.
+\item
+SHOULD: Allow the user to specify an intial 'relaxation' run period, or
+start immediately from a pre-specified initial state.
+\item
+MUST: Allow the user to specify whether direct or branched FFS is required.
+\item
+MUST: Allow the user to specify the number of trials involved.
+\item
+MUST: Allow the user to specify a maximum simulation time for any trial
+(which will include a description of what time means for the simulation,
+e.g., integer number of steps, or floating point time interval in given
+units).
+\end{itemize}
+
+\subsubsection{Parallelism}
+\begin{itemize}
+\item
+MUST: Allow the user the choice of running in FFS serial, or in parallel.
+\item
+MUST: Allow the user to specify the number of FFF 'instances' which will
+run in parallel, and how many MPI tasks each instance will have.
+\item
+MUST: Allow the user to specify if the simulation will run in parallel
+or not (does it take an MPI communicator?), and if so, on how many
+MPI tasks.
+\item
+COULD: Provide user control of whether dynamic load balance is attempted
+or not.
+\end{itemize}
+
+\subsubsection{Miscellaneous}
+
+\begin{itemize}
+\item
+MUST: The user must be able to extract appropriate statistical information
+in aggregate form.
+\item
+SHOULD: Allow some level of control of the detail of statistical output.
+\item
+SHOULD: Allow the user to split a single FFS calculation into successive
+jobs. That is, the user should be able to 'restart' from a saved state
+if the total run time is expected to be large.
+\end{itemize}
+
+\subsubsection{Simulation}
+
+
+\subsection{Developer Requirements}
+
+
+\subsection{Controller}
+
+
+
+
+\end{document}
