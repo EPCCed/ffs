@@ -142,6 +142,8 @@ the user's view point.
 MUST: Allow the user to specify a set of interfaces $\lambda_i$ explicitly
 via an appropriate input mechnaism.
 \item
+MUST: Allow reconstruction of trajectories from stored pathway information.
+\item
 SHOULD: Allow the user to specify a set of evenly spaced interfaces
 implicitly, by specifying the number of interfaces, and $\lambda_{min}$
 and $\lambda_{max}$.
@@ -152,6 +154,9 @@ interfaces via appropriate algorithm given $\lambda_{}$ and $\lambda_{max}$.
 SHOULD: Allow the user to specify an intial 'relaxation' run period, or
 start immediately from a pre-specified initial state.
 \item
+SHOULD: Allow the user to specify the number of configurations to be used
+at the first interface.
+\item
 MUST: Allow the user to specify whether direct or branched FFS is required.
 \item
 MUST: Allow the user to specify the number of trials involved.
@@ -160,6 +165,40 @@ MUST: Allow the user to specify a maximum simulation time for any trial
 (which will include a description of what time means for the simulation,
 e.g., integer number of steps, or floating point time interval in given
 units).
+\item
+COULD: Provide the user with histograms of the sampling of order parameter
+space by trial runs; these can be used to reconstruct the steady state
+probability density function of the order parameter. % code exists
+\item
+COULD: Allow the user to generate a small number (e.g., 10--20 trajectories
+from initial to final state) for mechanistic analysis without output of the
+full-blown FFS analysis (rate constants etc.).
+\item
+COULD: Allow the user to `prune' trajectories which return to a previous
+interface thus avoiding the need to simulate long paths backwards in
+order parameter space. % code exists
+\item
+COULD: Allow automatic extraction of commitor values for configurations
+among stored trajectories (e.g., for analysis of the transition state
+ensemble).
+\item
+COULD: Allow the user to choose the Rosenbluth path sampling method to
+obtain unbranched paths with associated statistical weights.
+\item
+COULD: Provide the user with information on the sampling of configuration
+space at different interfaces, i.e., the degree of path branching.
+Example: for a given final state $B$, which initial state did this come from?
+\item
+COULD: Provide the user with information on the variability in
+probability of success among configurations at the same interface
+(which might be indicative of good or bad choice of order parameter).
+These data could suggest better choices for the order parameter.
+\item
+COULD: Allow the user to optimise the positioning of interfaces
+and number of trials per interface by running a short FFS simulations
+and using the data obtained (i.e., the probability of success at a
+given interface) to suggest better parameter choices (automatically).
+See Berero and Escabedo \cite{}.
 \end{itemize}
 
 \subsubsection{Parallelism}

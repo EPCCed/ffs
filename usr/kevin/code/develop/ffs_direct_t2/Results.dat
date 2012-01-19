@@ -1,0 +1,19 @@
+the flux collection run contained 159974956 steps
+the run time was 1000000.006351, the number of crossings was 12739, so the flux through the first interface was         0.0127389999
+the firing stage (not wih pruning) contained 121912996 steps
+the pruning contained 0 steps
+the total number of simulation steps was 281887952
+interface 0 total weight of successful trials 2730.000000 so forward probability  is 0.27300
+interface 1 total weight of successful trials 4949.000000 so forward probability  is 0.49490
+interface 2 total weight of successful trials 5797.000000 so forward probability  is 0.57970
+interface 3 total weight of successful trials 5241.000000 so forward probability  is 0.52410
+interface 4 total weight of successful trials 6437.000000 so forward probability  is 0.64370
+interface 5 total weight of successful trials 7488.000000 so forward probability  is 0.74880
+interface 6 total weight of successful trials 6855.000000 so forward probability  is 0.68550
+interface 7 total weight of successful trials 5715.000000 so forward probability  is 0.57150
+interface 8 total weight of successful trials 5415.000000 so forward probability  is 0.54150
+interface 9 total weight of successful trials 9296.000000 so forward probability  is 0.92960
+interface 10 total weight of successful trials 9934.000000 so forward probability  is 0.99340
+interface 11 total weight of successful trials 9973.000000 so forward probability  is 0.99730
+final results:
+flux through first interface 0.012739 probability of reaching B 0.003866 rate constant 0.000049
