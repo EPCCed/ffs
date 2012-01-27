@@ -253,6 +253,7 @@ int ffs_tree_selftest(void) {
   if (n != 0) ++nfail;
 
   ffs_tree_remove(tree);
+  remove(filename);
 
   return nfail;
 }

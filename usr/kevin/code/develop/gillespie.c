@@ -11,6 +11,12 @@
 #define MAXPROD     10
 
 
+typedef struct Point_type {
+
+  int * X; /* a point is a set of numbers of molecules. */
+
+} Point ;
+
 struct gillespie_state_type {
   double t; /* Current time */
   int * nx; /* A set of integer numbers of molecules */
@@ -42,23 +48,20 @@ typedef struct Dyn_type /*information we need to propagate the dynamical system 
 } Dyn;
 
 
-static void determine_propensity_functions (Point);
-static void select_reaction (int *);
-static Point update_concentrations (int, Point);
 static Point read_components ();
 static void read_reactions  ();
-static void propagate_time (double *);
 static void allocate_memory_specific();
 static void print_reactions();
+static Point allocpoint();
+static void free_point(Point);
 
 static Dyn dyn;
 static double nalloc_ = 0.0;
 static double nalloc_state_ = 0.0;
 
-Point allocpoint();
 
 
-Point allocpoint() {
+static Point allocpoint() {
 
   Point output;
 
@@ -67,42 +70,6 @@ Point allocpoint() {
  
   return output;
 
-}
-
-void tmp_point_to_state(Point p, state_t * s) {
-
-  int n;
-
-  for (n = 0; n < dyn.Ncomp; n++) {
-    s->nx[n] = p.X[n];
-  } 
-
-  return;
-}
-
-Point tmp_state_to_new_point(const state_t * s) {
-
-  int n;
-  Point p;
-
-  p = allocpoint();
-
-  for (n = 0; n < dyn.Ncomp; n++) {
-    p.X[n] = s->nx[n];
-  }
-
-  return p;
-}
-
-void tmp_state_to_point(const state_t * s, Point * p) {
-
-  int n;
-
-  for (n = 0; n < dyn.Ncomp; n++) {
-    p->X[n] = s->nx[n];
-  }
-
-  return;
 }
 
 /*****************************************************************************
@@ -346,16 +313,56 @@ int gillespie_read_state(const char * filename, state_t * p) {
     }
     else {
 
-      /* NOT YET fscanf(fp, "%lf", &p->t);*/
-
       for (i = 0; i < dyn.Ncomp; i++) {
 	fscanf(fp, "%d\t\t%s\n", &(p->nx[i]), dyn.Xname[i]);
       }
+
+      fscanf(fp, "%lf", &p->t);
     }
 
     if (ferror(fp)) {
       ifail = 1;
       perror("read state perror: ");
+    }
+
+    fclose(fp);
+  }
+
+  return ifail;
+}
+
+/*****************************************************************************
+ *
+ *  gillespie_write_state
+ *
+ *****************************************************************************/
+
+int gillespie_write_state(const char * filename, state_t * p) {
+
+  int  i, ncomp;
+  int ifail = 0;
+
+  FILE * fp;
+
+  fp = fopen(filename, "w");
+
+  if (fp == NULL) {
+    ifail = 1;
+    printf("write state failed to find %s\n", filename);
+  }
+  else {
+
+    fprintf(fp, "%d\n", dyn.Ncomp);
+
+    for (i = 0; i < dyn.Ncomp; i++) {
+      fprintf(fp, "%d\t\t%s\n", p->nx[i], dyn.Xname[i]);
+    }
+
+    fprintf(fp, "%22.16e", p->t);
+
+    if (ferror(fp)) {
+      ifail = 1;
+      perror("write state perror: ");
     }
 
     fclose(fp);
@@ -418,35 +425,6 @@ int gillespie_tear_down(void) {
   free(dyn.R);
 
   return ifail;
-}
-
-
-Point start_specific () {
-
-  FILE *fp;
-  Point pt_eq;
-
-  if ((fp = fopen("gillespie.inp","r")) == NULL) {
-    printf("Cannot open gillespie.inp.\n");
-    /* EXIT */
-    abort();
-  }
-  fscanf(fp,"%d%*s", &dyn.Ncomp);
-  fscanf(fp,"%d%*s", &dyn.Nreact);  
-  fclose(fp);
-
-  printf("===============================================================\n");
-  printf("Gillespie system\n");
-  printf("Number of components %d , number of reactions %d\n", dyn.Ncomp,
-	 dyn.Nreact);
-  
-  allocate_memory_specific();
-  pt_eq = read_components ();
-  read_reactions ();
-
-  print_reactions ();
-
-  return pt_eq;
 }
 
 static void allocate_memory_specific () {
@@ -577,153 +555,13 @@ static void read_reactions () {
   return;
 }
 
-double get_lambda(Point p) {
-
-  int N_A, N_B;
-
-  /* calculate the total number of A molecules */
-  N_A = p.X[0] + 2*(p.X[2]+p.X[5]+p.X[7]);
-  /* calculate the total number of B molecules */
-  N_B = p.X[1] + 2*(p.X[3]+p.X[6]+p.X[7]);
-
-  return(((double) N_A-N_B));
-}
-
-
-Point convert_point(Point pt_in) {
-
-  int i;
-  Point pt_out;
-
-  pt_out = allocpoint();
-
-  for (i = 0; i < dyn.Ncomp; i++) {
-    pt_out.X[i] = pt_in.X[i];
-  }
-
-  return pt_out;
-}
-
-
-void free_point(Point p) {
+static void free_point(Point p) {
 
   free(p.X);
   nalloc_ -= 1.0;
  
   return;
 }
-
-/* MEMORY: allocates 1 new point via update_concentrations() */
-
-Point do_step(double *time, Point p) {
-
-  double tstep;
-  int j;
-  Point pt_out;
-
-  determine_propensity_functions (p);
-  propagate_time (&tstep); 
-  (*time) += tstep;
-  select_reaction (&j);
-  pt_out = update_concentrations (j, p);
-
-  return pt_out;
-}
-
-
-static void determine_propensity_functions (Point p) {
-
-  int i;
-
-  dyn.sum_a = 0.;
-  for (i = 0; i <dyn.Nreact; i++) {
-
-    if (dyn.R[i].Nreact == 0) { 
-      dyn.a[i] = dyn.R[i].k;
-    }
-    else if (dyn.R[i].Nreact == 1) { 
-      dyn.a[i] = dyn.R[i].k * p.X[dyn.R[i].react[0].index];
-    }
-    else if (dyn.R[i].react[0].index == dyn.R[i].react[1].index) {
-      dyn.a[i] = dyn.R[i].k * p.X[dyn.R[i].react[0].index]
-	* (p.X[dyn.R[i].react[1].index] - 1);
-    }
-    else {
-      dyn.a[i] = dyn.R[i].k * p.X[dyn.R[i].react[0].index]
-	* p.X[dyn.R[i].react[1].index];
-    }
-
-    dyn.sum_a += dyn.a[i];
-  }
-
-  return;
-}
-
-
-static void select_reaction (int *j) {
-
-  double rs,cumu_a;
-
-  rs = 0.0;
-
-  while(rs < 0.00000000001) rs = ran3();
- 
-  rs *= dyn.sum_a;
-  *j = 0;
-  cumu_a = dyn.a[*j];
-
-  while (cumu_a < rs) {
-    (*j) ++;
-    cumu_a += dyn.a[*j];
-  }
-
-  return;
-}
-
-static Point update_concentrations (int j, Point p) {
-
-  int i;
-  Point pt_out;
-
-  pt_out = convert_point(p);
-
-  for (i = 0; i < dyn.R[j].Nreact; i++) {
-    pt_out.X[dyn.R[j].react[i].index] --;
-  }
-
-  for (i = 0; i < dyn.R[j].Nprod; i++) {
-    pt_out.X[dyn.R[j].prod[i].index] += dyn.R[j].prod[i].change;
-  }
-
-  return pt_out;
-}
-
-
-
-static void propagate_time(double *tstep) {
-
-  double rs;
-
-  if (dyn.sum_a > 0.00000001) {
-    rs=0.0;
-
-    while (rs < 0.00000001) {
-      rs = ran3();
-    }
-
-    *tstep = log(1./rs)/dyn.sum_a;
-  }
-  else {
-    printf("Not a single reaction can occur.\n");
-    printf("The run will be terminated.\n");
-    printf("sum_a is %f\n",dyn.sum_a);
-    /* UNCONTROLLED EXIT */
-    abort();
-  }
-
-  return;
-}
-
 
 int  iff, ma[56], inext, inextp, mj, mz, mbig;
 

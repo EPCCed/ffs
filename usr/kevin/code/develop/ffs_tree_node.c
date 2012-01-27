@@ -8,21 +8,23 @@
  *****************************************************************************/
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 
+#include "ffs_tree_node_data.h"
 #include "ffs_tree_node.h"
 
 struct ffs_tree_node_type {
 
-  /* Data */
-
   int id;
-  /* Pointer to state */
+  ffs_tree_node_data_t * data;
 
-  /* Structure: left child; next sibling to the right */
+  /* Structure: left child; next sibling to the right;
+   * parent required for backward (upward) traversal. */
 
   ffs_tree_node_t * leftchild;
   ffs_tree_node_t * nextsibling;
+  ffs_tree_node_t * parent;
 };
 
 static unsigned int      nallocated_ = 0;
@@ -31,7 +33,7 @@ static void              ffs_tree_node_free(ffs_tree_node_t * p);
 
 /*****************************************************************************
  *
- *  ffs_tree_node_nallcated
+ *  ffs_tree_node_nallocated
  *
  *****************************************************************************/
 
@@ -137,6 +139,57 @@ ffs_tree_node_t * ffs_tree_node_nextsibling(const ffs_tree_node_t * p) {
 
 /*****************************************************************************
  *
+ *  ffs_tree_node_parent
+ *
+ *****************************************************************************/
+
+ffs_tree_node_t *  ffs_tree_node_parent(const ffs_tree_node_t * p) {
+
+  assert(p);
+
+  return p->parent;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_tree_node_parent_set
+ *
+ *****************************************************************************/
+
+void ffs_tree_node_parent_set(ffs_tree_node_t * p, ffs_tree_node_t * parent) {
+
+  assert(p);
+
+  p->parent = parent;
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_tree_node_child_add
+ *
+ *****************************************************************************/
+
+void ffs_tree_node_child_add(ffs_tree_node_t * p, ffs_tree_node_t * child) {
+
+  assert(p);
+  assert(child); /* Just so, but could imagine accepting NULL child */
+
+  child->parent = p;
+
+  if (p->leftchild) {
+    ffs_tree_node_sibling_add(p->leftchild, child);
+  }
+  else {
+    ffs_tree_node_leftchild_set(p, child);
+  }
+
+  return;
+}
+
+/*****************************************************************************
+ *
  *  ffs_tree_node_leftchild_set
  *
  *****************************************************************************/
@@ -180,7 +233,10 @@ void ffs_tree_node_sibling_add(ffs_tree_node_t * p,
   ffs_tree_node_t * node;
 
   assert(p);
+  /* assert(p->parent); Don't allow root to have siblings? */
   assert(sibling);
+
+  sibling->parent = p->parent;
 
   for (node = p; node->nextsibling != NULL; node = node->nextsibling) {}
   node->nextsibling = sibling;
@@ -240,6 +296,34 @@ int ffs_tree_node_level_count(ffs_tree_node_t * p, int ltarget, int level) {
 
 /*****************************************************************************
  *
+ *  ffs_tree_node_data
+ *
+ *****************************************************************************/
+
+ffs_tree_node_data_t * ffs_tree_node_data(const ffs_tree_node_t * p) {
+
+  assert(p);
+
+  return p->data;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_tree_node_data_set
+ *
+ *****************************************************************************/
+
+void ffs_tree_node_data_set(ffs_tree_node_t * p, ffs_tree_node_data_t * data) {
+
+  assert(p);
+
+  p->data = data;
+
+  return;
+}
+
+/*****************************************************************************
+ *
  *  ffs_tree_node_selftest
  *
  *  Build the following simple tree with four nodes to check
@@ -259,6 +343,9 @@ int ffs_tree_node_selftest(void) {
   ffs_tree_node_t * node;
   ffs_tree_node_t * p;
 
+  ffs_tree_node_data_t * data;
+  ffs_tree_node_data_t * pdata;
+
   if (ffs_tree_node_nallocated() != 0) ++nfail;
 
   head = ffs_tree_node_create(1);
@@ -271,12 +358,19 @@ int ffs_tree_node_selftest(void) {
   p = ffs_tree_node_nextsibling(head);
   if (p != NULL) ++nfail;
 
+  p = ffs_tree_node_parent(head);
+  if (p != NULL) ++nfail;
+
   if (ffs_tree_node_level_count(head, 0, 0) != 1) nfail++;
   if (ffs_tree_node_level_count(head, 1, 0) != 0) nfail++;
   if (ffs_tree_node_level_count(head, 0, 1) != 0) nfail++;
 
   node = ffs_tree_node_create(2);
   ffs_tree_node_leftchild_set(head, node);
+  ffs_tree_node_parent_set(node, head);
+
+  p = ffs_tree_node_parent(node);
+  if (p != head) ++nfail;
 
   node = ffs_tree_node_create(3);
   ffs_tree_node_nextsibling_set(head, node);
@@ -295,6 +389,39 @@ int ffs_tree_node_selftest(void) {
 
   if (ffs_tree_node_level_count(head, 0, 0) != 3) ++nfail;
   if (ffs_tree_node_level_count(head, 1, 0) != 1) ++nfail;
+
+  /* Check data attachment */
+
+  data = ffs_tree_node_data_create();
+  ffs_tree_node_data_set(head, data);
+
+  pdata = ffs_tree_node_data(head);
+  if (pdata != data) ++nfail;
+  ffs_tree_node_data_set(head, NULL);
+  pdata = NULL;
+  ffs_tree_node_data_remove(data);
+
+  ffs_tree_node_remove(head);
+  if (ffs_tree_node_nallocated() != 0) ++nfail;
+
+  /* Test child add */
+
+  head = ffs_tree_node_create(1);
+  node = ffs_tree_node_create(2);
+
+  ffs_tree_node_child_add(head, node);
+
+  p = ffs_tree_node_leftchild(head);
+  if (p != node) ++nfail;
+
+  p = ffs_tree_node_parent(node);
+  if (p != head) ++nfail;
+
+  p = ffs_tree_node_create(3);
+  ffs_tree_node_child_add(head, p);
+  if (ffs_tree_node_parent(p) != head) ++nfail;
+
+  if (ffs_tree_node_nextsibling(node) != p) ++nfail;
 
   ffs_tree_node_remove(head);
   if (ffs_tree_node_nallocated() != 0) ++nfail;

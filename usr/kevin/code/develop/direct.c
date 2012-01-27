@@ -4,6 +4,13 @@
  *
  *  Routines for Direct FFS algorithm.
  *
+ *  CHANGE OF RESULTS: 'laststate' issue in initialise
+ *
+ *  ISSUE: Reconfigure to allow transparent file 'cache' and 'uncache'
+ *  ISSUE: Replace Ensemble by tree
+ *  ISSUE: Combine initialise with 'run and skip'
+ *  ISSUE: Replace ran3()
+ *
  ****************************************************************************/
  
 #include <math.h>
@@ -51,7 +58,7 @@ int direct_prune(sim_state_t * p, int isect, double *wt,  ffs_param_t * ffs);
 
 void direct_driver(ffs_param_t * ffs) {
 
-  int i;
+  int n;
   double runtime;
   sim_state_t * s_init;
 
@@ -60,25 +67,28 @@ void direct_driver(ffs_param_t * ffs) {
 
   simulation_set_up(ffs);
   s_init = simulation_state_initialise(ffs);
+  /* MAKE s_init head of tree and remember */ 
 
   direct_initial_ensemble(&current, &runtime, s_init, ffs);
 
-  for (i = 0; i < ffs->nsections; i++) {
+  for (n = 1; n < ffs->nlambda; n++) {
 
-    printf(" getting paths for section %d %lf %lf\n", i,
-	   ffs->section[i].lambda_min, ffs->section[i].lambda_max);
+    printf("Interface %3d start trials lambda %5.2f -> %5.2f\n", n,
+	   ffs->interface[n].lambda, ffs->interface[n+1].lambda);
     
-    next = direct_advance_ensemble(i, current, ffs);
+    next = direct_advance_ensemble(n, current, ffs);
 
     free_ensemble(current);
     current = convert_ensemble(next);
     free_ensemble(next);
+    printf("Interface %3d weight %lf\n", n, ffs->interface[n].weight);
   }
 
   simulation_state_finalise(s_init);
   simulation_tear_down();
 
   output_data(runtime, ffs);
+  nalloc_current();
 
   return;
 }
@@ -93,36 +103,28 @@ void direct_driver(ffs_param_t * ffs) {
  *****************************************************************************/
 
 int direct_initial_ensemble(Ensemble * current, double *runtime,
-			    sim_state_t * s_eq, ffs_param_t * ffs) {
-  int    s,bb;
-  int laststate;
+			    sim_state_t * s_init, ffs_param_t * ffs) {
+  int bb;
+  int nstates;
   double lambda, old_lambda;
 
   sim_state_t * snew;
 
+  nstates = ffs->interface[1].nstates;
   current->N = 0;
 
+  /* MAKE TRIAL BASED ON HEAD OF TREE s_init assign rnd seed */
   snew = simulation_state_allocate();
-  simulation_state_copy(s_eq, snew);
+  simulation_state_copy(s_init, snew);
 
   simulation_run_to_time(snew, ffs->teq, ffs->nstepmax);
   simulation_state_time_set(snew, 0.0);
   lambda = simulation_lambda(snew);
+  /* THE RESULTS OF THE TRIAL ARE NOT INSERTED IN TREE HERE. */
 
   *runtime = 0.0;
   bb = 0;
   ffs->ncross = 0;
-
-  if (lambda < ffs->lambda_1) {
-    laststate = 0;
-  }
-  else if (lambda >= ffs->lambda_1) {
-    laststate = 1;
-  }
-
-  old_lambda = lambda;
-
-  s = 0;
  
   while ((*runtime) < ffs->trun) {
   
@@ -135,54 +137,43 @@ int direct_initial_ensemble(Ensemble * current, double *runtime,
     (*runtime) = simulation_state_time(snew);
 
     if (lambda >= ffs->lambda_2) {
-
-      simulation_state_copy(s_eq, snew);
+      /* TRIAL HAS 'failed' */
+      /* MAKE NEW TRIAL BASED ON HEAD OF TREE */
+      simulation_state_copy(s_init, snew);
       simulation_run_to_time(snew, ffs->teq, ffs->nstepmax);
       simulation_state_time_set(snew, (*runtime));
       lambda = simulation_lambda(snew);
       old_lambda = lambda;
-      /* IS THIS EXECUTED?  */
     }
 
     /* CHECKING FOR CROSSINGS of A state boundary */
     
     if ((old_lambda < ffs->lambda_1) && (lambda >= ffs->lambda_1)) {
-      /* left A state */
-      if (laststate == 0) {
-	++ffs->ncross;
 
-	if ((bb < ffs->section[0].Npoints)&&(ffs->ncross % ffs->nskip == 0)) {
+      ++ffs->ncross;
 
-	  current->pstates[bb] = simulation_state_allocate();
-	  simulation_state_copy(snew, current->pstates[bb]);
+      if ((bb < nstates) && (ffs->ncross % ffs->nskip == 0)) {
 
-          /* Rosalind says the following line should be removed */
-	  /* But it changes the results so I'm going to leave it */
-	  current->wt[bb] = 1.0;
-          /* End comment */
-	  current->N++;
-	  bb++;
-	}
-      laststate=1;
+	/* INSERT CURRENT STATE INTO NEW NODE IN TREE CHILD OF HEAD */
+	/* RECORD STATE and continue current trial */
+
+	current->pstates[bb] = simulation_state_allocate();
+	simulation_state_copy(snew, current->pstates[bb]);
+
+	current->wt[bb] = 1.0;
+	current->N++;
+	bb++;
       }
     }
 
-    if ((old_lambda >= ffs->lambda_1) && (lambda < ffs->lambda_1)){
-      /* entered A state */
-      laststate = 0;
-    }
-    
-    s++;
+    ffs->runsteps++;
   }
-  
-  if (bb < ffs->section[0].Npoints - 1) {  
-    printf(" collection run was not long enough! %d %d\n", bb,
-	   ffs->section[0].Npoints);
+
+  if (bb < nstates - 1) {
+    printf(" collection run was not long enough! %d %d\n", bb, nstates);
     /* UNCONTROLLED EXIT */
     abort();
   }
-
-  ffs->runsteps += s;
 
   simulation_state_free(snew);
 
@@ -223,10 +214,11 @@ Ensemble convert_ensemble(Ensemble e_in) {
  *
  *****************************************************************************/
 
-Ensemble direct_advance_ensemble(int i_sect, Ensemble current,
+Ensemble direct_advance_ensemble(int interface, Ensemble current,
 				 ffs_param_t * ffs) {
   int pt, res1, ipath, bb;
   int keep_state;
+  int ntrials;
   double sumwt, wt;
   double lambda_min, lambda_max;
   Ensemble next;
@@ -235,11 +227,15 @@ Ensemble direct_advance_ensemble(int i_sect, Ensemble current,
 
   /* make Ntrials attempts and just take the first Npoints successful ones */
 
-  ffs->section[i_sect].forward = 0.0;
   bb = 0;
   next.N = 0;
 
-  for (ipath = 0; ipath < ffs->section[i_sect].Ntrials; ipath++) {
+  ffs->interface[interface].weight = 0.0;
+  lambda_min = ffs->interface[interface - 1].lambda;
+  lambda_max = ffs->interface[interface + 1].lambda;
+  ntrials = ffs->interface[interface].ntrials;
+
+  for (ipath = 0; ipath < ntrials; ipath++) {
 
     /* choose a starting point according to weights and make a trial */
     sumwt = get_sumwt(current);
@@ -247,60 +243,44 @@ Ensemble direct_advance_ensemble(int i_sect, Ensemble current,
 
     wt = 1.0;
 
-    if (i_sect == 0) {
-      lambda_min = ffs->lambda_1;
-    }
-    else {
-      lambda_min = ffs->section[i_sect-1].lambda_min;
-    }
-    lambda_max = ffs->section[i_sect].lambda_max;
-
+    /* CHOOSE TREE NODE AND COPY STATE FOR NEW TRIAL */
     snew = simulation_state_allocate();
     simulation_state_copy(current.pstates[pt], snew);
 
     res1 = simulation_run_to_lambda(snew, lambda_min, lambda_max, ffs);
  
     if (res1 == FFS_TRIAL_WENT_BACKWARDS || res1 == FFS_TRIAL_TIMED_OUT) {
-      res1 = direct_prune(snew, i_sect, &wt, ffs);
+      res1 = direct_prune(snew, interface, &wt, ffs);
     }
 
     keep_state = 0;
 
     if (res1 == FFS_TRIAL_SUCCEEDED) {
 
-      ffs->section[i_sect].forward += wt;
+      ffs->interface[interface].weight += wt;
 
-      /* KEEP SUCCESSFUL STATES UP TO Npoints (except last interface) */
+      /* KEEP SUCCESSFUL STATES */
 
-      if (i_sect < ffs->nsections-1) {
-	if (bb < ffs->section[i_sect+1].Npoints) {
-	  /* add to the next section */
+      if (bb < ffs->interface[interface+1].nstates) {
 
-	  next.pstates[bb] = snew;
-	  keep_state = 1;
+	/* ADD NEW TREE NODE AT NEXT LEVEL AND RECORD STATE */
+	next.pstates[bb] = snew;
+	keep_state = 1;
 
-	  next.wt[bb] = wt;
-	  next.N++;
-	  bb++;
-	}
+	next.wt[bb] = wt;
+	next.N++;
+	bb++;
       }
     }
 
     if (keep_state == 0) simulation_state_free(snew);
+    /* TREE FINISH TRIAL */
   }
 
-  if (bb < ffs->section[i_sect+1].Npoints-1 && i_sect < ffs->nsections-1){
-    printf("insufficient successes, sect: %d, succ: %d , req: %d %lf %lf\n",
-	   i_sect, bb, ffs->section[i_sect+1].Npoints,
-	   ffs->section[i_sect].lambda_min, ffs->section[i_sect].lambda_max);
-
-    /* UNCONTROLLED EXIT */
-    abort();
+  if (bb < ffs->interface[interface+1].nstates) {
+    printf("DID NOT GET EXPECTED NUMBER OF STATES\n");
   }
-  
-  printf(" end of section %d forward %lf success %d\n", i_sect,
-	 ffs->section[i_sect].forward, bb);
-  
+
   return next;
 }
 
@@ -344,116 +324,85 @@ int get_point(Ensemble ee, double sumwt) {
  *
  *  direct_prune
  *
- *  stop when we
- *    (a) reach the desired interface,
- *    (b) are pruned, or
- *    (c) reach A region
+ *  Note that pruning for trials originating at interfaces 1 and 2
+ *  is 'automatic'.
  *
  *****************************************************************************/
 
-int direct_prune(sim_state_t * p, int isect, double *wt,  ffs_param_t * ffs) {
-
-  int ii;
-  int res;
+int direct_prune(sim_state_t * p, int interface, double * wt,
+		 ffs_param_t * ffs) {
+  int n;
+  int istatus;
   double lambda_min, lambda_max;
 
-  *wt = 1.0;
- 
-  if (isect > 1) {
-    for (ii = isect - 1; ii >= 1; ii--) {
+  lambda_max = ffs->interface[interface + 1].lambda;
+  istatus = FFS_TRIAL_WAS_PRUNED;
 
-      if (ran3() < ffs->section[ii].pprune) {
-	return FFS_TRIAL_WAS_PRUNED;
-      }
-      else {
-	/* survives, multiply weight */
-	
-	*wt *= 1.0/(1.0 - ffs->section[ii].pprune);
+  for (n = interface; n > 2; n--) {
 
-	lambda_min = ffs->section[ii-1].lambda_min;
-	lambda_max = ffs->section[isect].lambda_max;
-	res = simulation_run_to_lambda(p, lambda_min, lambda_max, ffs);
-
-	if (res == FFS_TRIAL_SUCCEEDED) return FFS_TRIAL_SUCCEEDED;
-      }
+    if (ran3() < ffs->interface[n - 1].pprune) {
+      istatus = FFS_TRIAL_WAS_PRUNED;
+      break;
     }
+
+    /* Trial survives, update weight and continue... */
+
+    *wt *= 1.0/(1.0 - ffs->interface[n - 1].pprune);
+
+    lambda_min = ffs->interface[n - 2].lambda;
+    istatus = simulation_run_to_lambda(p, lambda_min, lambda_max, ffs);
+
+    if (istatus == FFS_TRIAL_SUCCEEDED) break;
   }
 
-  return FFS_TRIAL_WENT_BACKWARDS;
+  return istatus;
 }
 
 
 static void output_data(double runtime, const ffs_param_t * ffs) {
 
  FILE *fp;
- int i,j,k;
- double plam;
-
- fp = fopen( "p_lambda_TEST.dat", "w" );
- plam = 1.0;
-
- for (i = 0; i< ffs->nsections; i++) {
-  plam *= ffs->section[i].forward / ((double) ffs->section[i].Ntrials);
-  fprintf(fp,"%lf %lf\n", ffs->section[i].lambda_max, plam); 
- 
- }
-
- fclose(fp);
+ int i;
+ double plambda;
+ double pforward;
+ double flux;
 
  fp = fopen("Results.dat","w");
  
- 
  fprintf(fp, "the flux collection run contained %d steps\n", ffs->runsteps);
+ fprintf(fp, "the run time was %lf\n", runtime);
+ fprintf(fp,"the number of crossings was %d\n", ffs->ncross);
 
- fprintf(fp,"the run time was %lf, the number of crossings was %d, so the flux through the first interface was %20.10lf\n", runtime, ffs->ncross, ((double) ffs->ncross)/runtime);
+ flux = (double) ffs->ncross / runtime;
+ fprintf(fp,"so the flux through the first interface was %20.10lf\n", flux);
 
- fprintf(fp,"the firing stage (not wih pruning) contained %d steps\n", ffs->firesteps);
-
+ fprintf(fp,"firing stage (no pruning) contained %d steps\n", ffs->firesteps);
  fprintf(fp,"the pruning contained %d steps\n", ffs->prunesteps);
-
-
  fprintf(fp,"the total number of simulation steps was %d\n",
 	 ffs->runsteps + ffs->firesteps + ffs->prunesteps);
 
- for (i = 0; i < ffs->nsections; i++) {
-   fprintf(fp,"interface %d total weight of successful trials %lf so forward probability  is %6.5lf\n", i, ffs->section[i].forward, ((double) ffs->section[i].forward) / ((double) ffs->section[i].Ntrials)); 
+ fprintf(fp, "\n");
+ fprintf(fp, "Interface    lambda       weight   P(forward)    P(lambda)\n");
+ fprintf(fp, "----------------------------------------------------------\n");
+
+ plambda = 1.0;
+
+ for (i = 1; i <= ffs->nlambda; i++) {
+   plambda *= ffs->interface[i-1].weight / ffs->interface[i-1].ntrials;
+   pforward = ffs->interface[i].weight / ffs->interface[i].ntrials;
+   fprintf(fp,"    %3d  %10.3e %12.5e %12.5e %12.5e\n", i,
+	   ffs->interface[i].lambda, ffs->interface[i].weight,
+	   pforward, plambda);
  }
 
+ fprintf(fp, "\n");
  fprintf (fp, "final results:\n");
 
- fprintf(fp, "flux through first interface %lf probability of reaching B %lf rate constant %lf\n", ((double) ffs->ncross)/runtime, plam, ((double) ffs->ncross)*plam/runtime);
-
+ fprintf(fp, "flux through first interface: %12.5e\n", flux);
+ fprintf(fp, "probability of reaching B:    %12.5e\n", plambda);
+ fprintf(fp, "rate constant:                %12.5e\n",  flux*plambda);
 
  fclose(fp);
-
-
- fp = fopen( "p_lambda.dat", "w" );
- 
- /* print the P(lambda) histograms to a file */
-  k = 0;
-  for (i = 0; i < ffs->nsections; i++) {
-    for (j = 0; j < ffs->section[i].Nbins; j++) {
-      k++;
-    }
-  }
-
-  fprintf(fp,"%d\t%d\t%d\t output.dat\n ",k,20, ffs->nsections);
-
-  for (i = 0; i < ffs->nsections; i++) {
-    printf("outputting pl histo %d\n", i);
-        
-    for (j = 0; j < ffs->section[i].Nbins; j++) {
-      fprintf(fp,"%lf %lf %2.1f %d\n ",
-	      ffs->section[i].lambda_min + (j+0.5)*ffs->section[i].d_lambda,
-	      ((double) ffs->section[i].pl_histo[j])
-	      / ((double) ffs->section[i].Ntrials), 1.0, i+1);
-    }
-  }
-
-  fclose(fp);
-
-  /* KEVIN */
-  printf("Current number of points allocated: %f\n", nalloc_current());
 
   return;
 }

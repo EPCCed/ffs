@@ -2,6 +2,21 @@
 #ifndef FFS_H
 #define FFS_H
 
+#include "ffs_tree.h"
+
+struct ffs_interface_type {
+
+  double lambda;   /* Order parameter value */
+  double pprune;   /* Probability of pruning */
+  int    ntrials;  /* Number of trials from this interface */
+  int    nstates;  /* (Maximum) number of states to keep at this interface */
+
+  double weight;
+
+};
+
+typedef struct ffs_interface_type ffs_interface_t;
+
 struct ffs_section_type {
 
   int Npoints;
@@ -9,11 +24,6 @@ struct ffs_section_type {
   double lambda_max;
   double forward;
   int Ntrials;
-  int acc;
-  int rej;
-  int Nbins;
-  double d_lambda;
-  double *pl_histo;
   double pprune;
   double sumwt;
 
@@ -35,6 +45,7 @@ enum trial_result_enum {FFS_TRIAL_SUCCEEDED,
 struct ffs_parameters_type {
 
   int    algorithm;         /* One of the method enum */
+  int    nlambda;           /* Number of interfaces */
   int    nsections;         /* number of sections */
   double lambda_1;          /* border of A region */
   double lambda_2;          /* border of B region */
@@ -55,7 +66,10 @@ struct ffs_parameters_type {
 
   /* Section data */
 
-  ffs_section_t * section;  /* array of interface details */ 
+  ffs_section_t * section;      /* array of interface details */ 
+  ffs_interface_t * interface;  /* Array of interfaces [1,nlambda] */
+
+  ffs_tree_t * tree;
 };
 
 typedef struct ffs_parameters_type ffs_param_t;

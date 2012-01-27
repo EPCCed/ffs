@@ -1,19 +1,28 @@
 the flux collection run contained 15907979 steps
-the run time was 100000.006901, the number of crossings was 1287, so the flux through the first interface was         0.0128699991
-the firing stage (not wih pruning) contained 15899548 steps
+the run time was 100000.006901
+the number of crossings was 1294
+so the flux through the first interface was         0.0129399991
+firing stage (no pruning) contained 15599212 steps
 the pruning contained 0 steps
-the total number of simulation steps was 31807527
-interface 0 total weight of successful trials 534.000000 so forward probability  is 0.26700
-interface 1 total weight of successful trials 959.000000 so forward probability  is 0.47950
-interface 2 total weight of successful trials 1043.333333 so forward probability  is 0.52167
-interface 3 total weight of successful trials 885.111111 so forward probability  is 0.44256
-interface 4 total weight of successful trials 1133.074074 so forward probability  is 0.56654
-interface 5 total weight of successful trials 1439.790123 so forward probability  is 0.71990
-interface 6 total weight of successful trials 1301.082305 so forward probability  is 0.65054
-interface 7 total weight of successful trials 1128.740741 so forward probability  is 0.56437
-interface 8 total weight of successful trials 1124.555556 so forward probability  is 0.56228
-interface 9 total weight of successful trials 1858.740741 so forward probability  is 0.92937
-interface 10 total weight of successful trials 1999.777778 so forward probability  is 0.99989
-interface 11 total weight of successful trials 2007.000000 so forward probability  is 1.00350
+the total number of simulation steps was 31507191
+
+Interface    lambda       weight   P(forward)    P(lambda)
+----------------------------------------------------------
+      1  -2.400e+01  5.70000e+02  2.85000e-01  1.00000e+00
+      2  -2.200e+01  9.47000e+02  4.73500e-01  2.85000e-01
+      3  -2.000e+01  1.02133e+03  5.10667e-01  1.34947e-01
+      4  -1.800e+01  8.93444e+02  4.46722e-01  6.89132e-02
+      5  -1.500e+01  1.19430e+03  5.97148e-01  3.07851e-02
+      6  -1.200e+01  1.51464e+03  7.57321e-01  1.83832e-02
+      7  -9.000e+00  1.34374e+03  6.71870e-01  1.39220e-02
+      8  -5.000e+00  1.21126e+03  6.05630e-01  9.35379e-03
+      9   0.000e+00  1.13374e+03  5.66870e-01  5.66493e-03
+     10   7.000e+00  1.84067e+03  9.20333e-01  3.21128e-03
+     11   1.500e+01  1.98878e+03  9.94389e-01  2.95545e-03
+     12   2.000e+01  2.00493e+03  1.00246e+00  2.93887e-03
+     13   2.500e+01  0.00000e+00          nan  2.94610e-03
+
 final results:
-flux through first interface 0.012870 probability of reaching B 0.002321 rate constant 0.000030
+flux through first interface:  1.29400e-02
+probability of reaching B:     2.94610e-03
+rate constant:                 3.81226e-05

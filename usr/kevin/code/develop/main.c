@@ -2,12 +2,12 @@
  *
  *  main.c
  *
- *  ISSUE: sort out histograms
  *  ISSUE: what is equivalent of of trun for branched?
  *  ISSUE: nstarts for branched needs to come form input
  *
  *****************************************************************************/
 
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,8 +20,8 @@
 #define EPS 0.00001
 
 void start_general(const char * filename, ffs_param_t * ffs);
-void allocate_memory(ffs_param_t * ffs);
-
+void ffs_interface_init(ffs_param_t * ffs);
+void ffs_interface_info(ffs_param_t * ffs);
 
 int main (int argc, char ** argv) {
 
@@ -31,7 +31,10 @@ int main (int argc, char ** argv) {
   if (argc > 1) sprintf(filename_input, "%s", argv[1]);
 
   start_general(filename_input, &ffs);
-  allocate_memory(&ffs);
+
+  ffs_interface_init(&ffs);
+  ffs_interface_info(&ffs);
+
 
   if (ffs.algorithm == FFS_METHOD_DIRECT) direct_driver(&ffs);
   if (ffs.algorithm == FFS_METHOD_BRANCHED) branched_driver(&ffs, 1000);
@@ -44,7 +47,8 @@ void start_general (const char * filename, ffs_param_t * ffs) {
 
   int  i;
   int nskip;
-  FILE *fp;
+  int nbins; /* Input no longer required */
+  FILE * fp;
 
   int Nsects;
 
@@ -87,7 +91,7 @@ void start_general (const char * filename, ffs_param_t * ffs) {
   ffs->trun = trun;
   ffs->nskip = nskip;
 
-  /* TO DO */
+  /* TO DO get these quantities from input */
 
   ffs->nsteplambda = 1;
   ffs->nstepmax = 100000;
@@ -101,13 +105,10 @@ void start_general (const char * filename, ffs_param_t * ffs) {
     fscanf(fp, "%lf %lf %d %d %d %lf%*s",
 	   &(ffs->section[i].lambda_min),
 	   &(ffs->section[i].lambda_max),
-	   &(ffs->section[i].Nbins),
+	   &nbins,
 	   &(ffs->section[i].Npoints),
 	   &(ffs->section[i].Ntrials),
 	   &(ffs->section[i].pprune));
-    ffs->section[i].d_lambda =
-      (ffs->section[i].lambda_max - ffs->section[i].lambda_min)
-      / ((double) ffs->section[i].Nbins);
   }
 
   if (fabs(ffs->section[0].lambda_min - lambda_1) > EPS) {
@@ -147,24 +148,84 @@ void start_general (const char * filename, ffs_param_t * ffs) {
 
   for (i = 0; i < Nsects; i++) {
     printf(
-    "Section %3d, bndries %4lf  %4lf Npts %d Ntrls %d Nbins %d pprune %lf\n",
+    "Section %3d, bndries %4lf  %4lf Npts %d Ntrls %d pprune %lf\n",
     i, ffs->section[i].lambda_min, ffs->section[i].lambda_max,
-    ffs->section[i].Npoints,  ffs->section[i].Ntrials, ffs->section[i].Nbins,
-    ffs->section[i].pprune);
+    ffs->section[i].Npoints,  ffs->section[i].Ntrials, ffs->section[i].pprune);
   }
 
   return;
 }
 
+/*****************************************************************************
+ *
+ *  ffs_interface_init
+ *
+ *  At the moment from 'sections'
+ *
+ *****************************************************************************/
 
-void allocate_memory(ffs_param_t * ffs) {
+void ffs_interface_init(ffs_param_t * ffs) {
 
-  int i;
+  int n;
+  int ninterface;
 
-  for (i = 0; i < ffs->nsections; i++) {
-    ffs->section[i].pl_histo =
-      (double *) calloc(ffs->section[i].Nbins, sizeof(double));
+  ninterface = ffs->nsections + 1;
+  ffs->nlambda = ninterface;
+
+  n = ninterface + 1; /* Count interfaces from 1 */
+  ffs->interface = (ffs_interface_t *) calloc(n, sizeof(ffs_interface_t));
+  assert(ffs->interface != NULL);
+
+  /* interface[0] is not active; for convenience lambda[0] = lambda[1] */
+
+  ffs->interface[0].lambda = ffs->lambda_1;
+  ffs->interface[0].ntrials = 1;
+  ffs->interface[0].nstates = 1;
+  ffs->interface[0].pprune = 1.0;
+  ffs->interface[0].weight = 1.0;
+
+  /* The first interface is interface[1] */
+
+  for (n = 1; n < ninterface; n++) {
+    ffs->interface[n].lambda  = ffs->section[n-1].lambda_min;
+    ffs->interface[n].pprune  = ffs->section[n-1].pprune;
+    ffs->interface[n].ntrials = ffs->section[n-1].Ntrials;
+    ffs->interface[n].nstates = ffs->section[n-1].Npoints;
   }
+
+  /* Must be true. */
+  ffs->interface[1].pprune = 1.0;
+
+  /* Last interface: interface[ninterface] */
+  ffs->interface[ninterface].lambda = ffs->lambda_2;
+  ffs->interface[ninterface].nstates = ffs->interface[ninterface-1].nstates;
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_interface_info
+ *
+ *****************************************************************************/
+
+void ffs_interface_info(ffs_param_t * ffs) {
+
+  int n;
+
+  printf("\n");
+  printf("Interfaces: %3d\n", ffs->nlambda);
+  printf("\n");
+  printf("index      lambda   ntrial   nstate  pprune\n");
+  printf("-------------------------------------------\n");
+
+  for (n = 1; n <= ffs->nlambda; n++) {
+    printf("  %3d  %10.3e   %6d   %6d   %5.3f\n",
+	   n, ffs->interface[n].lambda, ffs->interface[n].ntrials,
+	   ffs->interface[n].nstates, ffs->interface[n].pprune);
+  }
+
+  printf("\n");
 
   return;
 }

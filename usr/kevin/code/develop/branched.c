@@ -1,3 +1,12 @@
+/*****************************************************************************
+ *
+ *  branched.c
+ *
+ *  Routines for branched FFS algorithm.
+ *
+ *  CHANGE OF RESULTS: replaced recursive pruning by (correct) normal prune
+ *
+ *****************************************************************************/
 
 #include <math.h>
 #include <stdio.h>
@@ -9,12 +18,9 @@
 
 
 void branched_recursive_trial(int i_sect, double wt, sim_state_t * startpoint,
-			      int imax, double * sumw, ffs_param_t * ffs);
-void branched_recursive_prune(int i_sect, double wt, sim_state_t * startpoint,
-			      double lambda, int imax, double * sumw,
 			      ffs_param_t * ffs);
-void output_data(double runtime, double p_b, int n_starts,
-		 const ffs_param_t * ffs);
+int branched_prune(sim_state_t * p, int isect, double *wt, ffs_param_t * ffs);
+void output_data(double runtime, int n_starts, const ffs_param_t * ffs);
 void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_eq,
 			   sim_state_t * s_init);
 
@@ -28,55 +34,51 @@ void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_eq,
 
 void branched_driver(ffs_param_t * ffs, int n_starts) {
 
-  int i_start, i_sect;
-  int imax; 
+  int i_start;
   double runtime;
-  double p_b;
   double wt;
-  double sumw;
 
-  sim_state_t * s_eq;
   sim_state_t * s_init;
-
-  sumw = 0.0;
+  sim_state_t * s_trial;
 
   simulation_set_up(ffs);
+
   s_init = simulation_state_initialise(ffs);
+  /* INSERT s_init AS HEAD OF TREE AND RECORD STATE */
+  /* tree_node = ffs_tree_node_create(id); */
+  /* ffs_tree_node_set_state(tree_node, s_init); */
 
-  /* "s_eq" is retained as the initial conditions */
-  s_eq = simulation_state_allocate();
-  simulation_state_copy(s_init, s_eq);
 
-  /* Generate the "initial" state t = 0. */
-  simulation_run_to_time(s_init, ffs->teq, ffs->nstepmax);
-  simulation_state_time_set(s_init, 0.0);
+  /* CLONE HEAD FOR TRIAL ... */
+  s_trial = simulation_state_allocate();
+  simulation_state_copy(s_init, s_trial);
+  simulation_run_to_time(s_trial, ffs->teq, ffs->nstepmax);
+  simulation_state_time_set(s_trial, 0.0);
 
   ffs->ncross = 0;
 
   for (i_start = 0; i_start < n_starts; i_start++) {
 
-    printf("initial point %d of %d sumw %f\n", i_start, n_starts, sumw);
-    branched_run_and_skip(ffs, s_eq, s_init);
+    printf("initial point %d of %d sumw %f\n", i_start, n_starts,
+	   ffs->interface[ffs->nlambda].weight);
+    branched_run_and_skip(ffs, s_init, s_trial);
 
     /* now we have got an initial point */
+    /* INSERT NODE IN TREE at first interface and record state. */
 
-    wt = 1.0; /* weight */    
-    i_sect = 0;
-    imax = 0;
+    wt = 1.0; /* weight */
 
-    branched_recursive_trial(i_sect, wt, s_init, imax, &sumw, ffs);
+    /* PASS NODE IN TREE RATHER THAN STATE */
+    branched_recursive_trial(1, wt, s_trial, ffs);
   }
 
-  runtime = simulation_state_time(s_init);
+  runtime = simulation_state_time(s_trial);
+  simulation_state_free(s_trial);
 
-  /* this is the average probability of reaching B from lambda_1 */
-  p_b = sumw/((double) n_starts);
-
-  simulation_state_free(s_eq);
   simulation_state_finalise(s_init);
   simulation_tear_down();
  
-  output_data(runtime, p_b, n_starts, ffs);
+  output_data(runtime, n_starts, ffs);
 
   return;
 }
@@ -93,32 +95,32 @@ void branched_driver(ffs_param_t * ffs, int n_starts) {
  *
  *****************************************************************************/
 
-void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_eq,
-			   sim_state_t * sp) {
+void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_init,
+			   sim_state_t * s_trial) {
   int    stop;
   double lambda, old_lambda;
   double tmp;
 
   stop = 0;
-  lambda = simulation_lambda(sp);
+  lambda = simulation_lambda(s_trial);
 
   while (stop == 0) {
 
     old_lambda = lambda;
-    simulation_run_to_time(sp, DBL_MAX, 0); /* One step */
-    lambda = simulation_lambda(sp);
+    simulation_run_to_time(s_trial, DBL_MAX, 0); /* One step */
+    lambda = simulation_lambda(s_trial);
 
     if (lambda >= ffs->lambda_2) {
 
       /* we are in B state - reset to s_eq and re-equilibrate */
       /* Need to remember current cummulative time before re-equilibration */
 
-      tmp = simulation_state_time(sp);
-      simulation_state_copy(s_eq, sp);
-      simulation_run_to_time(sp, ffs->teq, ffs->nstepmax);
+      tmp = simulation_state_time(s_trial);
+      simulation_state_copy(s_init, s_trial);
+      simulation_run_to_time(s_trial, ffs->teq, ffs->nstepmax);
 
-      simulation_state_time_set(sp, tmp);
-      lambda = simulation_lambda(sp);
+      simulation_state_time_set(s_trial, tmp);
+      lambda = simulation_lambda(s_trial);
       old_lambda = lambda;
     }
 
@@ -141,11 +143,10 @@ void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_eq,
  *
  *****************************************************************************/
 
-void output_data(double runtime, double p_b, int n_starts,
-		 const ffs_param_t * ffs) {
+void output_data(double runtime, int n_starts, const ffs_param_t * ffs) {
 
  FILE *fp;
- int i, j;
+ int i;
 
  fp = fopen("Results.dat","w");
  
@@ -159,44 +160,16 @@ void output_data(double runtime, double p_b, int n_starts,
  fprintf(fp,"the total number of steps was %d\n",
 	 ffs->runsteps + ffs->firesteps);
 
+ fprintf(fp,"The probability of reaching B from lambda_1 is %lf\n",
+	 ffs->interface[ffs->nlambda].weight/n_starts);
 
- fprintf(fp,"The probability of reaching B from lambda_1 is %lf\n", p_b);
- fclose(fp);
-
- fp = fopen( "p_lambda_TEST.dat", "w" );
-
- for (i = 1; i < ffs->nsections; i++){
-   fprintf(fp," %lf  %lf\n", ffs->section[i].lambda_min,
-	   ffs->section[i].sumwt/((double) n_starts));
- }
-
- fprintf(fp,"\n\n\n");
-
- for (j = 0; j < ffs->nsections; j++) {
-   for (i = 0; i < ffs->section[j].Nbins; i++) {
-     fprintf(fp, "%lf %lf\n ",
-	     ffs->lambda_1 + (i+0.5)*ffs->section[j].d_lambda,
-	     ffs->section[j].pl_histo[i]/((double) n_starts));
-   }
- } 
-
- fclose(fp);
-
- /* print the P(lambda) histograms to a file */
-
- fp = fopen( "p_lambda.dat", "w" );
-
- /* fprintf(fp,"%d\t%d\t%d\t output.dat\n ", ffs->nbins, 20, 1);*/
-
- for (j = 0; j < ffs->nsections; j++) {
-   for (i = 0; i < ffs->section[j].Nbins; i++) {
-     fprintf(fp, "%lf %lf %2.1f %d\n ",
-	     ffs->lambda_1 + (i+0.5)*ffs->section[j].d_lambda,
-	     ffs->section[j].pl_histo[i]/((double) n_starts), 1.0, 1);
-   }
+ for (i = 1; i <= ffs->nlambda; i++) {
+   fprintf(fp," %lf %lf\n", ffs->interface[i].lambda,
+	   ffs->interface[i].weight/n_starts);
  }
 
  fclose(fp);
+
 
  /* KEVIN */
  printf("Current number of points allocated: %f\n", nalloc_current());
@@ -212,129 +185,84 @@ void output_data(double runtime, double p_b, int n_starts,
  *
  *****************************************************************************/
 
-void branched_recursive_trial(int i_sect, double wt, sim_state_t * startpoint,
-			      int imax, double * sumw, ffs_param_t * ffs) {
-  int kk,ikk;
+void branched_recursive_trial(int interface, double wt, sim_state_t * s_exist,
+			      ffs_param_t * ffs) {
+  int ikk;
+  int ntrial;
+  int res;
   double lambda_min;
   double lambda_max;
   double wtnow;
-  int res;
-  int imaxxx;
 
-  sim_state_t * sp;
+  sim_state_t * s_trial;
 
-  if (i_sect > imax) {
-    /* this is to ensure that the path is reaching this interface
-     * for the first time */
-    ffs->section[i_sect].sumwt += wt;
-    imaxxx = i_sect;
-  }
-  else {
-    imaxxx = imax;
-  }
+  ffs->interface[interface].weight += wt;
 
-  /* here we grow a branching path according to the PERM rules */
+  /* If we have reached the final state the end the recursion */
+  if (interface == ffs->nlambda) return;
 
-  if (i_sect == ffs->nsections) {
-    *sumw += wt;
-    /*  printf("success, a path has reached B!! weight %lf\n", wt);*/
-    return;
-  }
+  lambda_min = ffs->interface[interface - 1].lambda;
+  lambda_max = ffs->interface[interface + 1].lambda;
+  ntrial = ffs->interface[interface].ntrials;
 
-  if (i_sect > 0) {
-    lambda_min = ffs->section[i_sect-1].lambda_min;
-  }
-  else {
-    lambda_min = ffs->lambda_1;
-  }
-  lambda_max = ffs->section[i_sect].lambda_max;
+  for (ikk = 0; ikk < ntrial; ikk++) {
   
-  kk = ffs->section[i_sect].Ntrials;
+    /* fire off the kk branches with total weight 1.0*incoming weight */
+    wtnow = wt/((double) ntrial);
 
-  /* this is the weight of each branch fired from this interface */
-  wtnow = wt/((double) kk);
-
-  for (ikk = 0; ikk < kk; ikk++) {
-  
-    /* if(i_sect==0) printf("sect %d trial %d\n", i_sect, ikk);*/
-    /* fire off the kk branches */
-  
-    sp = simulation_state_allocate();
-    simulation_state_copy(startpoint, sp);
-    res = simulation_run_to_lambda(sp, lambda_min, lambda_max, ffs);
+    /* CLONE EXISTING TREE NODE STATE FOR TRIAL */
+    s_trial = simulation_state_allocate();
+    simulation_state_copy(s_exist, s_trial);
+    res = simulation_run_to_lambda(s_trial, lambda_min, lambda_max, ffs);
   
     if (res == FFS_TRIAL_WENT_BACKWARDS || res == FFS_TRIAL_TIMED_OUT) {
-      branched_recursive_prune(i_sect-1, wtnow, sp, lambda_min, imaxxx, sumw,
-			       ffs);
-      simulation_state_free(sp);
+      res = branched_prune(s_trial, interface, &wtnow, ffs);
     }
-    else if (res == FFS_TRIAL_SUCCEEDED) {
-      /* ADD NEW NODE IN TREE; GENERATE NEW STATE, RECURSE WITH NEW STATE */
-      branched_recursive_trial(i_sect+1, wtnow, sp, imaxxx, sumw, ffs);
-      simulation_state_free(sp);
+    if (res == FFS_TRIAL_SUCCEEDED) {
+      /* ADD NEW NODE IN TREE; RECORD STATE;
+	 FINISH THIS TRIAL; RECURSE WITH NEW NODE */
+      branched_recursive_trial(interface + 1, wtnow, s_trial, ffs);
     }
-    else {
-      printf("wrong value for prune dude\n");
-      abort();
-    }
+
+    simulation_state_free(s_trial);
   }
+
+  /* If all trials are complete, remove state for this node? */
 
   return;
 }
 
 /*****************************************************************************
  *
- *  branched_recursive_prune
+ *  branched_prune
  *
  *****************************************************************************/
 
-void branched_recursive_prune(int i_sect, double wt, sim_state_t * startpoint,
-			      double lambda, int imax, double * sumw,
-			      ffs_param_t * ffs) {
-  int res;
-  double wtnow;
-  double lambda_min;
-  double lambda_max;
+int branched_prune(sim_state_t * p, int interface, double *wt,
+		   ffs_param_t * ffs) {
+  int n;
+  int istatus;
+  double lambda_min, lambda_max;
+ 
+  lambda_max = ffs->interface[interface + 1].lambda;
+  istatus = FFS_TRIAL_WAS_PRUNED;
 
-  sim_state_t * sp;
+  for (n = interface; n > 2; n--) {
 
-  /* Finish if lambda has gone all the way back to state A, or
-   * otherwise with given probability. */
+    if (ran3() < ffs->interface[n - 1].pprune) {
+      istatus = FFS_TRIAL_WAS_PRUNED;
+      break;
+    }
 
-  if (lambda == ffs->lambda_1) return;
-  if (ran3() <= ffs->section[i_sect+1].pprune) return;
+    /* Trial survives, update weight and continue... */
 
-  /* if it survives then multiply weight by Ntrials */
-  /* and just propagate again until it hits another interface */
+    *wt *= 1.0/(1.0 - ffs->interface[n - 1].pprune);
 
-  wtnow = wt*ffs->section[i_sect+1].Ntrials;
+    lambda_min = ffs->interface[n - 2].lambda;
+    istatus = simulation_run_to_lambda(p, lambda_min, lambda_max, ffs);
 
-  if (i_sect > 0) {
-    lambda_min = ffs->section[i_sect-1].lambda_min;
-  }
-  else {
-    lambda_min = ffs->lambda_1;
-  }
-  lambda_max = ffs->section[i_sect].lambda_max;
-
-  sp = simulation_state_allocate();
-  simulation_state_copy(startpoint, sp);
-
-  res = simulation_run_to_lambda(sp, lambda_min, lambda_max, ffs);
-
-  if (res == FFS_TRIAL_WENT_BACKWARDS || res == FFS_TRIAL_TIMED_OUT) {
-    branched_recursive_prune(i_sect-1, wtnow, sp, lambda_min, imax, sumw, ffs);
-  }
-  else if (res == FFS_TRIAL_SUCCEEDED) {
-    branched_recursive_trial(i_sect+1, wtnow, sp, imax, sumw, ffs);
-    /*simulation_state_free(sp);*/
-  }
-  else {
-    printf("wrong value for prune dude\n");
-    abort();
+    if (istatus == FFS_TRIAL_SUCCEEDED) break;
   }
 
-  simulation_state_free(sp);
-
-  return;
+  return istatus;
 }
