@@ -3,7 +3,6 @@
  *  main.c
  *
  *  ISSUE: what is equivalent of of trun for branched?
- *  ISSUE: nstarts for branched needs to come form input
  *
  *****************************************************************************/
 
@@ -17,190 +16,153 @@
 #include "direct.h"
 #include "ffs.h"
 
-#define EPS 0.00001
-
-void start_general(const char * filename, ffs_param_t * ffs);
-void ffs_interface_init(ffs_param_t * ffs);
 void ffs_interface_info(ffs_param_t * ffs);
+int  ffs_interface_read(ffs_param_t * ffs, const char * filename);
+int  ffs_interface_check(ffs_param_t * ffs);
+void ffs_random_init(ffs_param_t * ffs, int seed);
 
 int main (int argc, char ** argv) {
 
+  int masterseed = 1;
   char filename_input[FILENAME_MAX] = "ffs.inp";
   ffs_param_t ffs;
 
   if (argc > 1) sprintf(filename_input, "%s", argv[1]);
 
-  start_general(filename_input, &ffs);
-
-  ffs_interface_init(&ffs);
+  ffs_random_init(&ffs, masterseed);
+  ffs_interface_read(&ffs, filename_input);
+  ffs_interface_check(&ffs);
   ffs_interface_info(&ffs);
 
-
   if (ffs.algorithm == FFS_METHOD_DIRECT) direct_driver(&ffs);
-  if (ffs.algorithm == FFS_METHOD_BRANCHED) branched_driver(&ffs, 1000);
+  if (ffs.algorithm == FFS_METHOD_BRANCHED) branched_driver(&ffs);
 
   return 0;
 }
 
+/*****************************************************************************
+ *
+ *  ffs_interface_read
+ *
+ *****************************************************************************/
 
-void start_general (const char * filename, ffs_param_t * ffs) {
+int ffs_interface_read(ffs_param_t * ffs, const char * filename) {
 
-  int  i;
-  int nskip;
-  int nbins; /* Input no longer required */
-  FILE * fp;
-
-  int Nsects;
-
+  int ifail = FFS_SUCCESS;
+  int n, ndummy;
   char method[FILENAME_MAX];
 
-  double teq, trun;
-  double lambda_1, lambda_2;
+  FILE * fp;
 
-  if ((fp = fopen(filename, "r")) == NULL) {
+  fp = fopen(filename, "r");
+
+  if (fp == NULL) {
     printf("Cannot open input file %s.\n", filename);
-    abort();
+    ifail = FFS_FAILURE;
   }
+  else {
 
-  ffs->algorithm = -1;
-  fscanf(fp, "%s", method);
+    ffs->algorithm = FFS_METHOD_NULL;
+    fscanf(fp, "%s", method);
 
-  if (strcmp(method, "direct") == 0) ffs->algorithm = FFS_METHOD_DIRECT;
-  if (strcmp(method, "branched") == 0) ffs->algorithm = FFS_METHOD_BRANCHED;
+    if (strcmp(method, "direct") == 0) ffs->algorithm = FFS_METHOD_DIRECT;
+    if (strcmp(method, "branched") == 0) ffs->algorithm = FFS_METHOD_BRANCHED;
 
-  if (ffs->algorithm == FFS_METHOD_DIRECT) printf("DIRECT FFS\n");
-  if (ffs->algorithm == FFS_METHOD_BRANCHED) printf("BRANCHED FFS\n");
+    if (ffs->algorithm == FFS_METHOD_DIRECT) printf("DIRECT FFS\n");
+    if (ffs->algorithm == FFS_METHOD_BRANCHED) printf("BRANCHED FFS\n");
 
-  if (ffs->algorithm == -1) {
-    printf("Method not found - check input file\n");
-    exit(0);
-  }
-
-  fscanf(fp, "%lf%*s", &teq);
-  fscanf(fp, "%lf%*s", &trun);
-  fscanf(fp,"%d%*s", &nskip);
-  fscanf(fp,"%lf%*s", &lambda_1);
-  fscanf(fp,"%lf%*s", &lambda_2);
-  fscanf(fp,"%d%*s", &Nsects);
-
-  ffs->nsections = Nsects;
-  ffs->lambda_1 = lambda_1;
-  ffs->lambda_2 = lambda_2;
-
-  ffs->teq = teq;
-  ffs->trun = trun;
-  ffs->nskip = nskip;
-
-  /* TO DO get these quantities from input */
-
-  ffs->nsteplambda = 1;
-  ffs->nstepmax = 100000;
-
-  ffs->section = (ffs_section_t *) calloc(Nsects, sizeof(ffs_section_t));
-
-  ffs->section[0].lambda_min=lambda_1;
-  ffs->section[Nsects-1].lambda_max = lambda_2;
- 
-  for (i = 0; i < Nsects; i++) {
-    fscanf(fp, "%lf %lf %d %d %d %lf%*s",
-	   &(ffs->section[i].lambda_min),
-	   &(ffs->section[i].lambda_max),
-	   &nbins,
-	   &(ffs->section[i].Npoints),
-	   &(ffs->section[i].Ntrials),
-	   &(ffs->section[i].pprune));
-  }
-
-  if (fabs(ffs->section[0].lambda_min - lambda_1) > EPS) {
-    printf("error in interface 0\n");
-    abort();
-  }
-
-  if (fabs(ffs->section[Nsects-1].lambda_max - lambda_2) > EPS) {
-    printf("error in interface %d, !! %lf %lf\n", Nsects-1,
-	   ffs->section[Nsects-1].lambda_max, lambda_2);
-    abort();
-  }
-
-  for (i = 1; i < Nsects; i++) {
-    if (fabs(ffs->section[i].lambda_min-ffs->section[i-1].lambda_max) > EPS) {
-      printf("error in interface %d, %lf %lf\n", i, ffs->section[i].lambda_min,
-	     ffs->section[i-1].lambda_max);
-      abort();
+    if (ffs->algorithm == -1) {
+      printf("Method not found - check input file\n");
+      exit(0);
     }
-  }
 
-  fclose(fp);
+    fscanf(fp, "%lf%*s", &(ffs->teq));
+    fscanf(fp, "%lf%*s", &(ffs->trun));
+    fscanf(fp, "%d%*s",  &(ffs->nskip));
+    fscanf(fp, "%d%*s",  &(ffs->nstepmax));
+    fscanf(fp, "%d%*s",  &(ffs->nsteplambda));
+    fscanf(fp, "%d%*s",  &(ffs->nlambda));
 
-  /* BRANCHED: correct the pruning probability */
+    n = ffs->nlambda + 1; /* Count interfaces from 1 */
+    ffs->interface = (ffs_interface_t *) calloc(n, sizeof(ffs_interface_t));
+    assert(ffs->interface != NULL);
 
-  if (ffs->algorithm == FFS_METHOD_BRANCHED) {
-    for (i = 0; i < ffs->nsections; i++) {
-      ffs->section[i].pprune = 1.0 - 1.0 / (1.0*ffs->section[i].Ntrials);
+    for (n = 1; n <= ffs->nlambda; n++) {
+      fscanf(fp, "%d %lf %d %d %lf %d", &ndummy,
+	     &(ffs->interface[n].lambda),
+	     &(ffs->interface[n].nstates),
+	     &(ffs->interface[n].ntrials),
+	     &(ffs->interface[n].pprune),
+	     &(ffs->interface[n].nskeep));
+      assert(ndummy == n);
     }
+
+    /* interface[0] is not active; for convenience lambda[0] = lambda[1] */
+
+    ffs->interface[0].lambda = ffs->interface[1].lambda;
+    ffs->interface[0].ntrials = 1;
+    ffs->interface[0].nstates = 1;
+    ffs->interface[0].pprune = 1.0;
+    ffs->interface[0].weight = 1.0;
+
+    fclose(fp);
   }
 
-  printf("FFS scheme: general parameters\n");
-  printf("Time of equilibration  %8lf, run time %8lf \n", teq, trun);
-  printf("Use every %d th crossing as a starting point\n", nskip);
-  
-  printf("Number of sections               %8d\n",Nsects);
-
-  for (i = 0; i < Nsects; i++) {
-    printf(
-    "Section %3d, bndries %4lf  %4lf Npts %d Ntrls %d pprune %lf\n",
-    i, ffs->section[i].lambda_min, ffs->section[i].lambda_max,
-    ffs->section[i].Npoints,  ffs->section[i].Ntrials, ffs->section[i].pprune);
-  }
-
-  return;
+  return ifail;
 }
 
 /*****************************************************************************
  *
- *  ffs_interface_init
- *
- *  At the moment from 'sections'
+ *  ffs_interface_check
  *
  *****************************************************************************/
 
-void ffs_interface_init(ffs_param_t * ffs) {
+int ffs_interface_check(ffs_param_t * ffs) {
 
   int n;
-  int ninterface;
+  int ifail = FFS_SUCCESS;
 
-  ninterface = ffs->nsections + 1;
-  ffs->nlambda = ninterface;
+  printf("\n");
+  printf("Checking supplied interface set...\n");
 
-  n = ninterface + 1; /* Count interfaces from 1 */
-  ffs->interface = (ffs_interface_t *) calloc(n, sizeof(ffs_interface_t));
-  assert(ffs->interface != NULL);
-
-  /* interface[0] is not active; for convenience lambda[0] = lambda[1] */
-
-  ffs->interface[0].lambda = ffs->lambda_1;
-  ffs->interface[0].ntrials = 1;
-  ffs->interface[0].nstates = 1;
-  ffs->interface[0].pprune = 1.0;
-  ffs->interface[0].weight = 1.0;
-
-  /* The first interface is interface[1] */
-
-  for (n = 1; n < ninterface; n++) {
-    ffs->interface[n].lambda  = ffs->section[n-1].lambda_min;
-    ffs->interface[n].pprune  = ffs->section[n-1].pprune;
-    ffs->interface[n].ntrials = ffs->section[n-1].Ntrials;
-    ffs->interface[n].nstates = ffs->section[n-1].Npoints;
+  if (ffs->nlambda < 2) {
+    printf("There must be at least two interfaces!\n");
+    ifail = FFS_FAILURE;
   }
 
-  /* Must be true. */
-  ffs->interface[1].pprune = 1.0;
+  /* Check lambda monotonically increasing. */
 
-  /* Last interface: interface[ninterface] */
-  ffs->interface[ninterface].lambda = ffs->lambda_2;
-  ffs->interface[ninterface].nstates = ffs->interface[ninterface-1].nstates;
+  for (n = 1; n < ffs->nlambda; n++) {
+    if (ffs->interface[n+1].lambda <= ffs->interface[n].lambda) {
+      printf("Interface %d lambda %f <= interface %d lambda %f\n",
+	     n+1, ffs->interface[n+1].lambda,
+	     n, ffs->interface[n].lambda);
+      ifail = FFS_FAILURE;
+    }
+  }
 
-  return;
+  if (ffs->algorithm == FFS_METHOD_BRANCHED) {
+    printf(" - Branched method:\n");
+    printf(" - the pruning probabilities will be set from ntrials\n");
+    for (n = 1; n < ffs->nlambda; n++) {
+      ffs->interface[n].pprune = 1.0 - 1.0 / (1.0*ffs->interface[n].ntrials);
+    }
+    ffs->interface[ffs->nlambda].pprune = 0.0;
+  }
+
+  if (ffs->interface[0].pprune != 1.0) {
+    ffs->interface[0].pprune = 1.0;
+  }
+
+  if (ffs->interface[1].pprune != 1.0) {
+    printf(" - setting probability of pruning at interface 1 to unity.\n");
+    ffs->interface[1].pprune = 1.0;
+  }
+
+  assert(ifail == FFS_SUCCESS);
+  printf("Interface definition looks ok.\n");
+
+  return ifail;
 }
 
 /*****************************************************************************
@@ -226,6 +188,27 @@ void ffs_interface_info(ffs_param_t * ffs) {
   }
 
   printf("\n");
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_random_init
+ *
+ *****************************************************************************/
+
+void ffs_random_init(ffs_param_t * ffs, int seed) {
+
+  long longseed;
+
+  assert(seed > 0);
+  assert(ffs);
+
+  longseed = seed;
+
+  ffs->random = ranlcg_create(longseed);
+  assert(ffs->random);
 
   return;
 }

@@ -5,11 +5,11 @@
  *  Routines for Direct FFS algorithm.
  *
  *  CHANGE OF RESULTS: 'laststate' issue in initialise
+ *  CHANGE OR RESULTS: replaced ran3()
  *
  *  ISSUE: Reconfigure to allow transparent file 'cache' and 'uncache'
  *  ISSUE: Replace Ensemble by tree
  *  ISSUE: Combine initialise with 'run and skip'
- *  ISSUE: Replace ran3()
  *
  ****************************************************************************/
  
@@ -21,6 +21,7 @@
 
 #include "ffs.h"
 #include "propagate.h"
+#include "ffs_general.h"
 #include "direct.h"
 
 /* REMOVE in favour of dynamic structure. */
@@ -42,10 +43,9 @@ static void output_data(double, const ffs_param_t * ffs);
 double get_sumwt(Ensemble);
 Ensemble convert_ensemble(Ensemble);
 void free_ensemble(Ensemble);
-int get_point(Ensemble, double);
+int get_point(ffs_param_t * ffs, Ensemble, double);
 Ensemble direct_advance_ensemble(int i_sect, Ensemble current,
 				 ffs_param_t * ffs);
-int direct_prune(sim_state_t * p, int isect, double *wt,  ffs_param_t * ffs);
 
 
 /*****************************************************************************
@@ -88,7 +88,6 @@ void direct_driver(ffs_param_t * ffs) {
   simulation_tear_down();
 
   output_data(runtime, ffs);
-  nalloc_current();
 
   return;
 }
@@ -107,11 +106,13 @@ int direct_initial_ensemble(Ensemble * current, double *runtime,
   int bb;
   int nstates;
   double lambda, old_lambda;
+  double lambda_a;
 
   sim_state_t * snew;
 
   nstates = ffs->interface[1].nstates;
   current->N = 0;
+  lambda_a = ffs_param_lambda_a(ffs);
 
   /* MAKE TRIAL BASED ON HEAD OF TREE s_init assign rnd seed */
   snew = simulation_state_allocate();
@@ -120,6 +121,7 @@ int direct_initial_ensemble(Ensemble * current, double *runtime,
   simulation_run_to_time(snew, ffs->teq, ffs->nstepmax);
   simulation_state_time_set(snew, 0.0);
   lambda = simulation_lambda(snew);
+
   /* THE RESULTS OF THE TRIAL ARE NOT INSERTED IN TREE HERE. */
 
   *runtime = 0.0;
@@ -136,7 +138,7 @@ int direct_initial_ensemble(Ensemble * current, double *runtime,
     lambda = simulation_lambda(snew);
     (*runtime) = simulation_state_time(snew);
 
-    if (lambda >= ffs->lambda_2) {
+    if (lambda >= ffs_param_lambda_b(ffs)) {
       /* TRIAL HAS 'failed' */
       /* MAKE NEW TRIAL BASED ON HEAD OF TREE */
       simulation_state_copy(s_init, snew);
@@ -148,7 +150,7 @@ int direct_initial_ensemble(Ensemble * current, double *runtime,
 
     /* CHECKING FOR CROSSINGS of A state boundary */
     
-    if ((old_lambda < ffs->lambda_1) && (lambda >= ffs->lambda_1)) {
+    if ((old_lambda < lambda_a) && (lambda >= lambda_a)) {
 
       ++ffs->ncross;
 
@@ -239,7 +241,7 @@ Ensemble direct_advance_ensemble(int interface, Ensemble current,
 
     /* choose a starting point according to weights and make a trial */
     sumwt = get_sumwt(current);
-    pt = get_point(current, sumwt);
+    pt = get_point(ffs, current, sumwt);
 
     wt = 1.0;
 
@@ -250,7 +252,7 @@ Ensemble direct_advance_ensemble(int interface, Ensemble current,
     res1 = simulation_run_to_lambda(snew, lambda_min, lambda_max, ffs);
  
     if (res1 == FFS_TRIAL_WENT_BACKWARDS || res1 == FFS_TRIAL_TIMED_OUT) {
-      res1 = direct_prune(snew, interface, &wt, ffs);
+      res1 = ffs_general_prune(snew, interface, &wt, ffs);
     }
 
     keep_state = 0;
@@ -298,7 +300,7 @@ double get_sumwt(Ensemble ee) {
 }
 
 
-int get_point(Ensemble ee, double sumwt) {
+int get_point(ffs_param_t * ffs, Ensemble ee, double sumwt) {
 
   double rs;
   double cum;
@@ -306,7 +308,7 @@ int get_point(Ensemble ee, double sumwt) {
 
   /* choose a point from the ensemble according to their weights */
 
-  rs = ran3();
+  rs = ranlcg_reep(ffs->random);
   rs *= sumwt;
   
   i = 0;
@@ -319,45 +321,6 @@ int get_point(Ensemble ee, double sumwt) {
 
   return i;
 }
-
-/*****************************************************************************
- *
- *  direct_prune
- *
- *  Note that pruning for trials originating at interfaces 1 and 2
- *  is 'automatic'.
- *
- *****************************************************************************/
-
-int direct_prune(sim_state_t * p, int interface, double * wt,
-		 ffs_param_t * ffs) {
-  int n;
-  int istatus;
-  double lambda_min, lambda_max;
-
-  lambda_max = ffs->interface[interface + 1].lambda;
-  istatus = FFS_TRIAL_WAS_PRUNED;
-
-  for (n = interface; n > 2; n--) {
-
-    if (ran3() < ffs->interface[n - 1].pprune) {
-      istatus = FFS_TRIAL_WAS_PRUNED;
-      break;
-    }
-
-    /* Trial survives, update weight and continue... */
-
-    *wt *= 1.0/(1.0 - ffs->interface[n - 1].pprune);
-
-    lambda_min = ffs->interface[n - 2].lambda;
-    istatus = simulation_run_to_lambda(p, lambda_min, lambda_max, ffs);
-
-    if (istatus == FFS_TRIAL_SUCCEEDED) break;
-  }
-
-  return istatus;
-}
-
 
 static void output_data(double runtime, const ffs_param_t * ffs) {
 

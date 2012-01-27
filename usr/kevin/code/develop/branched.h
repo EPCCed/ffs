@@ -12,6 +12,6 @@
 
 #include "ffs.h"
 
-void branched_driver(ffs_param_t * ffs, int nstarts);
+void branched_driver(ffs_param_t * ffs);
 
 #endif

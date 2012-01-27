@@ -58,6 +58,8 @@ static void free_point(Point);
 static Dyn dyn;
 static double nalloc_ = 0.0;
 static double nalloc_state_ = 0.0;
+static double ran3(void);
+static double nalloc_current(void);
 
 
 
@@ -339,7 +341,7 @@ int gillespie_read_state(const char * filename, state_t * p) {
 
 int gillespie_write_state(const char * filename, state_t * p) {
 
-  int  i, ncomp;
+  int  i;
   int ifail = 0;
 
   FILE * fp;
@@ -423,6 +425,8 @@ int gillespie_tear_down(void) {
   free(dyn.a);
   free(dyn.Xname);
   free(dyn.R);
+
+  nalloc_current();
 
   return ifail;
 }
@@ -565,7 +569,7 @@ static void free_point(Point p) {
 
 int  iff, ma[56], inext, inextp, mj, mz, mbig;
 
-double ran3(void) {
+static double ran3(void) {
   static int mk,i,ii,k,mseed,m;
   
   if (iff ==0) {
@@ -608,7 +612,7 @@ double ran3(void) {
   return  (double)mj / mbig;
 }
     
-double nalloc_current(void) {
+static double nalloc_current(void) {
 
   printf("Gillespie memory allocated old: %f new %f\n",nalloc_,nalloc_state_);
 

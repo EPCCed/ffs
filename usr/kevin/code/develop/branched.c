@@ -4,7 +4,11 @@
  *
  *  Routines for branched FFS algorithm.
  *
+ *  Parallel Forward Flux Sampling
+ *  (c) 2012 The University of Edinburgh
+ *
  *  CHANGE OF RESULTS: replaced recursive pruning by (correct) normal prune
+ *  CHANGE OF RESULTS: replaced ran3 in pruning
  *
  *****************************************************************************/
 
@@ -15,11 +19,12 @@
 
 #include "ffs.h" 
 #include "propagate.h"
+#include "ffs_general.h"
+#include "branched.h"
 
 
 void branched_recursive_trial(int i_sect, double wt, sim_state_t * startpoint,
 			      ffs_param_t * ffs);
-int branched_prune(sim_state_t * p, int isect, double *wt, ffs_param_t * ffs);
 void output_data(double runtime, int n_starts, const ffs_param_t * ffs);
 void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_eq,
 			   sim_state_t * s_init);
@@ -32,9 +37,10 @@ void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_eq,
  *
  *****************************************************************************/
 
-void branched_driver(ffs_param_t * ffs, int n_starts) {
+void branched_driver(ffs_param_t * ffs) {
 
   int i_start;
+  int nstart;
   double runtime;
   double wt;
 
@@ -42,11 +48,14 @@ void branched_driver(ffs_param_t * ffs, int n_starts) {
   sim_state_t * s_trial;
 
   simulation_set_up(ffs);
+  nstart = ffs->interface[1].nstates;
 
   s_init = simulation_state_initialise(ffs);
   /* INSERT s_init AS HEAD OF TREE AND RECORD STATE */
   /* tree_node = ffs_tree_node_create(id); */
   /* ffs_tree_node_set_state(tree_node, s_init); */
+  wt = simulation_lambda(s_init);
+  printf("Initial state has lambda %f\n", wt);
 
 
   /* CLONE HEAD FOR TRIAL ... */
@@ -54,12 +63,14 @@ void branched_driver(ffs_param_t * ffs, int n_starts) {
   simulation_state_copy(s_init, s_trial);
   simulation_run_to_time(s_trial, ffs->teq, ffs->nstepmax);
   simulation_state_time_set(s_trial, 0.0);
+  wt = simulation_lambda(s_trial);
+  printf("'Equilibrium' state has lambda %f\n", wt);
 
   ffs->ncross = 0;
 
-  for (i_start = 0; i_start < n_starts; i_start++) {
+  for (i_start = 0; i_start < nstart; i_start++) {
 
-    printf("initial point %d of %d sumw %f\n", i_start, n_starts,
+    printf("initial point %d sumw %f\n", i_start,
 	   ffs->interface[ffs->nlambda].weight);
     branched_run_and_skip(ffs, s_init, s_trial);
 
@@ -78,7 +89,7 @@ void branched_driver(ffs_param_t * ffs, int n_starts) {
   simulation_state_finalise(s_init);
   simulation_tear_down();
  
-  output_data(runtime, n_starts, ffs);
+  output_data(runtime, nstart, ffs);
 
   return;
 }
@@ -99,10 +110,12 @@ void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_init,
 			   sim_state_t * s_trial) {
   int    stop;
   double lambda, old_lambda;
+  double lambda_a;
   double tmp;
 
   stop = 0;
   lambda = simulation_lambda(s_trial);
+  lambda_a = ffs_param_lambda_a(ffs);
 
   while (stop == 0) {
 
@@ -110,7 +123,7 @@ void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_init,
     simulation_run_to_time(s_trial, DBL_MAX, 0); /* One step */
     lambda = simulation_lambda(s_trial);
 
-    if (lambda >= ffs->lambda_2) {
+    if (lambda >= ffs_param_lambda_b(ffs)) {
 
       /* we are in B state - reset to s_eq and re-equilibrate */
       /* Need to remember current cummulative time before re-equilibration */
@@ -128,7 +141,7 @@ void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_init,
 
     /* check if we cross the first interface which is the border of A */
 
-    if ((lambda >= ffs->lambda_1) && (old_lambda < ffs->lambda_1)) {
+    if ((lambda >= lambda_a) && (old_lambda < lambda_a)) {
       ++ffs->ncross;
       if ((ffs->ncross % ffs->nskip) == 0) stop = 1;
     }
@@ -169,11 +182,6 @@ void output_data(double runtime, int n_starts, const ffs_param_t * ffs) {
  }
 
  fclose(fp);
-
-
- /* KEVIN */
- printf("Current number of points allocated: %f\n", nalloc_current());
-
 
   return;
 }
@@ -216,7 +224,7 @@ void branched_recursive_trial(int interface, double wt, sim_state_t * s_exist,
     res = simulation_run_to_lambda(s_trial, lambda_min, lambda_max, ffs);
   
     if (res == FFS_TRIAL_WENT_BACKWARDS || res == FFS_TRIAL_TIMED_OUT) {
-      res = branched_prune(s_trial, interface, &wtnow, ffs);
+      res = ffs_general_prune(s_trial, interface, &wtnow, ffs);
     }
     if (res == FFS_TRIAL_SUCCEEDED) {
       /* ADD NEW NODE IN TREE; RECORD STATE;
@@ -230,39 +238,4 @@ void branched_recursive_trial(int interface, double wt, sim_state_t * s_exist,
   /* If all trials are complete, remove state for this node? */
 
   return;
-}
-
-/*****************************************************************************
- *
- *  branched_prune
- *
- *****************************************************************************/
-
-int branched_prune(sim_state_t * p, int interface, double *wt,
-		   ffs_param_t * ffs) {
-  int n;
-  int istatus;
-  double lambda_min, lambda_max;
- 
-  lambda_max = ffs->interface[interface + 1].lambda;
-  istatus = FFS_TRIAL_WAS_PRUNED;
-
-  for (n = interface; n > 2; n--) {
-
-    if (ran3() < ffs->interface[n - 1].pprune) {
-      istatus = FFS_TRIAL_WAS_PRUNED;
-      break;
-    }
-
-    /* Trial survives, update weight and continue... */
-
-    *wt *= 1.0/(1.0 - ffs->interface[n - 1].pprune);
-
-    lambda_min = ffs->interface[n - 2].lambda;
-    istatus = simulation_run_to_lambda(p, lambda_min, lambda_max, ffs);
-
-    if (istatus == FFS_TRIAL_SUCCEEDED) break;
-  }
-
-  return istatus;
 }

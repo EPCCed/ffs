@@ -1,6 +1,6 @@
 
 GILLESPIE = propagate.o gillespie.o
-FFSRUNOBJ = main.o direct.o branched.o  
+FFSRUNOBJ = main.o direct.o branched.o ffs_general.o  
 
 ffs.exe: $(GILLESPIE) $(FFSRUNOBJ) ffslib
 	gcc $(GILLESPIE) $(FFSRUNOBJ) -o ffs.exe -L. -lffs -lm 
@@ -8,7 +8,7 @@ ffs.exe: $(GILLESPIE) $(FFSRUNOBJ) ffslib
 AR = ar
 ARFLAGS = -r
 FFSLIBRARY = libffs.a
-FFSOBJ = ffs_tree_node_data.o ffs_tree_node.o ffs_tree.o
+FFSOBJ = ranlcg.o ffs_tree_node_data.o ffs_tree_node.o ffs_tree.o
 
 CFLAGS = -Wall
 

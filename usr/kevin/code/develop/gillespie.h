@@ -3,9 +3,6 @@
 #ifndef GILLESPIE_H
 #define GILLESPIE_H
 
-double ran3(void);
-double nalloc_current(void);
-
 typedef struct gillespie_state_type state_t;
 
 state_t * state_allocate(void);

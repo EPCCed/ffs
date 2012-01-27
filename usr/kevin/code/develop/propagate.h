@@ -2,12 +2,6 @@
 #ifndef PROPAGATE_H
 #define PROPAGATE_H
 
-/* REMOVE */
-double ran3(void);
-double nalloc_current(void);
-/* END REMOVE */
-
-
 typedef void sim_state_t;
 
 int simulation_set_up(ffs_param_t * ffs);
