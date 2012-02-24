@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+#  Currently running as makl-conf --u-path=...
+#
+. $MAKL_DIR/cf/makl.init
+makl_args_init "$@"
+
+#
+# --u-path=...
+#
+makl_args_def "u" "" "" "path to libu directory"
+__makl_u ()
+{
+    makl_set_var_mk "UDIR" "$2"
+}
+
+makl_pkg_name "sample_makl"
+makl_pkg_version
+
+makl_checkheader   0    "mpi"     "<mpi.h>"
+
+makl_args_handle "$@"
+
+udir=`makl_get_var_mk "UDIR"`
+echo "checking for libu in ${udir}"
+ 
+makl_compile "build/libu.c" "-I${udir}/include" "-L${udir}/lib -lu"
+[ $? == 0 ] || makl_err 1 "could not find libu in ${udir}"
+
+makl_append_var_mk "CFLAGS" "-I${udir}/include"
+makl_append_var_mk "LDFLAGS" "-L${udir}/lib -lu"
+
+
+. $MAKL_DIR/cf/makl.term

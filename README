@@ -1,0 +1,52 @@
+
+1. What you need.
+
+  a) MaKL and Libu from KoanLogic. These are freely available. See
+     http://koanlogic.com/makl and
+     http://koanlogic.com/libu for further details.
+
+  b) MPI is required to run in parallel, although we provide a
+     simple replacement MPI if you want to make progress without it
+     (serial only!).
+
+  c) A simulation! FFS is a 'meta' method - it does nothing by itself.
+     We provide some simple examples. See XXXX.
+
+2. Install MaKL
+
+   You can fetch this via
+
+     $ git clone http://github.com/koanlogic/makl.git
+
+   or download and build via
+
+     $ wget http://koanlogic.com/download/makl/makl-1.9.0.tar.gz
+     $ tar zvf makl-1.9.0.tar.gz
+     $ cd makl-1.9.0
+     $ sh configure.sh --prefix=...
+     $ make install
+
+   Please see the MaKL INSTALL file for further details.
+
+   Remember to add the appropriate bin directory to your PATH, e.g.,
+   if you specified --prefix=/home/kevin then
+     $ export PATH=$PATH:/home/kevin/bin
+
+3. Install Libu
+
+   Likewise, Libu can be obtained via
+
+     $ git clone https://github.com/koanlogic/libu.git
+   or
+     $ wget http://koanlogic.com/download/libu/libu-2.2.0.tar.gz
+
+   Please follow the instructions in the Libu README to install.
+
+4. FFS
+
+   In the top level FFS directory, configure via
+
+     $ makl-conf --u-path=/path/to/libu
+     $ makl
+
+   This will automatically build the library and run the tests.
