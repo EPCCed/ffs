@@ -17,5 +17,6 @@ int       gillespie_read_state(const char * filename, state_t * p);
 int       gillespie_write_state(const char * filename, state_t * p);
 int       gillespie_set_up(const char * filename);
 int       gillespie_tear_down(void);
+void      gillespie_rng_state_set(long int seed);
 
 #endif

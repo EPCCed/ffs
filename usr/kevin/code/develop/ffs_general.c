@@ -11,8 +11,12 @@
 #include <stdio.h>
 
 #include "ffs.h"
+#include "ffs_trial.h"
 #include "propagate.h" /* REAL TIME PRUNING WILL GET RID OF THIS */
 #include "ffs_general.h"
+
+ffs_tree_node_t * ffs_make_node(ffs_param_t * ffs, int id);
+void ffs_make_trial(ffs_param_t * ffs, ffs_trial_t * trial);
 
 /*****************************************************************************
  *
@@ -40,6 +44,19 @@ double ffs_param_lambda_b(const ffs_param_t * ffs) {
   assert(ffs->interface);
 
   return ffs->interface[ffs->nlambda].lambda;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_headseed
+ *
+ *****************************************************************************/
+
+int ffs_headseed(const ffs_param_t * ffs) {
+
+  assert(ffs);
+
+  return ffs->headseed;
 }
 
 /*****************************************************************************
@@ -80,4 +97,138 @@ int ffs_general_prune(sim_state_t * p, int interface, double * wt,
   }
 
   return istatus;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_test_driver
+ *
+ *****************************************************************************/
+
+void ffs_test_driver(ffs_param_t * ffs) {
+
+  ffs_tree_node_t * headnode;
+  ffs_state_t * state;
+
+  simulation_set_up(ffs);
+  simulation_trial_state_initialise(ffs);
+
+  headnode = ffs_make_node(ffs, ffs->headseed);
+  ffs_tree_head_set(ffs->tree, headnode);
+
+  /* ffs_init_ensemble(ffs);*/
+
+  ffs_tree_write(ffs->tree, "junk.dat");
+
+  /* Need something to clear or keep states from tree */
+  state = ffs_tree_node_state(headnode);
+  simulation_state_remove(ffs, state);
+
+  ffs_tree_clear_contents(ffs->tree);
+
+  simulation_tear_down();
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_init_ensemble
+ *
+ *****************************************************************************/
+
+void ffs_init_ensemble(ffs_param_t * ffs, int nstates) {
+
+  int n = 0;
+  int result;
+  ffs_trial_t * trial;
+  ffs_tree_node_t * init;
+  ffs_tree_node_t * newnode;
+
+  init = ffs_tree_head(ffs->tree);
+
+  /* Set up trial */
+  trial = ffs_trial_create();
+  ffs_trial_start_node_set(trial, init);
+  ffs_trial_to_lambda_set(trial, ffs_param_lambda_a(ffs));
+
+  while (n < nstates) {
+
+    ffs_make_trial(ffs, trial);
+    result = ffs_trial_result(trial);
+
+    if (result == FFS_TRIAL_SUCCEEDED) {
+      newnode = ffs_trial_end_node(trial);
+      ffs_tree_node_child_add(init, newnode);
+      ++n;
+    }
+    /*ffs_tree_data_result_add(init, result);*/
+  }
+
+  ffs_trial_remove(trial);
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_make_trial
+ *
+ *****************************************************************************/
+
+void ffs_make_trial(ffs_param_t * ffs, ffs_trial_t * trial) {
+
+  int seed;
+  ffs_state_t * state;
+
+  seed = ranlcg_reep_int32(ffs->random);
+  simulation_state_rng_set(ffs, seed);
+
+  state = ffs_tree_node_state(ffs_trial_start_node(trial));
+  simulation_trial_state_set(ffs, state);
+
+  simulation_trial_run(ffs, trial);
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_make_node
+ *
+ *  Take the current trial state, and generate a new tree node.
+ *  This requires saving the state.
+ *
+ *****************************************************************************/
+
+ffs_tree_node_t * ffs_make_node(ffs_param_t * ffs, int id) {
+ 
+  double t;
+  double lambda;
+
+  ffs_tree_node_t * node;
+  ffs_tree_node_data_t * data;
+  ffs_state_t * state;
+
+  node = ffs_tree_node_create();
+
+  /* ffs state */
+  state = ffs_state_create();
+  ffs_state_id_set(state, id);
+  simulation_trial_state_save(ffs, state);
+
+  /* tree data */
+  data = ffs_tree_node_data_create();
+
+  t = simulation_trial_state_time(ffs);
+  ffs_tree_node_data_time_set(data, t);
+  lambda = simulation_trial_state_lambda(ffs);
+  ffs_tree_node_data_lambda_set(data, lambda);
+  ffs_tree_node_data_weight_set(data, 1.0);
+
+  /* attach state, and data */
+  ffs_tree_node_state_set(node, state);
+  ffs_tree_node_data_set(node, data);
+
+  return node;
 }

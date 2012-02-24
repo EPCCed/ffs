@@ -1,18 +1,18 @@
-the run contained 120654772 steps
-the run time was 756170.107115, the number of crossings was 10000, so the flux through the first interface was         0.0132245376
-the firing took 113475487 steps
-the total number of steps was 234130259
-The probability of reaching B from lambda_1 is 0.003403
+the run contained 121588864 steps
+the run time was 764184.705955, the number of crossings was 10000, so the flux through the first interface was         0.0130858416
+the firing took 124807230 steps
+the total number of steps was 246396094
+The probability of reaching B from lambda_1 is 0.003965
  -24.000000 1.000000
- -22.000000 0.279333
- -20.000000 0.132444
- -18.000000 0.072037
- -15.000000 0.036753
- -12.000000 0.023263
- -9.000000 0.017110
- -5.000000 0.011890
- 0.000000 0.006875
- 7.000000 0.003682
- 15.000000 0.003444
- 20.000000 0.003420
- 25.000000 0.003403
+ -22.000000 0.280667
+ -20.000000 0.138333
+ -18.000000 0.080630
+ -15.000000 0.041827
+ -12.000000 0.027021
+ -9.000000 0.019722
+ -5.000000 0.013676
+ 0.000000 0.007798
+ 7.000000 0.004297
+ 15.000000 0.004007
+ 20.000000 0.003981
+ 25.000000 0.003965

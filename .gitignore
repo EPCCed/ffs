@@ -1,0 +1,7 @@
+*.o
+*.a
+*~
+*aux
+*dvi
+*exe
+*DS_Store

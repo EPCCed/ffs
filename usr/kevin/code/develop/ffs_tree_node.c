@@ -16,7 +16,7 @@
 
 struct ffs_tree_node_type {
 
-  int id;
+  ffs_state_t * sim_state;
   ffs_tree_node_data_t * data;
 
   /* Structure: left child; next sibling to the right;
@@ -80,35 +80,17 @@ static void ffs_tree_node_free(ffs_tree_node_t * p) {
  *
  *  ffs_tree_node_create
  *
- *  This is the only way to create a node, which must have an id.
+ *  This is the only way to create a node.
  *
  *****************************************************************************/
 
-ffs_tree_node_t * ffs_tree_node_create(int id) {
+ffs_tree_node_t * ffs_tree_node_create(void) {
 
   ffs_tree_node_t * p;
 
   p = ffs_tree_node_allocate();
-  assert(id >= 0);
-  p->id = id;
 
   return p;
-}
-
-/*****************************************************************************
- *
- *  ffs_tree_node_id
- *
- *****************************************************************************/
-
-int ffs_tree_node_id(const ffs_tree_node_t * p) {
-
-  int id;
-
-  id = FFS_TREE_NODE_NULL;
-  if (p) id = p->id;
-
-  return id;
 }
 
 /*****************************************************************************
@@ -324,6 +306,52 @@ void ffs_tree_node_data_set(ffs_tree_node_t * p, ffs_tree_node_data_t * data) {
 
 /*****************************************************************************
  *
+ *  ffs_tree_node_state
+ *
+ *****************************************************************************/
+
+ffs_state_t * ffs_tree_node_state(const ffs_tree_node_t * p) {
+
+  assert(p);
+
+  return p->sim_state;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_tree_node_state_set
+ *
+ *****************************************************************************/
+
+void ffs_tree_node_state_set(ffs_tree_node_t * p, ffs_state_t * s) {
+
+  assert(p);
+  assert(s);
+
+  p->sim_state = s;
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_tree_node_id
+ *
+ *  This is a proxy for the state id.
+ *
+ *****************************************************************************/
+
+int ffs_tree_node_id(const ffs_tree_node_t * p) {
+
+  int id = FFS_TREE_NODE_NULL;
+
+  if (p) id = ffs_state_id(p->sim_state);
+
+  return id;
+}
+
+/*****************************************************************************
+ *
  *  ffs_tree_node_selftest
  *
  *  Build the following simple tree with four nodes to check
@@ -348,9 +376,9 @@ int ffs_tree_node_selftest(void) {
 
   if (ffs_tree_node_nallocated() != 0) ++nfail;
 
-  head = ffs_tree_node_create(1);
-  if (ffs_tree_node_id(head) != 1) ++nfail;
+  head = ffs_tree_node_create();
   if (ffs_tree_node_nallocated() != 1) ++ nfail;
+  if (ffs_tree_node_id(head) != FFS_STATE_NULL) ++nfail;
 
   p = ffs_tree_node_leftchild(head);
   if (p != NULL) ++nfail;
@@ -365,27 +393,18 @@ int ffs_tree_node_selftest(void) {
   if (ffs_tree_node_level_count(head, 1, 0) != 0) nfail++;
   if (ffs_tree_node_level_count(head, 0, 1) != 0) nfail++;
 
-  node = ffs_tree_node_create(2);
+  node = ffs_tree_node_create();
   ffs_tree_node_leftchild_set(head, node);
   ffs_tree_node_parent_set(node, head);
 
   p = ffs_tree_node_parent(node);
   if (p != head) ++nfail;
 
-  node = ffs_tree_node_create(3);
+  node = ffs_tree_node_create();
   ffs_tree_node_nextsibling_set(head, node);
 
-  node = ffs_tree_node_create(4);
+  node = ffs_tree_node_create();
   ffs_tree_node_sibling_add(head, node);
-
-  p = ffs_tree_node_leftchild(head);
-  if (ffs_tree_node_id(p) != 2) ++nfail;
-
-  p = ffs_tree_node_nextsibling(head);
-  if (ffs_tree_node_id(p) != 3) ++nfail;
-
-  p = ffs_tree_node_nextsibling(p);
-  if (ffs_tree_node_id(p) != 4) ++nfail;
 
   if (ffs_tree_node_level_count(head, 0, 0) != 3) ++nfail;
   if (ffs_tree_node_level_count(head, 1, 0) != 1) ++nfail;
@@ -406,8 +425,8 @@ int ffs_tree_node_selftest(void) {
 
   /* Test child add */
 
-  head = ffs_tree_node_create(1);
-  node = ffs_tree_node_create(2);
+  head = ffs_tree_node_create();
+  node = ffs_tree_node_create();
 
   ffs_tree_node_child_add(head, node);
 
@@ -417,7 +436,7 @@ int ffs_tree_node_selftest(void) {
   p = ffs_tree_node_parent(node);
   if (p != head) ++nfail;
 
-  p = ffs_tree_node_create(3);
+  p = ffs_tree_node_create();
   ffs_tree_node_child_add(head, p);
   if (ffs_tree_node_parent(p) != head) ++nfail;
 

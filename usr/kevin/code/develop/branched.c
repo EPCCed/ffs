@@ -9,6 +9,7 @@
  *
  *  CHANGE OF RESULTS: replaced recursive pruning by (correct) normal prune
  *  CHANGE OF RESULTS: replaced ran3 in pruning
+ *  CHANGE OR RESULTS: replaced ran3 all together
  *
  *****************************************************************************/
 
@@ -54,6 +55,7 @@ void branched_driver(ffs_param_t * ffs) {
   /* INSERT s_init AS HEAD OF TREE AND RECORD STATE */
   /* tree_node = ffs_tree_node_create(id); */
   /* ffs_tree_node_set_state(tree_node, s_init); */
+
   wt = simulation_lambda(s_init);
   printf("Initial state has lambda %f\n", wt);
 
@@ -63,6 +65,7 @@ void branched_driver(ffs_param_t * ffs) {
   simulation_state_copy(s_init, s_trial);
   simulation_run_to_time(s_trial, ffs->teq, ffs->nstepmax);
   simulation_state_time_set(s_trial, 0.0);
+
   wt = simulation_lambda(s_trial);
   printf("'Equilibrium' state has lambda %f\n", wt);
 

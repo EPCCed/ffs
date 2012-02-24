@@ -10,14 +10,15 @@
 #ifndef FFS_TREE_NODE_H
 #define FFS_TREE_NODE_H
 
+#include "ffs_state.h"
 #include "ffs_tree_node_data.h"
 
-enum node_id {FFS_TREE_NODE_NULL = -1};
+enum node_id {FFS_TREE_NODE_NULL = -1, FFS_TREE_NODE_HEAD  = -3};
 
 typedef struct ffs_tree_node_type ffs_tree_node_t;
 
 unsigned int      ffs_tree_node_nallocated(void);
-ffs_tree_node_t * ffs_tree_node_create(int id);
+ffs_tree_node_t * ffs_tree_node_create(void);
 void              ffs_tree_node_remove(ffs_tree_node_t * p);
 ffs_tree_node_t * ffs_tree_node_leftchild(const ffs_tree_node_t * p);
 ffs_tree_node_t * ffs_tree_node_nextsibling(const ffs_tree_node_t * p);
@@ -37,5 +38,7 @@ int  ffs_tree_node_selftest(void);
 ffs_tree_node_data_t * ffs_tree_node_data(const ffs_tree_node_t * p);
 void                   ffs_tree_node_data_set(ffs_tree_node_t * p,
 					      ffs_tree_node_data_t * data);
+ffs_state_t * ffs_tree_node_state(const ffs_tree_node_t * p);
+void          ffs_tree_node_state_set(ffs_tree_node_t * p, ffs_state_t * s);
 
 #endif

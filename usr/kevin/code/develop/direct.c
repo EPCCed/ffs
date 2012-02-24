@@ -5,7 +5,8 @@
  *  Routines for Direct FFS algorithm.
  *
  *  CHANGE OF RESULTS: 'laststate' issue in initialise
- *  CHANGE OR RESULTS: replaced ran3()
+ *  CHANGE OF RESULTS: replaced ran3()
+ *  CHANGE OF RESULTS: replaced ran in gillespie
  *
  *  ISSUE: Reconfigure to allow transparent file 'cache' and 'uncache'
  *  ISSUE: Replace Ensemble by tree
@@ -66,8 +67,7 @@ void direct_driver(ffs_param_t * ffs) {
   Ensemble next;
 
   simulation_set_up(ffs);
-  s_init = simulation_state_initialise(ffs);
-  /* MAKE s_init head of tree and remember */ 
+  s_init = simulation_state_initialise(ffs); 
 
   direct_initial_ensemble(&current, &runtime, s_init, ffs);
 

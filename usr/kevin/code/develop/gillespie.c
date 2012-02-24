@@ -1,11 +1,24 @@
+/*****************************************************************************
+ *
+ *  gillespie.c
+ *
+ *  A simple implementation of the Gillespie algorithm to provide a
+ *  test of forward flux sampling.
+ *
+ *  Parallel Forward Flux Sampling
+ *  (c) 2012 The University of Edinburgh
+ *
+ *****************************************************************************/
 
 #include <assert.h>
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
 
+#include "ranlcg.h"
 #include "gillespie.h"
 
 #define MAXPROD     10
@@ -58,10 +71,8 @@ static void free_point(Point);
 static Dyn dyn;
 static double nalloc_ = 0.0;
 static double nalloc_state_ = 0.0;
-static double ran3(void);
+static ranlcg_t * random_generator_ = NULL;
 static double nalloc_current(void);
-
-
 
 static Point allocpoint() {
 
@@ -183,6 +194,19 @@ void state_time_set(state_t * p, double t) {
 
 /*****************************************************************************
  *
+ *  gillespie_state_rng_set
+ *
+ *****************************************************************************/
+
+void gillespie_rng_state_set(long int seed) {
+
+  ranlcg_state_set(random_generator_, seed);
+
+  return;
+}
+
+/*****************************************************************************
+ *
  *  state_to_lambda
  *
  *  This is order parameter (na - nb)
@@ -248,38 +272,36 @@ int gillespie_do_step(state_t * p) {
 
   /* propagate time  */
 
-  if (dyn.sum_a > 0.00000001) {
-    rs = 0.0;
-    while (rs < 0.00000001) rs = ran3();
-    tstep = log(1./rs)/dyn.sum_a;
-  }
-  else {
-    printf("Not a single reaction can occur.\n");
-    printf("The run will be terminated.\n");
-    printf("sum_a is %f\n",dyn.sum_a);
+  if (dyn.sum_a < FLT_EPSILON) { 
+    /* No reactions are possible. */
     ifail = 1;
   }
+  else {
 
-  p->t += tstep;
+    /* We rely here on the fact that ranlcg does not produce zero. */
+    rs = ranlcg_reep(random_generator_);
+    tstep = log(1./rs)/dyn.sum_a;
 
-  /* select reaction */
+    p->t += tstep;
 
-  rs = 0.0;
-  while (rs < 0.00000000001) rs = ran3();
- 
-  rs *= dyn.sum_a;
-  j = 0;
-  cumu_a = dyn.a[j];
-  while (cumu_a < rs) cumu_a += dyn.a[++j];
+    /* select reaction */
 
-  /* update concentrations */
+    rs = ranlcg_reep(random_generator_); 
+    rs *= dyn.sum_a;
 
-  for (i = 0; i < dyn.R[j].Nreact; i++) {
-    p->nx[dyn.R[j].react[i].index] --;
-  }
+    j = 0;
+    cumu_a = dyn.a[j];
+    while (cumu_a < rs) cumu_a += dyn.a[++j];
 
-  for (i = 0; i < dyn.R[j].Nprod; i++) {
-    p->nx[dyn.R[j].prod[i].index] += dyn.R[j].prod[i].change;
+    /* update concentrations */
+
+    for (i = 0; i < dyn.R[j].Nreact; i++) {
+      p->nx[dyn.R[j].react[i].index] --;
+    }
+
+    for (i = 0; i < dyn.R[j].Nprod; i++) {
+      p->nx[dyn.R[j].prod[i].index] += dyn.R[j].prod[i].change;
+    }
   }
 
   return ifail;
@@ -407,6 +429,8 @@ int gillespie_set_up(const char * filename) {
     print_reactions();
   }
 
+  random_generator_ = ranlcg_create(23);
+
   return ifail;
 }
 
@@ -427,6 +451,8 @@ int gillespie_tear_down(void) {
   free(dyn.R);
 
   nalloc_current();
+
+  ranlcg_free(random_generator_);
 
   return ifail;
 }
@@ -565,51 +591,6 @@ static void free_point(Point p) {
   nalloc_ -= 1.0;
  
   return;
-}
-
-int  iff, ma[56], inext, inextp, mj, mz, mbig;
-
-static double ran3(void) {
-  static int mk,i,ii,k,mseed,m;
-  
-  if (iff ==0) {
-    iff=1;
-    mbig = 1000000000;
-    printf(" input random number seed please\n");
-    if((m=scanf("%d", &mseed))==1)
-      printf(" you have chosen %d, thanks\n", mseed);
-    else{
-      printf(" didn't work %d\n", m);
-      abort();
-      }
-    /* mseed = 785;*/
-    mz =0;
-    mj = mseed ;
-    mj = mj % mbig;
-    ma[55] = mj;
-    mk = 1;
-    for (i=1;i<55;i++){
-      ii = (21*i) % 55;
-      ma[ii] = mk;
-      mk = mj - mk;
-      if (mk<mz) mk=mk+mbig;
-      mj = ma[ii];
-    }
-    for(k=1;k<=4;k++){
-      for(i=1;i<=55;i++){
-	ma[i] = ma[i] - ma[1 + ((i+30)%55)];
-	if (ma[i]<mz) ma[i] = ma[i] + mbig;
-      }
-    }
-    inext=0;
-    inextp=31;
-}
-  if (++inext == 56)   inext  =1;
-  if (++inextp ==56)  inextp =1;
-  mj = ma[inext] - ma[inextp];
-  if (mj<mz) mj=mj+mbig;
-  ma[inext]=mj;
-  return  (double)mj / mbig;
 }
     
 static double nalloc_current(void) {

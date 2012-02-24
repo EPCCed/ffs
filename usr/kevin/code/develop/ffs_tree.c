@@ -10,7 +10,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
+#include "ffs_tree_node_data.h"
 #include "ffs_tree_node.h"
 #include "ffs_tree.h"
 
@@ -23,7 +25,8 @@ struct ffs_tree_type {
 static unsigned int nallocated_ = 0;
 
 static int ffs_tree_node_write(ffs_tree_node_t * p, FILE * fp);
-static ffs_tree_node_t * ffs_tree_node_read(FILE * fp);
+static ffs_tree_node_t * ffs_tree_node_read(ffs_tree_node_t * p, FILE * fp);
+static void ffs_tree_clear_node(ffs_tree_node_t * p);
 
 /*****************************************************************************
  *
@@ -63,6 +66,33 @@ void ffs_tree_remove(ffs_tree_t * p) {
 
   free(p);
   --nallocated_;
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_tree_head
+ *
+ *****************************************************************************/
+
+ffs_tree_node_t * ffs_tree_head(ffs_tree_t * p) {
+
+  assert(p);
+  return p->head;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_tree_head_set
+ *
+ *****************************************************************************/
+
+void ffs_tree_head_set(ffs_tree_t * p, ffs_tree_node_t * head) {
+
+  assert(p);
+
+  p->head = head;
 
   return;
 }
@@ -130,7 +160,7 @@ int ffs_tree_read(ffs_tree_t * p, const char * filename) {
     ifail = -1;
   }
   else {
-    p->head = ffs_tree_node_read(fp);
+    p->head = ffs_tree_node_read(NULL, fp);
   }
 
   if (ferror(fp)) {
@@ -152,7 +182,10 @@ int ffs_tree_read(ffs_tree_t * p, const char * filename) {
 static int ffs_tree_node_write(ffs_tree_node_t * p, FILE * fp) {
 
   int nwrite = 0;
+  int pid;
   ffs_tree_node_t * node;
+  ffs_tree_node_t * parent;
+  ffs_tree_node_data_t * data;
 
   if (p == NULL) {
     fprintf(fp, "node id %d\n", FFS_TREE_NODE_NULL);
@@ -160,6 +193,20 @@ static int ffs_tree_node_write(ffs_tree_node_t * p, FILE * fp) {
   else {
     ++nwrite;
     fprintf(fp, "node id %d\n", ffs_tree_node_id(p));
+
+    parent = ffs_tree_node_parent(p);
+    pid = ffs_tree_node_id(parent);
+    fprintf(fp, "node parent id %d\n", pid);
+
+    data = ffs_tree_node_data(p);
+    if (data) {
+      fprintf(fp, "__node_binary_data\n");
+      ffs_tree_node_data_write(data, fp);
+      fprintf(fp, "\n");
+    }
+    else {
+      fprintf(fp, "__no_data\n");
+    }
 
     node = ffs_tree_node_leftchild(p);
     fprintf(fp, "node leftchild id %d\n", ffs_tree_node_id(node));
@@ -182,12 +229,17 @@ static int ffs_tree_node_write(ffs_tree_node_t * p, FILE * fp) {
  *
  *****************************************************************************/
 
-static ffs_tree_node_t * ffs_tree_node_read(FILE * fp) {
-
+static ffs_tree_node_t * ffs_tree_node_read(ffs_tree_node_t * parent,
+					    FILE * fp) {
   int id, idl, ids;
+  int pid;
+  char data_type[FILENAME_MAX];
+
   ffs_tree_node_t * node;
   ffs_tree_node_t * leftchild;
   ffs_tree_node_t * nextsibling;
+  ffs_tree_node_data_t * data;
+
 
   fscanf(fp, "node id %d\n", &id);
 
@@ -196,15 +248,27 @@ static ffs_tree_node_t * ffs_tree_node_read(FILE * fp) {
   }
   else {
 
-    node = ffs_tree_node_create(id);
+    node = ffs_tree_node_create();
 
-    /* READ DATA */
+    fscanf(fp, "node parent id %d\n", &pid);
+    ffs_tree_node_parent_set(node, parent);
+
+    fscanf(fp, "%s\n", data_type);
+    if (strcmp(data_type, "__no_data") == 0) {
+      /* no data; leave null node data */
+    }
+    else {
+      data = ffs_tree_node_data_create();
+      assert(data);
+      ffs_tree_node_data_read(data, fp);
+      ffs_tree_node_data_set(node, data);
+    }
 
     fscanf(fp, "node leftchild id %d\n", &idl);
     fscanf(fp, "node nextsibling id %d\n", &ids);
 
-    leftchild = ffs_tree_node_read(fp);
-    nextsibling = ffs_tree_node_read(fp);
+    leftchild = ffs_tree_node_read(node, fp);
+    nextsibling = ffs_tree_node_read(parent, fp);
 
     assert(idl == ffs_tree_node_id(leftchild));
     ffs_tree_node_leftchild_set(node, leftchild);
@@ -214,6 +278,49 @@ static ffs_tree_node_t * ffs_tree_node_read(FILE * fp) {
   }
 
   return node;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_tree_clear_contents
+ *
+ *****************************************************************************/
+
+void ffs_tree_clear_contents(ffs_tree_t * p) {
+
+  assert(p);
+  ffs_tree_clear_node(p->head);
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_tree_clear_node
+ *
+ *****************************************************************************/
+
+static void ffs_tree_clear_node(ffs_tree_node_t * p) {
+
+  ffs_state_t * state;
+  ffs_tree_node_t * node;
+  ffs_tree_node_data_t * data;
+
+  assert(p);
+
+  node = ffs_tree_node_leftchild(p);
+  if (node) ffs_tree_clear_node(node);
+
+  node = ffs_tree_node_nextsibling(p);
+  if (node) ffs_tree_clear_node(node);
+
+  data = ffs_tree_node_data(p);
+  if (data) ffs_tree_node_data_remove(data);
+  state = ffs_tree_node_state(p);
+  if (state) ffs_state_remove(state);
+  ffs_tree_node_remove(p);
+
+  return;
 }
 
 /*****************************************************************************
@@ -237,16 +344,19 @@ int ffs_tree_selftest(void) {
   if (tree == NULL) ++nfail;
   if (ffs_tree_nallocated() != 1) ++nfail;
 
-  tree->head = ffs_tree_node_create(1);
+  tree->head = ffs_tree_node_create();
   n = ffs_tree_write(tree, filename);
   if (n != 1) ++nfail;
 
+  ffs_tree_clear_contents(tree);
   ffs_tree_remove(tree);
   if (ffs_tree_nallocated() != 0) ++nfail;  
 
   tree = ffs_tree_create();
   n = ffs_tree_read(tree, filename);
+
   if (n != 0) ++nfail;
+
   n = ffs_tree_level_breadth(tree, 0);
   if (n != 1) ++nfail;
   n = ffs_tree_level_breadth(tree, 1);

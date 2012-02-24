@@ -1,4 +1,5 @@
 direct
+1		grand_master_rng_seed
 100.0		equil_time
 100000.0	run_time
 10		take_every_nth_crossing

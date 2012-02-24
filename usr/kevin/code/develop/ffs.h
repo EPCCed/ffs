@@ -23,17 +23,13 @@ enum ffs_status_enum   {FFS_SUCCESS,
 			FFS_FAILURE};
 enum method_enum       {FFS_METHOD_NULL,
 			FFS_METHOD_DIRECT,
-			FFS_METHOD_BRANCHED};
-enum trial_result_enum {FFS_TRIAL_SUCCEEDED,
-			FFS_TRIAL_WENT_BACKWARDS,
-			FFS_TRIAL_TIMED_OUT,
-			FFS_TRIAL_IN_PROGRESS,
-			FFS_TRIAL_WAS_PRUNED,
-			FFS_TRIAL_FAILED};
+			FFS_METHOD_BRANCHED,
+                        FFS_METHOD_TEST};
 
 struct ffs_parameters_type {
 
   int    algorithm;         /* One of the method enum */
+  int    headseed;          /* Unique control RNG seed */
   int    nlambda;           /* Number of interfaces */
 
   double trun;              /* time of trial run */
@@ -62,5 +58,7 @@ struct ffs_parameters_type {
 };
 
 typedef struct ffs_parameters_type ffs_param_t;
+
+int ffs_headseed(const ffs_param_t * ffs);
 
 #endif

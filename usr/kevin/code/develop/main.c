@@ -15,27 +15,38 @@
 #include "branched.h"
 #include "direct.h"
 #include "ffs.h"
+#include "ffs_general.h"
 
 void ffs_interface_info(ffs_param_t * ffs);
 int  ffs_interface_read(ffs_param_t * ffs, const char * filename);
 int  ffs_interface_check(ffs_param_t * ffs);
+void ffs_interface_remove(ffs_param_t * ffs);
 void ffs_random_init(ffs_param_t * ffs, int seed);
+void ffs_tree_init(ffs_param_t * ffs);
+void ffs_remove(ffs_param_t * ffs);
+
 
 int main (int argc, char ** argv) {
 
-  int masterseed = 1;
+  int seed;
   char filename_input[FILENAME_MAX] = "ffs.inp";
   ffs_param_t ffs;
 
   if (argc > 1) sprintf(filename_input, "%s", argv[1]);
 
-  ffs_random_init(&ffs, masterseed);
   ffs_interface_read(&ffs, filename_input);
   ffs_interface_check(&ffs);
   ffs_interface_info(&ffs);
 
+  seed = ffs_headseed(&ffs);
+  ffs_random_init(&ffs, seed);
+  ffs_tree_init(&ffs);
+
   if (ffs.algorithm == FFS_METHOD_DIRECT) direct_driver(&ffs);
   if (ffs.algorithm == FFS_METHOD_BRANCHED) branched_driver(&ffs);
+  if (ffs.algorithm == FFS_METHOD_TEST) ffs_test_driver(&ffs);
+
+  ffs_remove(&ffs);
 
   return 0;
 }
@@ -67,6 +78,7 @@ int ffs_interface_read(ffs_param_t * ffs, const char * filename) {
 
     if (strcmp(method, "direct") == 0) ffs->algorithm = FFS_METHOD_DIRECT;
     if (strcmp(method, "branched") == 0) ffs->algorithm = FFS_METHOD_BRANCHED;
+    if (strcmp(method, "test") == 0) ffs->algorithm = FFS_METHOD_TEST;
 
     if (ffs->algorithm == FFS_METHOD_DIRECT) printf("DIRECT FFS\n");
     if (ffs->algorithm == FFS_METHOD_BRANCHED) printf("BRANCHED FFS\n");
@@ -76,6 +88,7 @@ int ffs_interface_read(ffs_param_t * ffs, const char * filename) {
       exit(0);
     }
 
+    fscanf(fp, "%d%*s",  &(ffs->headseed));
     fscanf(fp, "%lf%*s", &(ffs->teq));
     fscanf(fp, "%lf%*s", &(ffs->trun));
     fscanf(fp, "%d%*s",  &(ffs->nskip));
@@ -194,6 +207,21 @@ void ffs_interface_info(ffs_param_t * ffs) {
 
 /*****************************************************************************
  *
+ *  ffs_interface_remove
+ *
+ *****************************************************************************/
+
+void ffs_interface_remove(ffs_param_t * ffs) {
+
+  assert(ffs);
+
+  free(ffs->interface);
+
+  return;
+}
+
+/*****************************************************************************
+ *
  *  ffs_random_init
  *
  *****************************************************************************/
@@ -208,7 +236,45 @@ void ffs_random_init(ffs_param_t * ffs, int seed) {
   longseed = seed;
 
   ffs->random = ranlcg_create(longseed);
-  assert(ffs->random);
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_tree_init
+ *
+ *****************************************************************************/
+
+void ffs_tree_init(ffs_param_t * ffs) {
+
+  assert(ffs);
+
+  ffs->tree = ffs_tree_create();
+  assert(ffs->tree);
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_remove
+ *
+ *****************************************************************************/
+
+void ffs_remove(ffs_param_t * ffs) {
+
+  assert(ffs);
+
+  ranlcg_free(ffs->random);
+  ffs_interface_remove(ffs);
+  ffs_tree_remove(ffs->tree);
+
+  printf("\n");
+  printf("Tree data objects: %8d\n", ffs_tree_node_data_nallocated());
+  printf("Tree node objects: %8d\n", ffs_tree_node_nallocated());
+  printf("Tree objects:      %8d\n", ffs_tree_nallocated());
+  printf("State objects:     %8d\n", ffs_state_nallocated());
 
   return;
 }

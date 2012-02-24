@@ -6,8 +6,8 @@
  *  See the testu01 package (v1.2.2)
  *  http://www.iro.umontreal.ca/~simardr/testu01/tu01.html
  *
- *  This is not the best RNG in the world; it has the advantage
- *  of having only one (64-bit) integer state.
+ *  This is not the best RNG in the world (also not the worst);
+ *  it has the advantage of having only one (64-bit) integer state.
  *
  *  Parallel Forward Flux Sampling
  *  (c) 2012 The University of Edinburgh
@@ -86,6 +86,25 @@ void ranlcg_free(ranlcg_t * p) {
 
 /*****************************************************************************
  *
+ *  ranlcg_state_set
+ *
+ *****************************************************************************/
+
+int ranlcg_state_set(ranlcg_t * p, long int newstate) {
+
+  int ifail = 0;
+
+  assert(p);
+  assert(newstate < p->m);
+  assert(newstate > 0);
+
+  p->state = newstate;
+
+  return ifail;
+}
+
+/*****************************************************************************
+ *
  *  ranlcg_reep
  *
  *  Returns uniform double on [0, 1).
@@ -97,6 +116,24 @@ double ranlcg_reep(ranlcg_t * p) {
   p->state = ranlcg_multiply(p->a, p->state, p->c, p->m);
 
   return (p->state * p->rnorm);
+}
+
+/*****************************************************************************
+ *
+ *  ranlcg_reep_int32
+ *
+ *  Use the state to generate a (32-bit) int on [0, INT_MAX-1].
+ *
+ *****************************************************************************/
+
+int ranlcg_reep_int32(ranlcg_t * p) {
+
+  int iresult32;
+
+  p->state = ranlcg_multiply(p->a, p->state, p->c, p->m);
+  iresult32 = p->state % INT_MAX;
+
+  return iresult32;
 }
 
 /*****************************************************************************
