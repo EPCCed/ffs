@@ -1,0 +1,12 @@
+/**
+ *  \mainpage Parallel Forward Flux Sampling
+
+This is a library to help run calculations based on Forward Flux Sampling,
+a method which allows one to access rare events via simulation.
+
+In partiuclar, this library is developed with parallel applications using
+the message passing interface (MPI) in mind.
+
+This work is funded by the United Kingdom EPSRC under grant EP/I030298/1.
+
+*/

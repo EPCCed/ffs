@@ -18,6 +18,8 @@ makl_pkg_name "sample_makl"
 makl_pkg_version
 
 makl_checkheader   0    "mpi"     "<mpi.h>"
+makl_optional      1    "featx"   "mpicc"   "MPICC"
+makl_optional      1    "featx"   "doxygen" "DOXYGEN"
 
 makl_args_handle "$@"
 

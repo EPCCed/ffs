@@ -1,4 +1,4 @@
 
-SUBDIR = src test
+SUBDIR = doc src test
 
 include subdir.mk

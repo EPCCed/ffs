@@ -1,4 +1,4 @@
-/*************************************************************************//**
+/*****************************************************************************
  *
  *  \file ranlcg.c
  *
@@ -6,8 +6,9 @@
  *  See the testu01 package (v1.2.2)
  *  http://www.iro.umontreal.ca/~simardr/testu01/tu01.html
  *
- *  This is not the best RNG in the world (also not the worst);
- *  it has the advantage of having only one (64-bit) integer state.
+ *  This is not the best RNG in the world (also not the worst for
+ *  64-bit long int); it has the advantage of having only one
+ *  (long int) integer worth of state.
  *
  *  Parallel Forward Flux Sampling
  *  (c) 2012 The University of Edinburgh
@@ -22,6 +23,7 @@
 #include "ranlcg.h"
 
 /*
+ *
  *  Here's the opaque structure which holds the state, and the parameters
  *  which allow us to compute s -> (a*s + c) % m. For convenience and
  *  speed, we also keep the floating point normaliation rnorm used to
@@ -37,13 +39,9 @@ struct ranlcg_type {
   double rnorm;     /* 1/m to convert to floating point */
 };
 
-/* The default parameter values are from TestU01/param/LCGgood.par */
-
-#define RANLCG_ADEFAULT 561860773102413563
-#define RANLCG_CDEFAULT 0
-#define RANLCG_MDEFAULT 1152921504606846883
-
-/* RANLCG_HLIMIT is required for multiplication in ranlcg_multiply */
+/*
+ *  RANLCG_HLIMIT is required for multiplication in ranlcg_multiply
+ */
 
 #if LONG_MAX == 2147483647
 #define RANLCG_HLIMIT   32768
@@ -53,7 +51,7 @@ struct ranlcg_type {
 
 static long int ranlcg_multiply(long a, long s, long c, long m);
 
-/*************************************************************************//**
+/*****************************************************************************
  *
  *  \brief ranlcg_create allocates a new object and sets the state
  *
@@ -73,7 +71,7 @@ int ranlcg_create(long int state, ranlcg_t ** pnew) {
   ranlcg_t * p;
 
   dbg_return_if(pnew == NULL, -1);
-  err_err_if((p = (ranlcg_t *) calloc(1, sizeof(ranlcg_t))) == NULL);
+  err_err_if((p = u_calloc(1, sizeof(ranlcg_t))) == NULL);
 
   p->a = RANLCG_ADEFAULT;
   p->c = RANLCG_CDEFAULT;
@@ -89,12 +87,12 @@ int ranlcg_create(long int state, ranlcg_t ** pnew) {
   return 0;
 
  err:
-  if (p) free(p);
+  if (p) u_free(p);
 
   return -1;
 }
 
-/*************************************************************************//**
+/*****************************************************************************
  *
  *  \brief ranlcg_free deallocates the supplied object
  *
@@ -108,30 +106,33 @@ void ranlcg_free(ranlcg_t * p) {
 
   dbg_return_if(p == NULL, );
 
-  free(p);
+  u_free(p);
 
   return;
 }
 
-/*************************************************************************//**
+/*****************************************************************************
  *
  *  \brief ranlcg_state returns the current state
  *
  *  \param p              a pointer to the generator object
+ *  \param state          a pointer to the state to be returned [0, LONG_MAX]
  *
- *  \retval [0, LONG_MAX] a success
+ *  \retval  0            a success
  *  \retval -1            a failure
  *
  *****************************************************************************/
 
-long int ranlcg_state(const ranlcg_t * p) {
+int ranlcg_state(const ranlcg_t * p, long int * state) {
 
   dbg_return_if(p == NULL, -1);
 
-  return p->state;
+  *state = p->state;
+
+  return 0;
 }							       
 
-/*************************************************************************//**
+/*****************************************************************************
  *
  *  \brief ranlcg_state_set resets the state to existing object
  *
@@ -154,55 +155,56 @@ int ranlcg_state_set(ranlcg_t * p, long int s) {
   return 0;
 }
 
-/*************************************************************************//**
+/*****************************************************************************
  *
  *  \brief ranlcg_reep generatess a uniform double on [0, 1).
  *
  *  The state is updated and used to generate a new deviate.
  *
  *  \param p             a pointer to the generator object
+ *  \param reep          a pointer to value to be returned
  *
- *  \retval [0.0, 1.0)   a success
- *  \retval -1.0         a failure
+ *  \retval 0            a success
+ *  \retval -1           a failure
  *
  *****************************************************************************/
 
-double ranlcg_reep(ranlcg_t * p) {
+int ranlcg_reep(ranlcg_t * p, double * reep) {
 
-  err_return_if(p == NULL, -1.0);
+  dbg_return_if(p == NULL, -1);
 
   p->state = ranlcg_multiply(p->a, p->state, p->c, p->m);
+  *reep = p->state * p->rnorm;
 
-  return (p->state * p->rnorm);
+  return 0;
 }
 
-/*************************************************************************//**
+/*****************************************************************************
  *
  *  \brief ranlcg_reep_int32 generates a random integer
  *
  *  Here we use the updated state to generate a (32-bit) int
  *  on [0, INT_MAX-1].
  *
- *  \param  p                 a pointer to the generator object
+ *  \param  p            a pointer to the generator object
+ *  \param  ireep        a pointer to the value to be returned [0, INT_MAX - 1]
  *
- *  \retval [0, INT_MAX-1]    a success
- *  \retvl  -1                a failure
+ *  \retval 0            a success
+ *  \retvl  -1           a failure
  *
  *****************************************************************************/
 
-int ranlcg_reep_int32(ranlcg_t * p) {
+int ranlcg_reep_int32(ranlcg_t * p, int * ireep) {
 
-  int iresult32;
-
-  err_return_if(p == NULL, -1);
+  dbg_return_if(p == NULL, -1);
 
   p->state = ranlcg_multiply(p->a, p->state, p->c, p->m);
-  iresult32 = p->state % INT_MAX;
+  *ireep = p->state % INT_MAX;
 
-  return iresult32;
+  return 0;
 }
 
-/*************************************************************************//**
+/*****************************************************************************
  *
  *  \brief ranlcg_param_set allows a new parameter set to be supplied
  *
@@ -236,7 +238,7 @@ int ranlcg_param_set(ranlcg_t * p, long int a, long int c, long int m) {
   return 0;
 }
 
-/*************************************************************************//**
+/*****************************************************************************
  *
  *  \brief ranlcg_multiply computes (a*s + c) % m for big numbers
  *

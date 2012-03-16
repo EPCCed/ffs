@@ -23,14 +23,16 @@
      $ wget http://koanlogic.com/download/makl/makl-1.9.0.tar.gz
      $ tar zvf makl-1.9.0.tar.gz
      $ cd makl-1.9.0
-     $ sh configure.sh --prefix=...
+     $ sh configure.sh --prefix=/install/path/for/makl
      $ make install
 
-   Please see the MaKL INSTALL file for further details.
+   Please see the MaKL INSTALL file for further details. Note that
+   /install/path/for/makl may need to be distinct from `pwd` on some
+   platforms.
 
    Remember to add the appropriate bin directory to your PATH, e.g.,
-   if you specified --prefix=/home/kevin then
-     $ export PATH=$PATH:/home/kevin/bin
+   if you specified --prefix=/install/path/for/makl then
+     $ export PATH=$PATH:/install/path/for/makl/bin
 
 3. Install Libu
 
@@ -40,13 +42,21 @@
    or
      $ wget http://koanlogic.com/download/libu/libu-2.2.0.tar.gz
 
-   Please follow the instructions in the Libu README to install.
+   Please follow the instructions in the Libu README to install. It is
+   acceptable to take the default options for the Libu build process
+   at this point. The following may suffice in the top-level directory
+   for libu:
+
+     $ makl-conf --prefix=/install/path/to/libu
+     $ makl
+     $ makl -C test
+     $ makl install
 
 4. FFS
 
    In the top level FFS directory, configure via
 
-     $ makl-conf --u-path=/path/to/libu
+     $ makl-conf --u-path=/install/path/to/libu
      $ makl
 
    This will automatically build the library and run the tests.
