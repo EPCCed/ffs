@@ -27,101 +27,177 @@
 
 %\frenchspacing
 
-\section{Requirements}
+\section{Overview}
 
-\subsection{High Level Requirements}
+\subsection{Aim}
 
-In broad terms, the requirements for the FFS code are the following:
+The aim of the software is to provide:
 \begin{enumerate}
-\item To provide a portable framework for FFS calculations
-independent of the details of the simulation used.
-\item To allow serial FFS calculations.
-\item To allow trivially parallel FFS calculations (several FFS
-``instances'' running concurrently), the statistics for which are
-collated at the end.
-\item To allow non-trivial parallelism, i.e., a single FFS ``instance''
-decomposed in parallel, and/or using parallel simulation.
-\item To provide at least direct and branched FFS implementations
+\item a portable framework for FFS calculations independent
+(as far as possible) of the exact details of the simulation
+method or code used;
+\item serial FFS calculations with serial simulation, and
+serial FFS caluclations with (MPI based) parallel simulation;
+\item trivially parallel FFS calculations, i.e.,  several independent
+FFS ``instances'' running concurrently, the statistics for which are
+collated at the end; serial or parallel simulation;
+\item non-trivial parallelism, i.e., a single FFS instance
+decomposed in parallel; serial or parallel simulation;
+\item To provide at least direct and branched FFS implementations;
 \end{enumerate}
 
-There are two specific simulation targets, with associated science:
+\subsubsection{Specific targets}
+
+A number of target applications have been identified:
+
 \begin{enumerate}
-\item FFS with LAMMPS, applied to enamtiomer formation.
-\item FFS with lattice Boltzmann via \textit{Ludwig}, applied to
+\item A relatively simple test problem in which the simulation is
+serial, e.g., Gillespie algorithm for the genetic switch problem.
+\item A more heavyweight application for molecular dynamcs. This
+will be LAMMPS, applied to enamtiomer formation. This simulation
+may be serial or require small-scale parallelism.
+\item A simulation with large-scale MPI parallelism. For this we
+will use the lattice Boltzmann via \textit{Ludwig}, applied to
 a liquid crystal problem.
 \end{enumerate}
 
 
-\section{Architecture}
+\subsection{Architecture}
 
-\subsection{Overview}
+\subsubsection{Overview}
 
-We specify three main components of the system (see Figure~1).
+We aim to produce a single executable model, in which it is imagined
+that overall program control will be exerted by FFS, called directly
+after the initialisaition of message passing. FFS will be responisble
+for driving the necessary simulations ultimately required for the
+calculation. This means the simulation must be available as a
+linkable library. The abstraction of the simulation used to allow
+coupling between a given FFS instance and the simulation code is discussed
+below. At the highest level, we have a heirachy of MPI communicators
+as shown schematically in Figures~\ref{fig:controller} and~\ref{fig:instance}.
+These are responsible for encapsulating communications related to different
+aspects of the computation. We consider each component in turn.
 
-\begin{figure}[h]
+\subsubsection{FFS Controller}
+
+The FFS controller must be responsible for overall program control,
+while actual the FFS calculation is delegated to an FFS instance.
+It is responsible for managing input to FFS, and the distribution
+of that input to FFS instance or instances. It may also need to
+collating overall output if more than one FFS instance is used.
+It will accept a single 'master' random number seed which will
+ultimately control all other random number generation in the FFS
+process (and simulations). This will allow different statistical
+samples to be collected within undue intervention in the code.
+
+
+
+\begin{figure}[t]
+\label{fig:controller}
+\begin{center}
+\input{./arch3.epic}
+\end{center}
+\caption{FFS Controller: A heirachy of MPI communicators will be
+employed as containers for communiction related to different
+levels of the FFS process. Within \texttt{MPI\_COMM\_WORLD},
+the controller is expected to drive one or more independent
+instances of the FFS calculation (here just one is illustrated).
+In each case, the FFS instance is responsible for the implementation
+of the appropriate FFS algorithm. The reults may be collected by the
+controller at the end of execution, and appropriate aggregate
+statistics can be computed. At this level, there is no attempt
+to load balance between the independent instances of FFS.}
 \end{figure}
 
-\subsubsection{FFS core}
+\subsubsection{FFS Instance}
+
 
 This is responsible for control of the overall FFS workflow. It should
 accept input which specifies the details of algorithm to be used
-(direct or branched, etc.), the number and duration of trials, and the
-details of the number and poistion of the order parameter interfaces.
-It must also allow control of the number of FFS instances, the number
-of MPI tasks per instance, and the number of MPI tasks per simulation
-trial.
+(direct or branched, etc.), and the details of the number and poistion
+of the order parameter interfaces, with associated parameters on the
+number of trials, pruning probability and so on for each interface.
+A single FFS instance will be able to run one or more simulation
+instances, which are responisble for running trials forward in
+time (to either fixed time, or fixed $\lambda$).
 
-The FFS core must be responsible for overall program control, for maintaining
-an account of the trajectory or trajectories associated with the trials,  
-issuing requests for new trials, control of random number seed information,
-and so on.
 
-The FFS core must output the final results in a digestable format, and
-allow control over storage of the history of trajectories to an
-appropriate level of detail.
+\subsubsection{Simulation Interface}
 
-\subsubsection{Controller}
+To meet the requirement that the FFS library be independent of
+any particular simulation code, we introduce a layer to
+abstract the actions that a simulation is required to perform.
+To use a simulation code, an implementation of the interface
+must be provided appropriate for the code in question. This
+allows the necessary exchange of information between the FFS
+instance and the actual simulation. In this way we do not require
+intervention in existing simulation code.
 
-This mediates the exchanges between the FFS core and the simulation
-code so that the FFS core does not require any direct knowledge of
-the simulation being undertaken.
+DETAILS
 
-The controller must handle the initiation trials as required by
-the FFS algorithm, and return appropriate information on successful
-and unsuccessful tirals.
 
-It is imagined that the Controller will specify a fixed interface
-by means of an abstract class. Any given simulation code will
-require a concrete implementation of the class tailored to the
-specific details of the simulation.
 
 \subsubsection{Simulation}
 
 This is reponsible for advancing the state in time, and computing
 a relevant order parameter from the simulation state. It need have
-no knowledge of the FFS procedure beyond what is dictated by the
-Controller.
+no knowledge of the FFS, although it must clearly be able to
+support the operations required be the interface. For a simulation
+that has no MPI parallel capability, it is expected that the
+interface layer will be able to support any necessary action
+appropriate for a single MPI task.
+
+
 
 \begin{figure}[t]
+\label{fig:instance}
 \begin{center}
-\input{./arch1.epic}
+\input{./arch4.epic}
 \end{center}
-\caption{Architecture: Within \texttt{MPI\_COMM\_WORLD}, the driver
-is expected to control one or more independent instances of the
-FFS calculation (here two are illustrated). In each case, the FFS
-library is responsible for the implementation of the appropriate
-FFS algorithm, which will spawn a number of trials.
-FFS issues requests for trial simulations to the Scheduler,
-responsible for load balance. Requests are passed to the
-Controller, which needs to be able to control the relevant
-simulation, and return results to the FFS instance. For more than
-one FFS instance, the driver
-should collect the necessary aggregate statistics from the ensemble.}
+\caption{FFS Instance: Within a given FFS instance, one or more independent
+simulation instances may be used to generate trials required by the FFS
+algorithm. To separate messages related to FFS, and those within the
+simulation code itself, two communicators are used for each simulation
+instance, as represeented above. A given FFS instance may try to balance
+the trial load between the different simulation instances.}
 \end{figure}
 
+\subsubsection{Error Handling}
+
+This is a fraught issue. Many MPI applications have little recourse
+other than to call \texttt{MPI\_Abort()} on encountering an error
+(e.g., if a required file is not found, or some numerical condition
+is violated). In designing an implementing a library to do FFS, we
+have tried to account for at least the possibility that a simulation
+may return from an error in a controlled way. This would allow a number
+of outcomes: (1) a controlled exit from FFS, possibly saving up-to-date
+information; (2) continued execution on remaining FFS instances or
+simulation instances.
+
+Handling errors in this fashion requires some care to avoid deadlocks
+caused by different paths through the code. This requires additional
+synchronisation within given communicators. As such synchronisation
+comes at a cost in time, we have only introduced such checks in
+non-performance critical regions. In this way we aim to trap commonly
+occuring error types (e.g., problems handling external files) and
+recognise that complete termination via \texttt{MPI\_Abort()} may
+not be avoidable in some circumstances. This
+situation may improve with enhanced error handling in future versions
+of the MPI standard [REFERENCE?].
+
+
+\subsubsection{Serial Execution}
+
+We note that for serial execution, this picture collapses to a single
+FFS instance running a single simulation instance on one MPI task. If
+an MPI implementation is not available on a given platform, we provide
+a 'dummy' implmentation which will allow the code to be built and run
+in a serial fashion.
 
 \section{Example: Gillespie Problem}
 
+
+\section{Parallel Example: LAMMPS}
 
 
 
@@ -158,6 +234,8 @@ SHOULD: Allow the user to specify the number of configurations to be used
 at the first interface.
 \item
 MUST: Allow the user to specify whether direct or branched FFS is required.
+\item
+MUST: Do ``t-if'' non-stationary method
 \item
 MUST: Allow the user to specify the number of trials involved.
 \item

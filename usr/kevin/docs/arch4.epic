@@ -1,0 +1,15 @@
+\setlength{\unitlength}{0.0008in}
+
+\begin{picture}(4029,2064)(0,-10)
+\drawline(417,1137)(3567,1137)(3567,687)
+        (417,687)(417,1137)
+\drawline(12,2037)(4017,2037)(4017,12)
+        (12,12)(12,2037)
+\drawline(237,1587)(3792,1587)(3792,462)
+        (237,462)(237,1587)
+
+\put(192,1812){\makebox(0,0)[lb]{\texttt{INSTANCE COMMUNICATOR}}}
+\put(417,1362){\makebox(0,0)[lb]{\texttt{FFS SIMULATION COMMUNICATOR}}}
+\put(642,867){\makebox(0,0)[lb]{\texttt{SIMULATION COMMUNICATOR}}}
+\put(417,237){\makebox(0,0)[lb]{$\vdots$}}
+\end{picture}

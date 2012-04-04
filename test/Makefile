@@ -16,10 +16,12 @@ endif
 SRCS += util/ranlcg.c
 SRCS += util/u_extra.c
 SRCS += util/u_test_suite.c
-SRCS += ffs/ffs_param.c
-SRCS += ffs/ffs_state.c
-SRCS += ffs/ffs_sim.c
-SRCS += ffs/u_test_suite.c
+SRCS += ffs/ut_ffs_param.c
+SRCS += ffs/ut_ffs_state.c
+SRCS += ffs/ut_ffs_sim.c
+SRCS += ffs/ut_ffs_control.c
+SRCS += ffs/ut_ffs_inst.c
+SRCS += ffs/ut_suite.c
 SRCS += missing/mpi.c
 SRCS += missing/u_test_suite.c
 SRCS += main.c

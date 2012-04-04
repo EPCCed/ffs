@@ -1,0 +1,66 @@
+#
+# parameter input for genetic switch problem
+#
+interfaces
+{
+	nlambda	13
+	ntrial_default 2000
+	nstate_default 100
+	nskeep_default  0
+	pprune_default  0.4
+
+	interface1
+	{
+		lambda	-24.0
+		pprune	1.0
+	}
+	interface2
+	{
+		lambda	-22.0
+	}
+	interface3
+	{
+		lambda	-20.0
+	}
+	interface4
+	{
+		lambda	-18.0
+	}
+	interface5
+	{
+		lambda	-15.0
+	}
+	interface6
+	{
+		lambda	-12.0
+	}
+	interface7
+	{
+		lambda	-9.0
+	}
+	interface8
+	{
+		lambda	-5.0
+	}
+	interface9
+	{
+		lambda	0.0
+	}
+	interface10
+	{
+		lambda	7.0
+	}
+	interface11
+	{
+		lambda	15.0
+	}
+	interface12
+	{
+		lambda	20.0
+	}
+	interface13
+	{
+		lambda	25.0
+		ntrial	0
+	}
+}

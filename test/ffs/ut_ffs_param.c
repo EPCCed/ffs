@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- *  \file ffs_param.c
+ *  ffs_param.c
  *
  *  Unit test for ../../src/ffs/ffs_param.c
  *
@@ -9,11 +9,19 @@
 #include <float.h>
 #include <string.h>
 
+#include <mpi.h>
+
 #include "u/libu.h"
 #include "u_extra.h"
 #include "ffs_param.h"
 
-int u_test_ffs_param_create(u_test_case_t * tc) {
+/*****************************************************************************
+ *
+ *  ut_param_create
+ *
+ *****************************************************************************/
+
+int ut_param_create(u_test_case_t * tc) {
 
   u_config_t * config = NULL;
   u_config_t * interf = NULL;
@@ -107,6 +115,46 @@ int u_test_ffs_param_create(u_test_case_t * tc) {
   return U_TEST_SUCCESS;
 
  err:
+  if (config) u_config_free(config);
+  if (param) ffs_param_free(param);
+
+  return U_TEST_FAILURE;
+}
+
+/*****************************************************************************
+ *
+ *  ut_param_from_file
+ *
+ *****************************************************************************/
+
+int ut_param_from_file(u_test_case_t * tc) {
+
+  int ntask;
+  ffs_param_t * param = NULL;
+  u_config_t * config = NULL;
+  u_config_t * subconfig = NULL;
+
+  dbg_err_if(u_config_load_from_file("inputs/ut_param1.inp", &config));
+
+  /* The ffs_param_t could take a full interfaces{}, but ... */
+  subconfig = u_config_get_child(config, FFS_CONFIG_INTERFACES);
+
+  u_test_err_if(ffs_param_create(subconfig, &param));
+  u_test_err_if(ffs_param_check(param));
+
+  MPI_Comm_size(MPI_COMM_WORLD, &ntask);
+
+  if (ntask == 1) {
+    u_test_err_if(ffs_param_print_summary_fp(param, stdout));
+  }
+
+  ffs_param_free(param);
+  u_config_free(config);
+
+  return U_TEST_SUCCESS;
+
+ err:
+
   if (config) u_config_free(config);
   if (param) ffs_param_free(param);
 

@@ -1,0 +1,22 @@
+\setlength{\unitlength}{0.0008in}
+
+{
+\begin{picture}(4074,2739)(0,-10)
+\drawline(462,1812)(3612,1812)(3612,1362)
+        (462,1362)(462,1812)
+\drawline(462,1182)(3612,1182)(3612,732)
+        (462,732)(462,1182)
+\drawline(237,2262)(3837,2262)(3837,237)
+        (237,237)(237,2262)
+\drawline(12,2712)(4062,2712)(4062,12)
+        (12,12)(12,2712)
+
+\put(237,2487){\makebox(0,0)[lb]{\texttt{MPI\_COMM\_WORLD}}}
+\put(600,912){\makebox(0,0)[lb]{\texttt{FFS INSTANCE TWO COMMUNICATOR}}}
+\put(600,1542){\makebox(0,0)[lb]{\texttt{FFS INSTANCE ONE COMMUNICATOR}}}
+\put(462,2037){\makebox(0,0)[lb]{\texttt{FFS CONTROL COMMUNINCATOR}}}
+\put(462,462){\makebox(0,0)[lb]{$\quad\vdots$}}
+
+
+\end{picture}
+}

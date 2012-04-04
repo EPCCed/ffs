@@ -1,0 +1,7 @@
+# input1.test
+
+ffs
+{
+  ffs_instances		1
+  ffs_seed              23
+}

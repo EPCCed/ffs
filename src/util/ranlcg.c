@@ -71,7 +71,7 @@ int ranlcg_create(long int state, ranlcg_t ** pnew) {
   ranlcg_t * p;
 
   dbg_return_if(pnew == NULL, -1);
-  err_err_if((p = u_calloc(1, sizeof(ranlcg_t))) == NULL);
+  err_err_sif((p = u_calloc(1, sizeof(ranlcg_t))) == NULL);
 
   p->a = RANLCG_ADEFAULT;
   p->c = RANLCG_CDEFAULT;
@@ -79,8 +79,8 @@ int ranlcg_create(long int state, ranlcg_t ** pnew) {
 
   /* Check and set all parameters, including rnorm, via ... */
 
-  err_err_if(ranlcg_param_set(p, p->a, p->c, p->m) != 0);
-  err_err_if(ranlcg_state_set(p, state) != 0);
+  dbg_err_if(ranlcg_param_set(p, p->a, p->c, p->m) != 0);
+  dbg_err_if(ranlcg_state_set(p, state) != 0);
 
   *pnew = p;
 

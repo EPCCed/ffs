@@ -1,0 +1,7 @@
+# ffs instance
+
+ffs_inst
+{
+	ffs_inst_method		test
+	ffs_inst_simulations	1
+}

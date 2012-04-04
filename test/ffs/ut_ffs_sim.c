@@ -4,6 +4,8 @@
  *
  *****************************************************************************/
 
+#include <string.h>
+
 #include "u/libu.h"
 #include "ffs_state.h"
 #include "ffs_sim.h"
@@ -102,6 +104,32 @@ int u_test_ffs_sim_state(u_test_case_t * tc) {
 
   return U_TEST_FAILURE;
 
+
+}
+
+int u_test_ffs_sim_args(u_test_case_t * tc) {
+
+  ffs_sim_t * sim;
+  char * argstring = "-x xarg";
+  int argc;
+  char ** argv = NULL;
+
+  u_test_err_if(ffs_sim_create(&sim));
+  u_test_err_if(ffs_sim_args_set(sim, argstring));
+  u_test_err_if(ffs_sim_args(sim, &argc, &argv));
+  u_test_err_if(argc != 3);
+  u_test_err_if(strcmp(argv[0], FFS_SIM_EXECUTABLE_NAME) != 0);
+  u_test_err_if(strcmp(argv[1], "-x") != 0);
+  u_test_err_if(strcmp(argv[2], "xarg") != 0);
+  u_test_err_if(argv[argc] != NULL);
+
+  ffs_sim_free(sim);
+  return U_TEST_SUCCESS;
+
+ err:
+  if (sim) ffs_sim_free(sim);
+
+  return U_TEST_FAILURE;
 
 }
 
