@@ -3,7 +3,6 @@ include common.mk
 include ../Makefile.conf
 
 LIB = ffs
-SRCS += ffs/ffs_error.c
 SRCS += ffs/ffs_inst.c
 SRCS += ffs/ffs_param.c
 SRCS += ffs/ffs_sim.c

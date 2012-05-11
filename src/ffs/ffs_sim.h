@@ -55,6 +55,23 @@ enum do_cb {SIM_DO_START,
  *  \brief
  *
  *  The interface which a concrete simulation must implement.
+ *
+ *  We assume that the simulation holds a special state, called the
+ *  'trial state' upon which the simulation will act. As FFS makes
+ *  many trials, some of which may succeed and some of which may fail,
+ *  this trial state must be manipulated. In the case of success, we
+ *  may want to record the new state, while in the event of failure
+ *  we may want to recall a previous state and try again.
+ *
+ *  We envisage two models for this. The first, which may be appropriate
+ *  if the state has a very small memory overhead, is to hold all relevant
+ *  states in memory.
+ *
+ *  The second (more likely model), is that only one state (the trial state)
+ *  will be held in memory. This means other states must be remembered by
+ *  saving to file. The interface must br responsible for these file
+ *  operations.
+ *  
  */
 
 struct ffs_cb_type {
@@ -68,12 +85,21 @@ struct ffs_cb_type {
    *  may access the appropriate MPI communicator via ffs_sim_comm(),
    *  and the command line arguments intended for the simuation via
    *  ffs_sim_args().
+   *
+   *  The return value should be 0 for a successful initialisation,
+   *  and non-zero if unsuccessful.
    */
  
   int (* do_start) (ffs_sim_t * obj);
 
   /**
-   * \brief Finalisation call back.
+   *  \brief Finalisation call back.
+   *
+   *  \code int do_finish(ffs_sim_t * obj) \endcode
+   *  must be defined by a concrete simulation, and is intended to be called
+   *  once at the end of thr FFS process. It should be reponsible for cleaning
+   *  up and releasing any resources allocated by the simulation code itself
+   *  in the course of the simulation.
    *
    */
 
@@ -81,24 +107,67 @@ struct ffs_cb_type {
 
   /**
    *  \brief Trial state initialisation call back
+   *
+   *  \code int do_state_init(ffs_sim_t * obj, ffs_state_t * s) \endcode
+   *  must be defined by by a concrete implementation and is responsible
+   *  for initialising the trial state (for example, reading an initial
+   *  state from an existing file). Note that this is a separate operation
+   *  from do_start(), as FFS may want to load the initial state more than
+   *  once. Called by all ranks in the simulation communicator.
+   *
+   *  If the state is to be held in memory, a reference must be returned
+   *  via the ffs_state_t object \b s.
+   *
+   *  The return value should be 0 for a successful initialisation, and
+   *  non-zero if unsuccessful. The calling FFS proceedure will check
+   *  that all ranks in the simulation communicator return 0 before
+   *  proceeding. 
    */
 
   int (* do_state_init) (ffs_sim_t * obj, ffs_state_t * s);
 
   /**
    *  \brief  Trial state set call back
+   *
+   *  \code int do_state_set(ffs_sim_t * obj, ffs_state_t * s) \endcode
+   *  must be defined by a concrete implementation and is responsible
+   *  for recalling the state pointed to by \b s to the trial state.
+   *  Called by all ranks in the simulation communicator.
+   *
+   *  The return code should be 0 for a success, and non-zero for a
+   *  failure. The calling FFS proceedure will check all ranks in
+   *  the simulation communicator have returned 0.
    */
 
   int (* do_state_set) (ffs_sim_t * obj, ffs_state_t * s);
 
   /**
-   *  \brief Trial state record call back
+   *  \brief Trial state record call back.
+   *
+   *  \code int do_state_record(ffs_sim_t * obj, ffs_state_t * s) \endcode
+   *  must be implemented by a concrete simulation, and is responsible
+   *  for recording the current trial state to permanent record (either
+   *  in memory or to file). This is a collective call in the simulation
+   *  communicator.
+   *
+   *  A successful call will return 0, while an unsuccessful call will
+   *  return a non-zero value. The calling FFS proceedure will check
+   *  that all ranks in the simulation communicator return a success before
+   *  continuing.
    */
 
   int (* do_state_record) (ffs_sim_t * obj, ffs_state_t * s);
 
   /**
    *  \brief Remove state record call back
+   *
+   *  \code int do_state_remove(ffs_sim_t * obj, ffs_state_t * s) \endcode
+   *  must be implemented by a concrete simulation and is responsible for
+   *  removing a previously generated 'permanent' record of the existing
+   *  state \b s. A collective call in the simulation communicator.
+   *
+   *  The return value will be 0 for a success, and non-zero for a failure.
+   *  A failure may be treated as non-fatal by the calling FFS procedure.
    */
 
   int (* do_state_remove) (ffs_sim_t * obj, ffs_state_t * s);
