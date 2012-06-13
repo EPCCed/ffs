@@ -1,0 +1,35 @@
+This directory contains an example on dimer problem with LAMMPS as a library:
+
+Directory USER-DW contains the LAMMPS source code for double well potential
+V(r) = h*(1 - (x - rwca - w)**2/w**2)**2
+This has two minima at r = rwca and r = rwca + 2w, these minima are separated 
+by a barrier of height h
+
+To use:
+(1) copy the direcory USER-DW to lammps src directory
+(2) to install (in lammps src directory) type make yes-USER-DW
+(3) to uninstall make no-USER-DW
+(4) compile lammps as usual
+
+File double_well_driver.c contains a simple source code to run a dimer problem 
+using lammps as a library:
+
+(1) compile lammps as library (in lammps/src): 
+    make makelib
+    make -f Makefile.lib openmpi
+(2) to compile the double_well_driver.c
+    change the path in Makefile to point the lammps/src
+    make
+(3) to run:
+    mpirun -np #total_proc ./dw_driver #proc_lammps #nrepeat #step_sample
+    eg. for one processor ./dw_driver 1 1000 100
+
+Also included a sample input file and data file for a dimer and 7 solvent (WCA) 
+molecules.
+Here the double well bond parameters are:
+bond_style double_well
+bond_coeff   *   3.0 0.25 1.12246152962189
+bond_coeff   *   [h] [w]  [rwca]
+
+
+
