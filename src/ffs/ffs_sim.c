@@ -112,10 +112,16 @@ int ffs_sim_register_cb(ffs_sim_t * obj, ffs_cb_t * cb) {
 
   dbg_err_if(obj == NULL);
   dbg_err_ifm(cb == NULL, "Trying to register NULL callback block");
-  dbg_err_ifm(cb->do_start == NULL, "cb has NULL do_start");
-  dbg_err_ifm(cb->do_end == NULL, "cb has NULL do_end");
-  dbg_err_ifm(cb->do_state_init == NULL, "cb has NULL do_state_init");
-  dbg_err_ifm(cb->do_state_set == NULL, "cb has NULL do_state_set");
+  dbg_err_ifm(cb->sim_start == NULL, "cb has NULL sim_start method");
+  dbg_err_ifm(cb->sim_end == NULL, "cb has NULL sim_end method");
+  dbg_err_ifm(cb->sim_state_init == NULL, "cb has NULL sim_state_init");
+  dbg_err_ifm(cb->sim_state_set == NULL, "cb has NULL sim_state_set");
+  dbg_err_ifm(cb->sim_state_record == NULL, "cb has NULL sim_state_record");
+  dbg_err_ifm(cb->sim_state_remove == NULL, "cb has NULL sim_state_remove");
+  dbg_err_ifm(cb->sim_lambda == NULL, "cb has NULL sim_lambda");
+  dbg_err_ifm(cb->sim_time == NULL, "cb has NULL sim_time");
+  dbg_err_ifm(cb->sim_time_set == NULL, "cb has NULL sim_time_set");
+  dbg_err_ifm(cb->sim_run == NULL, "cb has NULL sim_run");
 
   obj->cb = cb;
 
@@ -147,21 +153,21 @@ int ffs_sim_deregister_cb(ffs_sim_t * obj) {
  *
  *****************************************************************************/
 
-int ffs_sim_do_something(ffs_sim_t * obj, int do_cb) {
+int ffs_sim_call_back_null(ffs_sim_t * obj, int cb) {
 
   dbg_return_if(obj == NULL, -1);
 
   /* Try cbs */
 
-  switch (do_cb) {
-  case SIM_DO_START:
-    err_err_if(obj->cb->do_start(obj));
+  switch (cb) {
+  case SIM_START:
+    err_err_if(obj->cb->sim_start(obj));
     break;
-  case SIM_DO_END:
-    err_err_if(obj->cb->do_end(obj));
+  case SIM_END:
+    err_err_if(obj->cb->sim_end(obj));
     break;
   default:
-    dbg_err("Unrecognised do_cb value: ", do_cb);
+    dbg_err("Invalid call back enum value %d\n", cb);
   }
 
   return 0;
@@ -176,26 +182,58 @@ int ffs_sim_do_something(ffs_sim_t * obj, int do_cb) {
  *
  *****************************************************************************/
 
-int ffs_sim_do_something_state(ffs_sim_t * obj, ffs_state_t * s, int do_cb) {
+int ffs_sim_call_back_darg(ffs_sim_t * obj, int cb, double * arg) {
+
+  dbg_return_if(obj == NULL, -1);
+
+  /* Try cbs */
+
+  switch (cb) {
+  case SIM_LAMBDA:
+    err_err_if(obj->cb->sim_lambda(obj, arg));
+    break;
+  case SIM_TIME:
+    err_err_if(obj->cb->sim_time(obj, arg));
+    break;
+  case SIM_TIME_SET:
+    err_err_if(obj->cb->sim_time_set(obj, *arg));
+    break;
+  default:
+    dbg_err("Unrecognised cb value %d\n", cb);
+  }
+
+  return 0;
+
+ err:
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *
+ *
+ *****************************************************************************/
+
+int ffs_sim_call_back_state(ffs_sim_t * obj, ffs_state_t * s, int cb) {
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(s == NULL, -1);
 
-  switch (do_cb) {
-  case SIM_DO_STATE_INIT:
-    err_err_if(obj->cb->do_state_init(obj, s));
+  switch (cb) {
+  case SIM_STATE_INIT:
+    err_err_if(obj->cb->sim_state_init(obj, s));
     break;
-  case SIM_DO_STATE_SET:
-    err_err_if(obj->cb->do_state_set(obj, s));
+  case SIM_STATE_SET:
+    err_err_if(obj->cb->sim_state_set(obj, s));
     break;
-  case SIM_DO_STATE_RECORD:
-    err_err_if(obj->cb->do_state_record(obj, s));
+  case SIM_STATE_RECORD:
+    err_err_if(obj->cb->sim_state_record(obj, s));
     break;
-  case SIM_DO_STATE_REMOVE:
-    err_err_if(obj->cb->do_state_remove(obj, s));
+  case SIM_STATE_REMOVE:
+    err_err_if(obj->cb->sim_state_remove(obj, s));
     break;
   default:
-    dbg_err("Unrecognised do_cb value: ", do_cb);
+    dbg_err("Invalid call back value %d\n", cb);
   }
 
   return 0;

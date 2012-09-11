@@ -25,6 +25,9 @@ enum method_enum       {FFS_METHOD_NULL,
 			FFS_METHOD_DIRECT,
 			FFS_METHOD_BRANCHED,
                         FFS_METHOD_TEST};
+enum ffs_run_type_enum {FFS_RUN_SINGLE_STEP,
+			FFS_RUN_FORWARD_IN_TIME,
+			FFS_RUN_FORWARD_IN_LAMBDA};
 
 struct ffs_parameters_type {
 
@@ -35,6 +38,8 @@ struct ffs_parameters_type {
   double trun;              /* time of trial run */
   double teq;               /* time of equilibration run */
   int    nskip;             /* skip sampling of crossings */
+  int    init_independent;  /* Flag for independent runs in basin of A. */
+  double init_paccept;      /* Probability to accept crossing of lambda_A */
 
   int    nstepmax;          /* Maximum number steps per trial */
   int    nsteplambda;       /* Number of steps between lambda evaluations */

@@ -28,7 +28,6 @@ struct ffs_inst_type {
   MPI_Comm comm;        /* FFS instance communicator */
   ffs_param_t * param;  /* Parameters */
   ffs_sim_t * sim;      /* Simulation handle */
-  /* ffs_tree_t * tree; */
 };
 
 /*****************************************************************************
@@ -247,7 +246,6 @@ int ffs_inst_print_summary_fp(ffs_inst_t * obj, FILE * fp) {
 	  ffs_inst_method_name(obj));
   fprintf(fp, "Total number of tasks:            %d\n", ntask);
   fprintf(fp, "Number of simulation instances:   %d\n", obj->nsim);
-  fprintf(fp, "Tasks per simulation instance:    %d\n", ntask / obj->nsim);
 
   return 0;
 }

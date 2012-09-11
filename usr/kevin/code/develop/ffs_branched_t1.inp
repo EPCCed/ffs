@@ -3,6 +3,8 @@ branched
 100.0		equil_time
 100.0           run_time_is_irrelevant
 10		take_every_nth_crossing
+0		init_independent
+1.0		init_paccept
 100000          nstepmax
 1               nstep_lambda
 13 		number_of_interfaces_to_follow

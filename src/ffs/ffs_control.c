@@ -310,7 +310,6 @@ int ffs_control_print_summary_fp(ffs_control_t * obj, FILE * fp) {
   fprintf(fp, "FFS control communicator\n");
   fprintf(fp, "Total number of MPI tasks:   %d\n", ntask);
   fprintf(fp, "Number of instances:         %d\n", obj->ninstances);
-  fprintf(fp, "Tasks per instance:          %d\n", obj->ninstances / ntask);
   fprintf(fp, "Master random number seed:   %d\n", obj->master_seed);
   fprintf(fp, "\n");
 

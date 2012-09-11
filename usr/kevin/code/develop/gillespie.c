@@ -599,3 +599,12 @@ static double nalloc_current(void) {
 
   return nalloc_state_;
 }
+
+int gillespie_nmol_set(state_t * p, int index, int value) {
+  
+  assert(index >= 0);
+
+  p->nx[index] = value;
+
+  return 0;
+}

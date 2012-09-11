@@ -24,12 +24,14 @@ void ffs_make_trial(ffs_param_t * ffs, ffs_trial_t * trial);
  *
  *****************************************************************************/
 
-double ffs_param_lambda_a(const ffs_param_t * ffs) {
+int ffs_param_lambda_a(const ffs_param_t * ffs, double * lambda_a) {
 
   assert(ffs);
+  assert(lambda_a);
   assert(ffs->interface);
+  *lambda_a = ffs->interface[1].lambda;
 
-  return ffs->interface[1].lambda;
+  return 0;
 }
 
 /*****************************************************************************
@@ -38,12 +40,14 @@ double ffs_param_lambda_a(const ffs_param_t * ffs) {
  *
  *****************************************************************************/
 
-double ffs_param_lambda_b(const ffs_param_t * ffs) {
+int ffs_param_lambda_b(const ffs_param_t * ffs, double * lambda_b) {
 
   assert(ffs);
+  assert(lambda_b);
   assert(ffs->interface);
+  *lambda_b = ffs->interface[ffs->nlambda].lambda;
 
-  return ffs->interface[ffs->nlambda].lambda;
+  return 0;
 }
 
 /*****************************************************************************
@@ -141,6 +145,8 @@ void ffs_init_ensemble(ffs_param_t * ffs, int nstates) {
 
   int n = 0;
   int result;
+  double lambda_a;
+
   ffs_trial_t * trial;
   ffs_tree_node_t * init;
   ffs_tree_node_t * newnode;
@@ -150,7 +156,8 @@ void ffs_init_ensemble(ffs_param_t * ffs, int nstates) {
   /* Set up trial */
   trial = ffs_trial_create();
   ffs_trial_start_node_set(trial, init);
-  ffs_trial_to_lambda_set(trial, ffs_param_lambda_a(ffs));
+  ffs_param_lambda_a(ffs, &lambda_a);
+  ffs_trial_to_lambda_set(trial, lambda_a);
 
   while (n < nstates) {
 
@@ -208,21 +215,21 @@ ffs_tree_node_t * ffs_make_node(ffs_param_t * ffs, int id) {
 
   ffs_tree_node_t * node;
   ffs_tree_node_data_t * data;
-  ffs_state_t * state;
+  ffs_state_t * state = NULL;
 
   node = ffs_tree_node_create();
 
   /* ffs state */
-  state = ffs_state_create();
+  ffs_state_create(&state);
   ffs_state_id_set(state, id);
   simulation_trial_state_save(ffs, state);
 
   /* tree data */
   data = ffs_tree_node_data_create();
 
-  t = simulation_trial_state_time(ffs);
+  simulation_trial_state_time(ffs, &t);
   ffs_tree_node_data_time_set(data, t);
-  lambda = simulation_trial_state_lambda(ffs);
+  simulation_trial_state_lambda(ffs, &lambda);
   ffs_tree_node_data_lambda_set(data, lambda);
   ffs_tree_node_data_weight_set(data, 1.0);
 

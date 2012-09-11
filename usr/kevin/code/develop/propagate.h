@@ -28,9 +28,14 @@ int simulation_trial_state_save(ffs_param_t * ffs, ffs_state_t * state);
 int simulation_trial_state_set(ffs_param_t * ffs, ffs_state_t * state);
 int simulation_state_remove(ffs_param_t * ffs, ffs_state_t * state);
 int simulation_state_rng_set(const ffs_param_t * ffs, int seed);
+int simulation_trial_state_run(ffs_param_t * ffs, double t, double lambda_min,
+			       double lambda_max, int type);
+int simulation_trial_state_lambda(ffs_param_t * ffs, double * t);
+int simulation_trial_state_time(ffs_param_t * ffs, double * t);
+int simulation_trial_state_time_set(ffs_param_t * ffs, double t);
+
 int simulation_trial_run(ffs_param_t * ffs, ffs_trial_t * trial);
-double simulation_trial_state_lambda(ffs_param_t * ffs);
-double simulation_trial_state_time(ffs_param_t * ffs);
+int simulation_random_trial_state(ffs_param_t * ffs);
 
 
 #endif

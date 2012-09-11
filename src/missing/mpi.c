@@ -5,6 +5,11 @@
  *  This is a replacement for MPI which can be used for execution
  *  in serial if the official MPI is not available.
  *
+ *  THIS IS BY NO MEANS A FULL IMPLEMENTATION!
+ *
+ *  Parallel Forward Flux Sampling
+ *  (c) 2012 The University of Edinburgh
+ *  Funded by United Kingdom EPSRC Grant EP/I030298/1
  *
  *****************************************************************************/
 

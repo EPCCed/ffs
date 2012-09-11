@@ -345,7 +345,7 @@ int ffs_tree_node_id(const ffs_tree_node_t * p) {
 
   int id = FFS_TREE_NODE_NULL;
 
-  if (p) id = ffs_state_id(p->sim_state);
+  if (p) ffs_state_id(p->sim_state, &id);
 
   return id;
 }

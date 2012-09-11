@@ -29,16 +29,20 @@ static unsigned int nhighwater_ = 0;  /* High water mark of allocation */
  *
  *****************************************************************************/
 
-ffs_state_t * ffs_state_create(void) {
+int ffs_state_create(ffs_state_t ** pobj) {
 
   ffs_state_t * p;
 
-  p = (ffs_state_t *) calloc(1, sizeof(ffs_state_t));
+  assert(pobj);
+
+  p = calloc(1, sizeof(ffs_state_t));
   assert(p);
+
   ++nallocated_;
   nhighwater_ = (nallocated_ > nhighwater_) ? nallocated_ : nhighwater_;
+  *pobj = p;
 
-  return p;
+  return 0;
 }
 
 /*****************************************************************************
@@ -62,13 +66,14 @@ void ffs_state_remove(ffs_state_t * p) {
  *
  *****************************************************************************/
 
-int ffs_state_id(const ffs_state_t * p) {
+int ffs_state_id(const ffs_state_t * p, int * id) {
 
-  int id = FFS_STATE_NULL;
+  assert(id);
 
-  if (p) id = p->id;
+  *id = FFS_STATE_NULL;
+  if (p) *id = p->id;
 
-  return id;
+  return 0;
 }
 
 /*****************************************************************************
@@ -77,12 +82,12 @@ int ffs_state_id(const ffs_state_t * p) {
  *
  *****************************************************************************/
 
-void ffs_state_id_set(ffs_state_t * p, int id) {
+int ffs_state_id_set(ffs_state_t * p, int id) {
 
   assert(p);
   p->id = id;
 
-  return;
+  return 0;
 }
 
 /*****************************************************************************
@@ -91,11 +96,14 @@ void ffs_state_id_set(ffs_state_t * p, int id) {
  *
  *****************************************************************************/
 
-void * ffs_state_memory(const ffs_state_t * p) {
+int ffs_state_memory(const ffs_state_t * p, void ** mem) {
 
   assert(p);
+  assert(mem);
 
-  return p->memory;
+  *mem = p->memory;
+
+  return 0;
 }
 
 /*****************************************************************************
@@ -104,13 +112,13 @@ void * ffs_state_memory(const ffs_state_t * p) {
  *
  *****************************************************************************/
 
-void ffs_state_memory_set(ffs_state_t * p, void * s) {
+int ffs_state_memory_set(ffs_state_t * p, void * mem) {
 
   assert(p);
 
-  p->memory = s;
+  p->memory = mem;
 
-  return;
+  return 0;
 }
 
 /*****************************************************************************
@@ -119,14 +127,14 @@ void ffs_state_memory_set(ffs_state_t * p, void * s) {
  *
  *****************************************************************************/
 
-void ffs_state_file_stub(const ffs_state_t * p, char * stub) {
+int ffs_state_file_stub(const ffs_state_t * p, char * stub) {
 
   assert(p);
   assert(stub);
 
   sprintf(stub, "%9.9d", p->id);
 
-  return;
+  return 0;
 }
 
 /*****************************************************************************
@@ -160,29 +168,32 @@ unsigned int ffs_state_nhighwater(void) {
 int ffs_state_selftest(void) {
 
   int nfail = 0;
-  int id;
+  int id, id_out;
   void * p;
+  void * p_out = NULL;
 
-  ffs_state_t * s1;
-  ffs_state_t * s2;
+  ffs_state_t * s1 = NULL;
+  ffs_state_t * s2 = NULL;
 
   if (ffs_state_nallocated() != 0) ++nfail;
 
-  s1 = ffs_state_create();
+  ffs_state_create(&s1);
   if (s1 == NULL) ++nfail;
 
   if (ffs_state_nallocated() != 1) ++nfail;
 
   id = 2;
   ffs_state_id_set(s1, id);
-  if (ffs_state_id(s1) != id) ++nfail;
+  ffs_state_id(s1, &id_out);
+  if (id_out != id) ++nfail;
 
   id = 3;
   p = &id;
   ffs_state_memory_set(s1, p);
-  if (*((int *) ffs_state_memory(s1)) != id) ++nfail;
+  ffs_state_memory(s1, &p_out);
+  if (p_out != p) ++nfail;
 
-  s2 = ffs_state_create();
+  ffs_state_create(&s2);
   if (s2 == NULL) ++nfail;
 
   ffs_state_remove(s2);

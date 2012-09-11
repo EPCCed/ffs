@@ -19,7 +19,7 @@
 #include "propagate.h"
 #include "gillespie.h"
 
-static int use_file_ = 0;
+static int use_file_ = 1;
 static state_t * strial_;
 
 /*****************************************************************************
@@ -230,30 +230,44 @@ double simulation_lambda(const sim_state_t * p) {
   return lambda;
 }
 
-double simulation_trial_state_lambda(ffs_param_t * ffs) {
+int simulation_trial_state_lambda(ffs_param_t * ffs, double * lambda) {
 
-  double lambda;
+  assert(ffs);
+  assert(lambda);
 
-  lambda = state_to_lambda(strial_);
+  *lambda = state_to_lambda(strial_);
 
-  return lambda;
+  return 0;
 }
 
 /*****************************************************************************
  *
- *  simulation_state_time
+ *  simulation_trial_state_time
  *
  *****************************************************************************/
 
-double simulation_state_time(const sim_state_t * p) {
+double simulation_state_time(const sim_state_t * s) {
 
-  assert(p);
-  return state_time(p);
+  return state_time(s);
 }
 
-double simulation_trial_state_time(ffs_param_t * ffs) {
+int simulation_trial_state_time(ffs_param_t * ffs, double * t) {
 
-  return state_time(strial_);
+  assert(ffs);
+  assert(t);
+
+  *t = state_time(strial_);
+
+  return 0;
+}
+
+int simulation_trial_state_time_set(ffs_param_t * ffs, double t) {
+
+  assert(ffs);
+
+  state_time_set(strial_, t);
+
+  return 0;
 }
 
 /*****************************************************************************
@@ -309,6 +323,7 @@ int simulation_trial_state_save(ffs_param_t * ffs, ffs_state_t * state) {
   if (use_file_) {
     /* Write strial_ to file */
     ffs_state_file_stub(state, filestub);
+    /*printf("Writing to %s\n", filestub);*/
     sprintf(filename, "%s-s.dat", filestub);
     ifail = gillespie_write_state(filename, strial_);
   }
@@ -327,7 +342,7 @@ int simulation_trial_state_set(ffs_param_t * ffs, ffs_state_t * state) {
   int ifail = FFS_SUCCESS;
   char filestub[FILENAME_MAX];
   char filename[FILENAME_MAX];
-  state_t * p;
+  state_t * p = NULL;
 
   assert(state);
 
@@ -340,7 +355,7 @@ int simulation_trial_state_set(ffs_param_t * ffs, ffs_state_t * state) {
   }
   else {
     /* Copy from existing state */
-    p = ffs_state_memory(state);
+    ffs_state_memory(state, (void *) &p);
     assert(p);
     state_copy(p, strial_);
   }
@@ -353,16 +368,16 @@ int simulation_state_remove(ffs_param_t * ffs, ffs_state_t * state) {
   int ifail = FFS_SUCCESS;
   char filestub[FILENAME_MAX];
   char filename[FILENAME_MAX];
-  state_t * p;
+  state_t * p = NULL;
 
   if (use_file_) {
     ffs_state_file_stub(state, filestub);
     sprintf(filename, "%s-s.dat", filestub);
-    ifail = remove(filename);
-    /* ifail != 0 is fail */
+    if (remove(filename) != 0) ifail = FFS_FAILURE;
   }
   else {
-    p = ffs_state_memory(state);
+    ffs_state_memory(state, (void *) &p);
+    assert(p);
     state_free(p);
   }
 
@@ -371,9 +386,62 @@ int simulation_state_remove(ffs_param_t * ffs, ffs_state_t * state) {
 
 /*****************************************************************************
  *
- *  simulation_trial_run
+ *  simulation_trial_state_run
  *
  *****************************************************************************/
+
+int simulation_trial_state_run(ffs_param_t * ffs, double ttarget,
+			       double lambda_min, double lambda_max,
+			       int type) {
+  int n;
+  int nstep = 0;
+  int istatus;
+  double lambda;
+
+  if (type == FFS_RUN_SINGLE_STEP) {
+    gillespie_do_step(strial_);
+    return FFS_TRIAL_SUCCEEDED;
+  }
+
+  if (type == FFS_RUN_FORWARD_IN_TIME) {
+
+    istatus = FFS_TRIAL_TIMED_OUT; /* If we fall out of the bottom of loop */
+
+    for (n = 0; n <= ffs->nstepmax; n++) {
+
+      gillespie_do_step(strial_);
+
+      if (state_time(strial_) >= ttarget) {
+	istatus = FFS_TRIAL_SUCCEEDED;
+	break;
+      }
+    }
+
+    return istatus;
+  }
+
+  /* This is FFS_RUN_FORWARD_IN_LAMBDA */
+
+  istatus = FFS_TRIAL_IN_PROGRESS;
+
+  while (istatus == FFS_TRIAL_IN_PROGRESS) {
+
+    simulation_trial_state_lambda(ffs, &lambda);
+
+    if (lambda <  lambda_min) istatus = FFS_TRIAL_WENT_BACKWARDS;
+    if (lambda >= lambda_max) istatus = FFS_TRIAL_SUCCEEDED;
+    if (nstep >= ffs->nstepmax) istatus = FFS_TRIAL_TIMED_OUT;
+    if (istatus != FFS_TRIAL_IN_PROGRESS) break;
+
+    for (n = 0; n < ffs->nsteplambda; n++) {
+      gillespie_do_step(strial_);
+      ++nstep;
+      ++ffs->firesteps;
+    }
+  }
+
+  return istatus;
+}
 
 int simulation_trial_run(ffs_param_t * ffs, ffs_trial_t * trial) {
 
@@ -392,7 +460,7 @@ int simulation_trial_run(ffs_param_t * ffs, ffs_trial_t * trial) {
 
     if (ffs_simulation_lambda_required(ffs, trial)) {
       /* Order parameter is required. */
-      lambda = simulation_trial_state_lambda(ffs);
+      simulation_trial_state_lambda(ffs, &lambda);
     }
 
     time = state_time(strial_);
@@ -400,4 +468,41 @@ int simulation_trial_run(ffs_param_t * ffs, ffs_trial_t * trial) {
   }
 
   return ifail;
+}
+
+int simulation_random_trial_state(ffs_param_t * ffs) {
+
+  int nmol;
+  int nmax = 26;
+  double lambda;
+  double lambda_a;
+
+  int ffs_param_lambda_a(ffs_param_t * p, double *);
+
+  ffs_param_lambda_a(ffs, &lambda_a);
+
+  do {
+    nmol = ranlcg_reep_int32(ffs->random) % nmax;
+    gillespie_nmol_set(strial_, 0, nmol); /* A */
+    nmol = ranlcg_reep_int32(ffs->random) % nmax;
+    gillespie_nmol_set(strial_, 1, nmol); /* B */
+    nmol = ranlcg_reep_int32(ffs->random) % nmax;
+    gillespie_nmol_set(strial_, 2, nmol); /* An */
+    nmol = ranlcg_reep_int32(ffs->random) % nmax;
+    gillespie_nmol_set(strial_, 3, nmol); /* Bn */
+
+    gillespie_nmol_set(strial_, 4, 0); /* O */
+    gillespie_nmol_set(strial_, 5, 0); /* OA */
+    gillespie_nmol_set(strial_, 6, 0); /* OB */
+    gillespie_nmol_set(strial_, 7, 0); /* OAB */
+
+    /* Set one of O to 1 */
+    nmol = ranlcg_reep_int32(ffs->random) % 4;
+    gillespie_nmol_set(strial_, 4 + nmol, 1); /* OAB */
+
+    lambda = state_to_lambda(strial_);
+
+  } while (lambda >= lambda_a);
+
+  return 0;
 }

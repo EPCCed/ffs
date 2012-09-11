@@ -19,7 +19,32 @@
  *  \defgroup ffs_inst FFS instance
  *  \ingroup ffs_library
  *  \{
- */ 
+ *  FFS instance
+ *
+ *  \par
+ *
+ *  A single instance of FFS will have a number of parameters
+ *  associated with it. These may be conveniently initialised
+ *  via the asscociated u_config_t configuration object which
+ *  can be read from the input file:
+ *
+ *  \code
+ *  ffs_inst
+ *  {
+ *    ffs_inst_method      string # "branched" or "direct"
+ *    ffs_inst_mpi_tasks   int    # number of MPI tasks
+ *    ffs_inst_seed        int    # RNG seed for this instance
+ *
+ *    ffs_init_independent flag   # Use independent initial states
+ *    ffs_init_skip_rate   int    # Crossing skip rate
+ *    ffs_init_prob_accept double # Crossing acceptance rate
+ *    ffs_init_teq         double # Equilibration time
+ *
+ *    ffs_inst_nstepmax    int    # Maximum length of trial (steps)
+ *    ffs_init_tmax        double # Maximum time of trial (simulation units)
+ *  }
+ *  \endcode
+ */
 
 /**
  *  \def FFS_CONFIG_INST

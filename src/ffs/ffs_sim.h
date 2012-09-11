@@ -44,12 +44,17 @@ typedef struct ffs_sim_type ffs_sim_t;
  *  methods in the ffs_cb_t.
  */
 
-enum do_cb {SIM_DO_START,
-	    SIM_DO_STATE_INIT,
-	    SIM_DO_STATE_SET,
-	    SIM_DO_STATE_RECORD,
-	    SIM_DO_STATE_REMOVE,
-	    SIM_DO_END};
+enum sim_cb {SIM_START,
+	     SIM_STATE_INIT,
+	     SIM_STATE_SET,
+	     SIM_STATE_RECORD,
+	     SIM_STATE_REMOVE,
+	     SIM_LAMBDA,
+	     SIM_TIME,
+	     SIM_TIME_SET,
+	     SIM_RNG_SET,
+	     SIM_RUN,
+	     SIM_END};
 
 /**
  *  \brief
@@ -78,7 +83,7 @@ struct ffs_cb_type {
   /**
    *  \brief Initialisation call back.
    *
-   *  \code int do_start(ffs_sim_t * obj) \endcode
+   *  \code int sim_start(ffs_sim_t * obj) \endcode
    *  must be defined by a concrete simulation, and is intended
    *  to be called once at the start of the FFS process and
    *  should initialise any simulation related data. The simulation
@@ -90,12 +95,12 @@ struct ffs_cb_type {
    *  and non-zero if unsuccessful.
    */
  
-  int (* do_start) (ffs_sim_t * obj);
+  int (* sim_start) (ffs_sim_t * obj);
 
   /**
    *  \brief Finalisation call back.
    *
-   *  \code int do_finish(ffs_sim_t * obj) \endcode
+   *  \code int sim_finish(ffs_sim_t * obj) \endcode
    *  must be defined by a concrete simulation, and is intended to be called
    *  once at the end of thr FFS process. It should be reponsible for cleaning
    *  up and releasing any resources allocated by the simulation code itself
@@ -103,16 +108,16 @@ struct ffs_cb_type {
    *
    */
 
-  int (* do_end) (ffs_sim_t * obj);
+  int (* sim_end) (ffs_sim_t * obj);
 
   /**
    *  \brief Trial state initialisation call back
    *
-   *  \code int do_state_init(ffs_sim_t * obj, ffs_state_t * s) \endcode
+   *  \code int sim_state_init(ffs_sim_t * obj, ffs_state_t * s) \endcode
    *  must be defined by by a concrete implementation and is responsible
    *  for initialising the trial state (for example, reading an initial
    *  state from an existing file). Note that this is a separate operation
-   *  from do_start(), as FFS may want to load the initial state more than
+   *  from sim_start(), as FFS may want to load the initial state more than
    *  once. Called by all ranks in the simulation communicator.
    *
    *  If the state is to be held in memory, a reference must be returned
@@ -124,12 +129,12 @@ struct ffs_cb_type {
    *  proceeding. 
    */
 
-  int (* do_state_init) (ffs_sim_t * obj, ffs_state_t * s);
+  int (* sim_state_init) (ffs_sim_t * obj, ffs_state_t * s);
 
   /**
    *  \brief  Trial state set call back
    *
-   *  \code int do_state_set(ffs_sim_t * obj, ffs_state_t * s) \endcode
+   *  \code int sim_state_set(ffs_sim_t * obj, ffs_state_t * s) \endcode
    *  must be defined by a concrete implementation and is responsible
    *  for recalling the state pointed to by \b s to the trial state.
    *  Called by all ranks in the simulation communicator.
@@ -139,12 +144,12 @@ struct ffs_cb_type {
    *  the simulation communicator have returned 0.
    */
 
-  int (* do_state_set) (ffs_sim_t * obj, ffs_state_t * s);
+  int (* sim_state_set) (ffs_sim_t * obj, ffs_state_t * s);
 
   /**
    *  \brief Trial state record call back.
    *
-   *  \code int do_state_record(ffs_sim_t * obj, ffs_state_t * s) \endcode
+   *  \code int sim_state_record(ffs_sim_t * obj, ffs_state_t * s) \endcode
    *  must be implemented by a concrete simulation, and is responsible
    *  for recording the current trial state to permanent record (either
    *  in memory or to file). This is a collective call in the simulation
@@ -156,12 +161,12 @@ struct ffs_cb_type {
    *  continuing.
    */
 
-  int (* do_state_record) (ffs_sim_t * obj, ffs_state_t * s);
+  int (* sim_state_record) (ffs_sim_t * obj, ffs_state_t * s);
 
   /**
    *  \brief Remove state record call back
    *
-   *  \code int do_state_remove(ffs_sim_t * obj, ffs_state_t * s) \endcode
+   *  \code int sim_state_remove(ffs_sim_t * obj, ffs_state_t * s) \endcode
    *  must be implemented by a concrete simulation and is responsible for
    *  removing a previously generated 'permanent' record of the existing
    *  state \b s. A collective call in the simulation communicator.
@@ -170,7 +175,91 @@ struct ffs_cb_type {
    *  A failure may be treated as non-fatal by the calling FFS procedure.
    */
 
-  int (* do_state_remove) (ffs_sim_t * obj, ffs_state_t * s);
+  int (* sim_state_remove) (ffs_sim_t * obj, ffs_state_t * s);
+
+  /**
+   *  \brief Compute lambda associated with the trial state
+   *
+   *  The function
+   *
+   *  \code int sim_lambda(ffs_sim_t * obj, double * lambda) \endcode
+   *  must be implemented by a concrete simulation and is responsible for
+   *  computing the order parameter lambda associated with the current
+   *  trial state.
+   *
+   *  This is a collective call in the simulation communicator in which
+   *  the simulation is responsible for any further collective communication
+   *  required to make a unique value of lambda available to all ranks.
+   *
+   *  The argument lambda should return the unique value of lambda on
+   *  all ranks. A return code of zero indicated success. In addition
+   *  all ranks should return 0 on success, or all ranks should return
+   *  non-zero on failure.
+   */
+
+  int (* sim_lambda) (ffs_sim_t * obj, double * lambda);
+
+  /**
+   *  \brief Retreive current simulation time
+   *
+   *  The function
+   *
+   *  \code int sim_time(ffs_sim_t * obj, double * t) \endcode
+   *
+   *  must return the current time associated with the trial state. It
+   *  is assumed the time is expressed either as integer or (double)
+   *  floating point datatype in the simuation.
+   *
+   *  Returns 0 on success, or a non-zero value on failure.
+   */
+
+  int (* sim_time) (ffs_sim_t * obj, double * t);
+
+  /**
+   *  \brief Set the simulation trial state time
+   *
+   *  \code int sim_time_set(fss_sim_t * obj, double t)
+   *  \endcode
+   *
+   *   This function should allow FFS to set the current time associated
+   *   with the simulation trial state.
+   */
+
+  int (* sim_time_set) (ffs_sim_t * obj, double t);
+
+  /**
+   *  \brief Set the simulation random number generator state or seed.
+   *
+   *  The function
+   *
+   *  \code int sim_rng_set(ffs_sim_t * obj, int seed) \endcode
+   *
+   *  should allow FFS to set the state or seed of the random number
+   *  generator used be the simulation. This is assumed to be one
+   *  4-byte integer.
+   *
+   *  If the simulation uses a random number generator whose state
+   *  exceeeds one 4-byte integer, it is the responsibility of this
+   *  function to completely specify the state based on the single
+   *  seed provided.
+   *
+   *  Returns 0 on success, and non-zero on failure (all ranks).
+   */
+
+  int (* sim_rng_set) (ffs_sim_t * obj, int seed);
+
+  /**
+   *  \brief Run the simulation
+   *
+   *  \code int sim_run(ffs_sim_t * obj)
+   *  \endcode
+   *
+   *  Run a trial simulation from the current trial state.
+   *
+   */
+
+  int (* sim_run) (ffs_sim_t * obj);
+
 };
 
 /**
@@ -228,31 +317,46 @@ int ffs_sim_register_cb(ffs_sim_t * obj, ffs_cb_t * cb);
 int ffs_sim_deregister_cb(ffs_sim_t *obj);
 
 /**
- *  \brief Make a call to the contract-block
+ *  \brief Make a call to the contract-block with no argument.
  *
  *  \param obj      the ffs_sim_t object
- *  \param do_cb    one of the do_cb enum
+ *  \param cb       one of the sim_cb enum
  *
  *  \retval 0       a success
  *  \retval -1      a failure
  */
 
-int ffs_sim_do_something(ffs_sim_t * obj, int do_cb);
+int ffs_sim_call_back_null(ffs_sim_t * obj, int cb);
 
 /**
  *  \brief
  *
- *  Make a call to the to contract block with ffs_state_t argument.
+ *  Make a call to the to contract block with a double argument.
  *
  *  \param obj      the ffs_sim_t object
- *  \param s        the ffs_state_t object to be passed to the call-back
- *  \param do_cb    one of enum do_cb
+ *  \param cb       one of enum sim_cb
+ *  \param arg      the data item (may be in/out)
  *
  *  \retval 0       a success
  *  \retval -1      a failure
  */
 
-int ffs_sim_do_something_state(ffs_sim_t * obj, ffs_state_t * s, int do_cb);
+int ffs_sim_call_back_darg(ffs_sim_t * obj, int cb, double * arg);
+
+/**
+ *  \brief
+ *
+ *  Make a call to the to contract block with a double argument.
+ *
+ *  \param obj      the ffs_sim_t object
+ *  \param s        a state object
+ *  \param cb       one of enum sim_cb
+ *
+ *  \retval 0       a success
+ *  \retval -1      a failure
+ */
+
+int ffs_sim_call_back_state(ffs_sim_t * obj, ffs_state_t * s, int cb);
 
 /**
  *  \brief Create simulation object associated with MPI communicator

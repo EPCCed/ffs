@@ -13,6 +13,7 @@
  *
  *****************************************************************************/
 
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,11 +25,12 @@
 #include "branched.h"
 
 
-void branched_recursive_trial(int i_sect, double wt, sim_state_t * startpoint,
-			      ffs_param_t * ffs);
 void output_data(double runtime, int n_starts, const ffs_param_t * ffs);
-void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_eq,
-			   sim_state_t * s_init);
+int branched_recursive_trial(int interface, int id, double wt,
+			     ffs_param_t * ffs);
+int ffs_initial_crossing(ffs_param_t * ffs, ffs_state_t * eq, int seed,
+			 double * t0, int * status);
+int ffs_initial_histogram(ffs_param_t * ffs, double * t, int * status);
 
 /*****************************************************************************
  *
@@ -38,119 +40,208 @@ void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_eq,
  *
  *****************************************************************************/
 
-void branched_driver(ffs_param_t * ffs) {
+int branched_driver(ffs_param_t * ffs) {
 
-  int i_start;
-  int nstart;
-  double runtime;
+  int n, nstart;
   double wt;
 
-  sim_state_t * s_init;
-  sim_state_t * s_trial;
+  int * status;    /* status for each initial trajectory */
+  double * t0;     /* time for each initial trajectory */
+
+  ffs_state_t * sinit = NULL;
 
   simulation_set_up(ffs);
   nstart = ffs->interface[1].nstates;
 
-  s_init = simulation_state_initialise(ffs);
-  /* INSERT s_init AS HEAD OF TREE AND RECORD STATE */
-  /* tree_node = ffs_tree_node_create(id); */
-  /* ffs_tree_node_set_state(tree_node, s_init); */
+  ffs_state_create(&sinit);
 
-  wt = simulation_lambda(s_init);
-  printf("Initial state has lambda %f\n", wt);
+  simulation_trial_state_initialise(ffs);
+  simulation_trial_state_save(ffs, sinit);
 
+  status = calloc(nstart, sizeof(int));
+  t0 = calloc(nstart, sizeof(double));
 
-  /* CLONE HEAD FOR TRIAL ... */
-  s_trial = simulation_state_allocate();
-  simulation_state_copy(s_init, s_trial);
-  simulation_run_to_time(s_trial, ffs->teq, ffs->nstepmax);
-  simulation_state_time_set(s_trial, 0.0);
+  for (n = 0; n < nstart; n++) {
 
-  wt = simulation_lambda(s_trial);
-  printf("'Equilibrium' state has lambda %f\n", wt);
-
-  ffs->ncross = 0;
-
-  for (i_start = 0; i_start < nstart; i_start++) {
-
-    printf("initial point %d sumw %f\n", i_start,
-	   ffs->interface[ffs->nlambda].weight);
-    branched_run_and_skip(ffs, s_init, s_trial);
-
-    /* now we have got an initial point */
-    /* INSERT NODE IN TREE at first interface and record state. */
+    ffs_initial_crossing(ffs, sinit, 1 + n, t0 + n, status + n);
 
     wt = 1.0; /* weight */
-
-    /* PASS NODE IN TREE RATHER THAN STATE */
-    branched_recursive_trial(1, wt, s_trial, ffs);
+    branched_recursive_trial(1, 1, wt, ffs);
   }
 
-  runtime = simulation_state_time(s_trial);
-  simulation_state_free(s_trial);
-
-  simulation_state_finalise(s_init);
+  simulation_state_remove(ffs, sinit);
   simulation_tear_down();
- 
-  output_data(runtime, nstart, ffs);
+  ffs_state_remove(sinit);
 
-  return;
+  ffs_initial_histogram(ffs, t0, status);
+  free(t0);
+  free(status);
+
+  return 0;
 }
 
 /*****************************************************************************
  *
- *  branched_run_and_skip
+ *  ffs_initial_crossing
  *
- *  Run until we cross the first interface in the forward direction
- *  (skipping nskip crossings); if overshoot to the final state,
- *  re-equilibrate the initial conditions and try again.
+ *  Take an equilibrium state A, and run until we get a crossing
+ *  of the first interface, or time out.
  *
- *  The total time and number of crossings are recorded.
+ *  The time taken to reach the interface for an ensemble of
+ *  trajectories may be used to determine the flux across the
+ *  first interface.
  *
  *****************************************************************************/
 
-void branched_run_and_skip(ffs_param_t * ffs, const sim_state_t * s_init,
-			   sim_state_t * s_trial) {
-  int    stop;
-  double lambda, old_lambda;
-  double lambda_a;
-  double tmp;
+int ffs_initial_crossing(ffs_param_t * ffs, ffs_state_t * eq, int seed,
+			 double * thist, int * status) {
 
-  stop = 0;
-  lambda = simulation_lambda(s_trial);
-  lambda_a = ffs_param_lambda_a(ffs);
+  int istatus;
+  double t;
+  double lambda, lambda_old;
+  double lambda_a, lambda_b;
 
-  while (stop == 0) {
+  assert(ffs);
+  assert(eq);
+  assert(thist);
+  assert(status);
 
-    old_lambda = lambda;
-    simulation_run_to_time(s_trial, DBL_MAX, 0); /* One step */
-    lambda = simulation_lambda(s_trial);
+  ffs_param_lambda_a(ffs, &lambda_a);
+  ffs_param_lambda_b(ffs, &lambda_b);
 
-    if (lambda >= ffs_param_lambda_b(ffs)) {
-
-      /* we are in B state - reset to s_eq and re-equilibrate */
-      /* Need to remember current cummulative time before re-equilibration */
-
-      tmp = simulation_state_time(s_trial);
-      simulation_state_copy(s_init, s_trial);
-      simulation_run_to_time(s_trial, ffs->teq, ffs->nstepmax);
-
-      simulation_state_time_set(s_trial, tmp);
-      lambda = simulation_lambda(s_trial);
-      old_lambda = lambda;
-    }
-
-    ++ffs->runsteps;
-
-    /* check if we cross the first interface which is the border of A */
-
-    if ((lambda >= lambda_a) && (old_lambda < lambda_a)) {
-      ++ffs->ncross;
-      if ((ffs->ncross % ffs->nskip) == 0) stop = 1;
-    }
+  if (seed == 1 || ffs->init_independent) {
+    /* Equilibrate */
+    if (ffs->init_independent) simulation_state_rng_set(ffs, seed);
+    simulation_trial_state_set(ffs, eq);
+    istatus = simulation_trial_state_run(ffs, ffs->teq, 0.0, 0.0,
+					 FFS_RUN_FORWARD_IN_TIME);
+    assert(istatus == FFS_TRIAL_SUCCEEDED);
   }
 
-  return;
+  simulation_trial_state_lambda(ffs, &lambda_old);
+  simulation_trial_state_time_set(ffs, 0.0);
+
+  while (1) {
+
+    istatus = simulation_trial_state_run(ffs, DBL_MAX, 0.0, 0.0,
+					 FFS_RUN_SINGLE_STEP);
+    simulation_trial_state_lambda(ffs, &lambda);
+
+    if (lambda >= lambda_b) {
+      simulation_trial_state_time(ffs, &t);
+      simulation_trial_state_set(ffs, eq);
+      istatus = simulation_trial_state_run(ffs, ffs->teq, 0.0, 0.0,
+					   FFS_RUN_FORWARD_IN_TIME);
+      assert(istatus == FFS_TRIAL_SUCCEEDED);
+      simulation_trial_state_time_set(ffs, t);
+      simulation_trial_state_lambda(ffs, &lambda_old);
+      lambda = lambda_old;
+    }
+
+    if ((lambda_old < lambda_a) && (lambda >= lambda_a)) {
+      ffs->ncross += 1;
+      *status = istatus;
+      simulation_trial_state_time(ffs, thist);
+
+      /* This mess is just for backward compatability, where
+       * we cannot afford an extra random number */
+
+      if ((ffs->ncross % ffs->nskip) == 0) {
+	if (ffs->init_independent) {
+	  if (ranlcg_reep(ffs->random) < ffs->init_paccept) {
+	    break;
+	  }
+	}
+	else {
+	  break;
+	}
+      }
+
+    }
+
+    lambda_old = lambda;
+  }
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_initial_histrogram
+ *
+ *  Output the histogram of trajectory times to the first interface,
+ *  and various other information.
+ *
+ *****************************************************************************/
+
+int ffs_initial_histogram(ffs_param_t * ffs, double * t, int * status) {
+
+  int idt, n;
+  int nstart;
+  int nstop = 0;
+  int nbin = 40;
+
+  int * tbin = NULL; 
+  double t0;
+  double tmax = 0.0;
+  double tsum = 0.0;
+
+  assert(ffs);
+  assert(t);
+  assert(status);
+
+  nstart = ffs->interface[1].nstates;
+
+  for (n = 0; n < nstart; n++) {
+    if (status[n] != FFS_TRIAL_SUCCEEDED) nstop += 1;
+    tsum += t[n];
+    if (t[n] > tmax) tmax = t[n];
+  }
+
+  printf("Number of trials %d\n", nstart);
+  printf("Number of stops  %d\n", nstop);
+  printf("Tmax =           %f\n", tmax);
+  printf("Tsum =           %f\n", tsum);
+  printf("Crosses =        %d\n", ffs->ncross);
+  printf("Flux ~           %f\n", ffs->ncross/tsum);
+  printf("Probability AB   %11.4e\n",
+	 ffs->interface[ffs->nlambda].weight/nstart);
+
+  tbin = calloc(nbin, sizeof(int));
+  assert(tbin);
+
+  for (n = 0; n < nstart; n++) {
+    idt = (t[n]/tmax)*nbin;
+    if (idt < nbin) tbin[idt] += 1;
+  }
+
+  /* Histogram, and cumulative total idt. */
+
+  idt = 0;
+
+  for (n = 0; n < nbin; n++) {
+    t0 = (n + 0.5)*tmax/nbin;
+    idt += tbin[n];
+    printf("%3d %11.4e %8d %11.4e\n", n+1, t0, tbin[n], 1.0*idt/nstart);
+  }
+
+  free(tbin);
+
+  /* Interface probabilities */
+
+  printf("\n");
+  printf("Interface probabilities\n");
+
+ for (n = 1; n <= ffs->nlambda; n++) {
+   printf("%3d %11.4e %11.4e\n", n, ffs->interface[n].lambda,
+	   ffs->interface[n].weight/nstart);
+ }
+
+ printf("\n");
+ printf("Overall probability [flux * P(B|A)] = %11.4e\n",
+	(ffs->ncross/tsum)*ffs->interface[ffs->nlambda].weight/nstart);
+
+  return 0;
 }
 
 /*****************************************************************************
@@ -196,8 +287,8 @@ void output_data(double runtime, int n_starts, const ffs_param_t * ffs) {
  *
  *****************************************************************************/
 
-void branched_recursive_trial(int interface, double wt, sim_state_t * s_exist,
-			      ffs_param_t * ffs) {
+int branched_recursive_trial(int interface, int id, double wt,
+			     ffs_param_t * ffs) {
   int ikk;
   int ntrial;
   int res;
@@ -205,40 +296,79 @@ void branched_recursive_trial(int interface, double wt, sim_state_t * s_exist,
   double lambda_max;
   double wtnow;
 
-  sim_state_t * s_trial;
+  ffs_state_t * s_keep = NULL;
+  int tmp_prune(int interface, double * wt, ffs_param_t * ffs);
 
   ffs->interface[interface].weight += wt;
 
   /* If we have reached the final state the end the recursion */
-  if (interface == ffs->nlambda) return;
+  if (interface == ffs->nlambda) return 0;
 
   lambda_min = ffs->interface[interface - 1].lambda;
   lambda_max = ffs->interface[interface + 1].lambda;
   ntrial = ffs->interface[interface].ntrials;
+
+  /* Save this state, as it needs to be restored. */
+  ffs_state_create(&s_keep);
+  ffs_state_id_set(s_keep, id);
+  simulation_trial_state_save(ffs, s_keep);
 
   for (ikk = 0; ikk < ntrial; ikk++) {
   
     /* fire off the kk branches with total weight 1.0*incoming weight */
     wtnow = wt/((double) ntrial);
 
-    /* CLONE EXISTING TREE NODE STATE FOR TRIAL */
-    s_trial = simulation_state_allocate();
-    simulation_state_copy(s_exist, s_trial);
-    res = simulation_run_to_lambda(s_trial, lambda_min, lambda_max, ffs);
+    res = simulation_trial_state_run(ffs, 0.0, lambda_min, lambda_max,
+				     FFS_RUN_FORWARD_IN_LAMBDA);
   
     if (res == FFS_TRIAL_WENT_BACKWARDS || res == FFS_TRIAL_TIMED_OUT) {
-      res = ffs_general_prune(s_trial, interface, &wtnow, ffs);
+      res = tmp_prune(interface, &wtnow, ffs);
     }
     if (res == FFS_TRIAL_SUCCEEDED) {
       /* ADD NEW NODE IN TREE; RECORD STATE;
 	 FINISH THIS TRIAL; RECURSE WITH NEW NODE */
-      branched_recursive_trial(interface + 1, wtnow, s_trial, ffs);
+      branched_recursive_trial(interface + 1, ++id, wtnow, ffs);
     }
 
-    simulation_state_free(s_trial);
+    /* Reset, and next trial, or end */
+    simulation_trial_state_set(ffs, s_keep);
   }
 
-  /* If all trials are complete, remove state for this node? */
+  simulation_state_remove(ffs, s_keep);
+  ffs_state_remove(s_keep);
 
-  return;
+  return 0;
+}
+
+/* This should replace the pruning routine in ffs_general, if and
+ * when the direct code is brought into line. */
+
+int tmp_prune(int interface, double * wt, ffs_param_t * ffs) {
+
+  int n;
+  int istatus;
+  double lambda_min, lambda_max;
+
+  lambda_max = ffs->interface[interface + 1].lambda;
+  istatus = FFS_TRIAL_WAS_PRUNED;
+
+  for (n = interface; n > 2; n--) {
+
+    if (ranlcg_reep(ffs->random) < ffs->interface[n - 1].pprune) {
+      istatus = FFS_TRIAL_WAS_PRUNED;
+      break;
+    }
+
+    /* Trial survives, update weight and continue... */
+
+    *wt *= 1.0/(1.0 - ffs->interface[n - 1].pprune);
+
+    lambda_min = ffs->interface[n - 2].lambda;
+    istatus = simulation_trial_state_run(ffs, 0.0, lambda_min, lambda_max,
+					 FFS_RUN_FORWARD_IN_LAMBDA);
+
+    if (istatus == FFS_TRIAL_SUCCEEDED) break;
+  }
+
+  return istatus;
 }

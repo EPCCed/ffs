@@ -107,12 +107,14 @@ int direct_initial_ensemble(Ensemble * current, double *runtime,
   int nstates;
   double lambda, old_lambda;
   double lambda_a;
+  double lambda_b;
 
   sim_state_t * snew;
 
   nstates = ffs->interface[1].nstates;
   current->N = 0;
-  lambda_a = ffs_param_lambda_a(ffs);
+  ffs_param_lambda_a(ffs, &lambda_a);
+  ffs_param_lambda_b(ffs, &lambda_b);
 
   /* MAKE TRIAL BASED ON HEAD OF TREE s_init assign rnd seed */
   snew = simulation_state_allocate();
@@ -138,7 +140,7 @@ int direct_initial_ensemble(Ensemble * current, double *runtime,
     lambda = simulation_lambda(snew);
     (*runtime) = simulation_state_time(snew);
 
-    if (lambda >= ffs_param_lambda_b(ffs)) {
+    if (lambda >= lambda_b) {
       /* TRIAL HAS 'failed' */
       /* MAKE NEW TRIAL BASED ON HEAD OF TREE */
       simulation_state_copy(s_init, snew);

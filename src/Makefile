@@ -13,6 +13,10 @@ SRCS += util/u_extra.c
 
 CFLAGS += -I.
 
+ifdef HAVE_MPICC
+CC = mpicc
+endif
+
 ifndef HAVE_MPI
 CFLAGS += -I./missing
 SRCS += missing/mpi.c

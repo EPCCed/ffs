@@ -92,6 +92,8 @@ int ffs_interface_read(ffs_param_t * ffs, const char * filename) {
     fscanf(fp, "%lf%*s", &(ffs->teq));
     fscanf(fp, "%lf%*s", &(ffs->trun));
     fscanf(fp, "%d%*s",  &(ffs->nskip));
+    fscanf(fp, "%d%*s",  &(ffs->init_independent));
+    fscanf(fp, "%lf%*s", &(ffs->init_paccept));
     fscanf(fp, "%d%*s",  &(ffs->nstepmax));
     fscanf(fp, "%d%*s",  &(ffs->nsteplambda));
     fscanf(fp, "%d%*s",  &(ffs->nlambda));

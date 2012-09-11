@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- *  @file mpi.h
+ *  mpi.h
  *
  *  Interface to MPI routines serving as a replacement in serial.
  *
@@ -8,6 +8,8 @@
  *  global operations do nothing.
  *
  *  Parallel Forward Flux Sampling
+ *  (c) 2012 The University of Edinburgh
+ *  Funded by United Kingdom EPSRC Grant EP/I030298/1
  *
  *****************************************************************************/
 
