@@ -1,0 +1,90 @@
+ffs
+{
+	ffs_instances	1
+	ffs_seed	1
+
+	ffs_inst
+	{
+		method			branched
+		simulation		gillespie
+		mpi_tasks		1
+
+		init_method		serial
+		init_t_eq		100.0
+		init_nskip		10
+		init_nstepmax		100000
+		init_nsteplambda	1
+	}
+
+	interfaces
+	{
+		nlambda 13
+		pprune_default 0.999
+		nskeep_default 0
+		interface1
+		{
+			lambda -24.0
+			ntrial 3
+		}
+		interface2
+		{
+			lambda -22.0
+			ntrial 3
+		}
+		interface3
+		{
+			lambda -20.0
+			ntrial 3
+		}
+		interface4
+		{
+			lambda -18.0
+			ntrial 3
+		}
+		interface5
+		{
+			lambda -15.0
+			ntrial 3
+		}
+		interface6
+		{
+			lambda -12.0
+			ntrial 3
+		}
+		interface7
+		{
+			lambda -9.0
+			ntrial 3
+		}
+		interface8
+		{
+			lambda -5.0
+			ntrial 2
+		}
+		interface9
+		{
+			lambda 0.0
+			ntrial 1
+		}
+		interface10
+		{
+			lambda 7.0
+			ntrial 1
+		}
+		interface11
+		{
+			lambda 15.0
+			ntrial 1
+		}
+		interface12
+		{
+			lambda 20.0
+			ntrial 1
+		}
+		interface13
+		{
+			lambda 25.0
+			ntrial 0
+		}
+	}
+}

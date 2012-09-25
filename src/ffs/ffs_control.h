@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <mpi.h>
 
+#include "../util/mpilog.h"
+
 /**
  *  \defgroup ffs_library FFS library
  *  \{
@@ -20,16 +22,39 @@
  */
 
 /**
- *  \defgroup ffs_control FFS controller
+ *  \defgroup ffs_control FFS control
  *  \ingroup ffs_library
  *  \{
- *    This is the top-level FFS library object
+ *    This is the top-level FFS library object and controls the FFS in
+ *    parallel using the message passing interface.
  *
- *    \par
+ *    We expect use to look something like the following:
+ *    \code
+ *      ffs_control_t * ffs = NULL;
+ *      MPI_Init(&argv, &argc);
  *
- *    The object may be instantiated on its own, but should
- *    be initialised by the relevant section of the u_config_t
- *    input file:
+ *      ffs_control_create(MPI_COMM_WORLD, &ffs);
+ *
+ *      ffs_control_start(ffs, "control.log", "w+");
+ *      ffs_control_execute(ffs, "input.config");
+ *      ffs_control_stop(ffs);
+ *
+ *      ffs_control_free(ffs);
+ *      MPI_Finalize();
+ *    \endcode
+ *
+ *    The start of logging is a separate operation as this needs to
+ *    be initiated before any attempt to read and parse the input file.
+ *    The input file input.config is a configuration file following
+ *    the format of the libu config object.
+ *
+ *    The entire execution of the FFS calculation is undertaken by a
+ *    call to ffs_control_execute(). All these calls are collective
+ *    in the parent communicator (here MPI_COMM_WORLD), although a
+ *    duplicate communicator is used internally. 
+ *
+ *    The relevant section of the u_config_t input file should contain
+ *    the following parameters, e.g.,:
  *
  *    \code
  *    ffs
@@ -40,8 +65,7 @@
  *    \endcode
  *    The number of instances must fit in the number of MPI tasks
  *    available (ie., the number in the \c parent communicator),
- *    and there must be a whole number of MPI tasks per
- *    instance.
+ *    and there must be a whole number of MPI tasks per instance.
  */
 
 /**
@@ -101,7 +125,7 @@ int ffs_control_create(MPI_Comm parent, ffs_control_t ** pobj);
 void ffs_control_free(ffs_control_t * obj);
 
 /**
- *  \brief Initialise ffs_control_t object from u_config_t file
+ *  \brief Drive FFS calculation from contents of u_config_t file
  *
  *  \param  obj        the ffs_control_t object
  *  \param  filename   appropriate u_config_t file
@@ -110,42 +134,58 @@ void ffs_control_free(ffs_control_t * obj);
  *  \retval -1         a failure (all tasks in obj->comm)
  */
 
-int ffs_control_init(ffs_control_t * obj, const char * filename);
+int ffs_control_execute(ffs_control_t * obj, const char * filename);
 
 /**
- *  \brief Run the FFS calculation
- *
- *  \param obj      ffs_control_t object
- *
- *  \retval 0       a success
- *  \retval -1      a failure
- */
-
-int ffs_control_run(ffs_control_t * obj);
-
-/**
- *  \brief Close the FFS calculation
+ *  \brief Start the log file using fopen-like arguments
  *
  *  \param  obj         the ffs_control_t object
+ *  \param  filename    the log file name
+ *  \param  mode        an fopen()-like argument for initial file mode
  *
  *  \retval 0           a success
  *  \retval -1          a failure
  */
 
-int ffs_control_finish(ffs_control_t * obj);
+int ffs_control_start(ffs_control_t * obj, const char * filename,
+		      const char * mode);
 
 /**
+ *  \brief Stop the log at end of calculation
  *
- *  \brief Output a human readable summary
- *
- *  \param  obj     the ffs_control_t object
- *  \param  fp      stream
+ *  \param obj      ffs_control_t object
  *
  *  \retval 0       a success
  *  \retval -1      a failure
+ *
+ *  Must be preceeded by a call to ffs_control_log_start().
  */
 
-int ffs_control_print_summary_fp(ffs_control_t * obj, FILE * fp); 
+int ffs_control_stop(ffs_control_t * obj);
+
+/**
+ *  \brief Log details of config to log
+ *
+ *  \param obj         the ffs control object
+ *  \param log         an MPI log object
+ *
+ *  \retval 0          a success
+ *  \retval -1         a failure
+ */
+
+int ffs_control_config_log(ffs_control_t * obj, mpilog_t * log);
+
+/**
+ *  \brief Log details of config to the default log
+ *
+ *  \param obj         the ffs control object
+ *
+ *  \retval 0          a success
+ *  \retval -1         a failure
+ */
+
+int ffs_control_config(ffs_control_t * obj);
+
 
 /**
  *  \}

@@ -20,7 +20,9 @@
  *  \test Instance creation
  */
 
-int ut_inst_create(u_test_case_t * tc);
+#define UT_INST_NAME "ffs inst test"
+
+int ut_inst(u_test_case_t * tc);
 
 /**
  * \}

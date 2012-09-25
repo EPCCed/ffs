@@ -15,32 +15,33 @@
 #include "u/libu.h"
 
 #include "../util/ffs_util.h"
+#include "../util/mpilog.h"
 #include "ffs_param.h"
-#include "ffs_sim.h"
 #include "ffs_inst.h"
 
 struct ffs_inst_type {
   int id;               /* Unique id */
   int method;           /* ffs_method_enum */
+  int ntask_request;    /* Number of tasks specified in config. */
   int nsim;             /* Number of simulations */
-  FILE * log;           /* Instance log */
   MPI_Comm parent;      /* Parent communicator */
   MPI_Comm comm;        /* FFS instance communicator */
   ffs_param_t * param;  /* Parameters */
-  ffs_sim_t * sim;      /* Simulation handle */
+  mpilog_t * log;       /* Instance log */
 };
 
 /*****************************************************************************
  *
  *  ffs_inst_create
  *
- *  Remember id and parent, but defer doing anything until ffs_inst_init().
+ *  Split the parent communicator based on id of the instance.
  *
  *****************************************************************************/
 
 int ffs_inst_create(int id, MPI_Comm parent, ffs_inst_t ** pobj) {
 
   ffs_inst_t * obj = NULL;
+  int rank;
   int mpi_errnol = 0, mpi_errno = 0;
 
   dbg_return_if(parent == MPI_COMM_NULL, -1);
@@ -53,18 +54,26 @@ int ffs_inst_create(int id, MPI_Comm parent, ffs_inst_t ** pobj) {
   mpi_errnol = ((obj = u_calloc(1, sizeof(ffs_inst_t))) == NULL);
   mpi_sync_sif(mpi_errnol);
 
+  obj->id = id;
+  obj->parent = parent;
+
+  MPI_Comm_rank(obj->parent, &rank);
+  MPI_Comm_split(obj->parent, obj->id, rank, &obj->comm);
+
+  mpi_errnol = mpilog_create(obj->comm, &obj->log);
+  mpi_sync_ifm(mpi_errnol, "mpilog_create() failed\n");
+
  mpi_sync:
   MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, parent);
   nop_err_if(mpi_errno);
 
-  obj->id = id;
-  obj->parent = parent;
   *pobj = obj;
 
   return 0;
 
  err:
   if (obj) ffs_inst_free(obj);
+  obj = NULL;
 
   return -1;
 }
@@ -79,11 +88,12 @@ void ffs_inst_free(ffs_inst_t * obj) {
 
   dbg_return_if(obj == NULL, );
 
-  if (obj->comm) MPI_Comm_free(&obj->comm);
-  obj->comm = MPI_COMM_NULL;
+  u_dbg("MPI_Comm_free(inst->comm)");
 
+  if (obj->log) mpilog_free(obj->log);
   if (obj->param) ffs_param_free(obj->param);
-  if (obj->sim) ffs_sim_free(obj->sim);
+
+  MPI_Comm_free(&obj->comm);
   U_FREE(obj);
 
   return;
@@ -91,44 +101,91 @@ void ffs_inst_free(ffs_inst_t * obj) {
 
 /*****************************************************************************
  *
- *  ffs_inst_init
+ *  ffs_inst_start
  *
  *****************************************************************************/
 
-int ffs_inst_init(ffs_inst_t * obj, u_config_t * config) {
+int ffs_inst_start(ffs_inst_t * obj, const char * filename,
+		   const char * mode) {
 
-  int rank, ntask;
-  const char * method;
-  u_config_t * ffs_inst;
+  int sz;
 
   dbg_return_if(obj == NULL, -1);
-  dbg_return_if(config == NULL, -1);
+  dbg_return_if(filename == NULL, -1);
+  dbg_return_if(mode == NULL, -1);
 
-  MPI_Comm_rank(obj->parent, &rank);
-  MPI_Comm_split(obj->parent, obj->id, rank, &obj->comm);
+  MPI_Comm_size(obj->comm, &sz);
 
-  /* Start the log (to stdout for moment) */
+  err_err_if(mpilog_fopen(obj->log, filename, mode));
+  mpilog(obj->log, "FFS instance log for instance id %d\n", obj->id);
+  mpilog(obj->log, "Running on %d MPI task%s", sz, (sz > 1) ? "s" : "");
 
-  obj->log = stdout;
+  return 0;
+ err:
 
-  /* Extract the section */
+  return -1;
+}
 
-  ffs_inst = u_config_get_child(config, FFS_CONFIG_INST);
-  err_err_ifm(ffs_inst == NULL, "Configuration should have %s section",
-	      FFS_CONFIG_INST);
+/*****************************************************************************
+ *
+ *  ffs_inst_stop
+ *
+ *****************************************************************************/
+
+int ffs_inst_stop(ffs_inst_t * obj) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(obj->log == NULL, -1);
+
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "Instance finished cleanly\n");
+  mpilog(obj->log, "Closing log file.\n");
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_execute
+ *
+ *****************************************************************************/
+
+int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
+
+  int ntask;
+  int ifail;
+  const char * method = NULL;
+  u_config_t * config = NULL;
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(input == NULL, -1);
+
+  MPI_Comm_size(obj->comm, &ntask);
+
+  /* Parse input */
+
+  ifail = ((config = u_config_get_child(input, FFS_CONFIG_INST)) == NULL);
+  mpilog_if(ifail, obj->log, "Config has no %s section\n", FFS_CONFIG_INST);
+  dbg_err_ifm(ifail, "No config");
+
+  /* Check the actual number of tasks against the requested number */
+
+  dbg_err_if(u_config_get_subkey_value_i(config, FFS_CONFIG_INST_NTASK,
+					 0, &obj->ntask_request));
+  ifail = (ntask != obj->ntask_request);
+  mpilog_if(ifail, obj->log, "Mismatch is actual and requested task number\n");
+  dbg_err_ifm(ifail, "Number of tasks mismatched");
 
   /* Set number of simulations */
 
-  err_err_if(u_config_get_subkey_value_i(ffs_inst, FFS_CONFIG_INST_SIMULATIONS,
-					 FFS_DEFAULT_INST_SIMULATIONS,
-					 &obj->nsim));
-  MPI_Comm_size(obj->comm, &ntask);
+  err_err_if(u_config_get_subkey_value_i(config, FFS_CONFIG_INST_NSIM,
+					 FFS_DEFAULT_INST_NSIM, &obj->nsim));
   err_err_ifm(obj->nsim > ntask, "Must have at least one task per simulation");
   err_err_ifm(ntask % obj->nsim, "No. simuations not divisor of inst. size");
 
   /* Set method */
 
-  method = u_config_get_subkey_value(ffs_inst, FFS_CONFIG_INST_METHOD);
+  method = u_config_get_subkey_value(config, FFS_CONFIG_INST_METHOD);
   err_err_ifm(method == NULL, "Must have an %s key in the %s config\n",
 	      FFS_CONFIG_INST_METHOD, FFS_CONFIG_INST);
 
@@ -137,7 +194,6 @@ int ffs_inst_init(ffs_inst_t * obj, u_config_t * config) {
   }
   else if (strcmp(method, FFS_CONFIG_METHOD_BRANCHED) == 0) {
     obj->method = FFS_METHOD_BRANCHED;
-    err_err("branched not operational yet");
   }
   else if (strcmp(method, FFS_CONFIG_METHOD_DIRECT) == 0) {
     obj->method = FFS_METHOD_DIRECT;
@@ -152,7 +208,6 @@ int ffs_inst_init(ffs_inst_t * obj, u_config_t * config) {
   return 0;
 
  err:
-  if (obj->comm) MPI_Comm_free(&obj->comm);
 
   return -1;
 }
@@ -192,60 +247,36 @@ const char * ffs_inst_method_name(ffs_inst_t * obj) {
 
 /*****************************************************************************
  *
- *  ffs_inst_print_summary
+ *  ffs_inst_config_log
  *
  *****************************************************************************/
 
-int ffs_inst_print_summary(ffs_inst_t * obj) {
-
-  int rank;
-  int mpi_errnol = 0, mpi_errno = 0;
+int ffs_inst_config_log(ffs_inst_t * obj, mpilog_t * log) {
 
   dbg_return_if(obj == NULL, -1);
+  dbg_return_if(obj == NULL, -1);
 
-  MPI_Comm_rank(obj->comm, &rank);
-
-  if (rank == 0) {
-    mpi_errnol = ffs_inst_print_summary_fp(obj, obj->log);
-    mpi_sync_ifm(mpi_errnol, "ffs_inst_print_summary_fp()");
-
-    if (obj->param) {
-      mpi_errnol = ffs_param_print_summary_fp(obj->param, obj->log);
-      mpi_sync_ifm(mpi_errnol, "ffs_param_print_summary_fp()");
-    }
-  }
-
- mpi_sync:
-  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, obj->comm);
-  nop_err_if(mpi_errno);
+  mpilog(log, "\n");
+  mpilog(log, "%s\n", FFS_CONFIG_INST);
+  mpilog(log, "{\n");
+  mpilog(log, "\t%s\t%s\n", FFS_CONFIG_INST_METHOD, ffs_inst_method_name(obj));
+  mpilog(log, "\t%s\t%d\n", FFS_CONFIG_INST_NTASK, obj->ntask_request);
+  mpilog(log, "\t%s\t%d\n", FFS_CONFIG_INST_NSIM, obj->nsim);
+  mpilog(log, "}\n");
 
   return 0;
-
- err:
-  return -1;
 }
 
 /*****************************************************************************
  *
- *  ffs_inst_print_summary_fp
+ *  ffs_inst_config
  *
  *****************************************************************************/
 
-int ffs_inst_print_summary_fp(ffs_inst_t * obj, FILE * fp) {
-
-  int ntask;
+int ffs_inst_config(ffs_inst_t * obj) {
 
   dbg_return_if(obj == NULL, -1);
-  dbg_return_if(fp == NULL, -1);
+  dbg_return_if(obj->log == NULL, -1);
 
-  MPI_Comm_size(obj->comm, &ntask);
-
-  fprintf(fp, "\n");
-  fprintf(fp, "FFS instance:                     id%d\n", obj->id);
-  fprintf(fp, "Method:                           %s\n",
-	  ffs_inst_method_name(obj));
-  fprintf(fp, "Total number of tasks:            %d\n", ntask);
-  fprintf(fp, "Number of simulation instances:   %d\n", obj->nsim);
-
-  return 0;
+  return ffs_inst_config_log(obj, obj->log);
 }

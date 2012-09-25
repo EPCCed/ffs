@@ -14,34 +14,62 @@
 #include <stdio.h>
 #include <mpi.h>
 #include "u/libu.h"
+#include "../util/mpilog.h"
 
 /**
  *  \defgroup ffs_inst FFS instance
  *  \ingroup ffs_library
  *  \{
- *  FFS instance
  *
- *  \par
+ *  A single instance of FFS should run the FFS calculation using
+ *  a selected FFS method, and a user-specified simulation (called
+ *  via the simulation interface).
  *
- *  A single instance of FFS will have a number of parameters
- *  associated with it. These may be conveniently initialised
- *  via the asscociated u_config_t configuration object which
- *  can be read from the input file:
+ *  There are two levels of parallelism available. First, the FFS
+ *  calculation can make use of mutliple simulation instances to
+ *  make multiple trials. Second, the simulation itself may be run
+ *  in parallel (if available).
+ *
+ *  This means that the total number of MPI tasks available to the
+ *  instance (determined at run time) must be consistent with the
+ *  number specified for the tasks per instance, the number of
+ *  simualtions, and the tasks per simulation. This is checked at run time.
+ *
+ *  We expect the use to be, schematically:
+ *
+ *  \code
+ *    u_config_t * config;        // To be supplied by caller
+ *    ffs_inst_t * inst = NULL;
+ *
+ *    ffs_inst_create(inst_id, comm_parent, &inst);
+ *    ffs_inst_start(inst, "instance.log", "w+");
+ *    ffs_inst_execute(inst, config);
+ *    ffs_inst_stop(inst);
+ *
+ *    ffs_inst_free(inst);
+ *
+ *  \endcode
+ *
+ *  Execution is driven by the apropriate u_config_t configuration object.
+ *  This defines the following key value pairs.
  *
  *  \code
  *  ffs_inst
  *  {
- *    ffs_inst_method      string # "branched" or "direct"
- *    ffs_inst_mpi_tasks   int    # number of MPI tasks
- *    ffs_inst_seed        int    # RNG seed for this instance
+ *    method      string       # "branched" or "direct" or "test"
+ *    mpi_tasks   int          # number of MPI tasks for this FFS instance
+ *    nsim        int          # number of simulation instances to use
  *
- *    ffs_init_independent flag   # Use independent initial states
- *    ffs_init_skip_rate   int    # Crossing skip rate
- *    ffs_init_prob_accept double # Crossing acceptance rate
- *    ffs_init_teq         double # Equilibration time
+ *    init_independent flag    # Use independent initial states
+ *    init_skip_rate   int     # Crossing skip rate
+ *    init_prob_accept double  # Crossing acceptance rate
+ *    init_teq         double  # Equilibration time
  *
- *    ffs_inst_nstepmax    int    # Maximum length of trial (steps)
- *    ffs_init_tmax        double # Maximum time of trial (simulation units)
+ *    trial_nstepmax    int    # Maximum length of trial (steps)
+ *    trial_tmax        double # Maximum time of trial (simulation units)
+ *
+ *    seed0             int    # RNG seed for this instance
+ *
  *  }
  *  \endcode
  */
@@ -51,10 +79,12 @@
  *  Key string for the instance config section
  *  \def FFS_CONFIG_INST_METHOD
  *  Key string for the FFS algorithm to be used
- *  \def FFS_CONFIG_INST_SIMULATIONS
+ *  \def FFS_CONFIG_INST_NTASK
+ *  Key for the number of MPI tasks requested for this simulation
+ *  \def FFS_CONFIG_INST_NSIM
  *  Key string for number of simulations
  *
- *  \def FFS_DEFAULT_INST_SIMULATIONS
+ *  \def FFS_DEFAULT_INST_NSIM
  *  Default number of simulations of instance
  *
  *  \def FFS_CONFIG_METHOD_TEST
@@ -66,10 +96,19 @@
  */
 
 #define FFS_CONFIG_INST               "ffs_inst"
-#define FFS_CONFIG_INST_METHOD        "ffs_inst_method"
-#define FFS_CONFIG_INST_SIMULATIONS   "ffs_inst_simulations"
+#define FFS_CONFIG_INST_METHOD        "method"
+#define FFS_CONFIG_INST_NTASK         "mpi_tasks"
+#define FFS_CONFIG_INST_NSIM          "nsim"
+#define FFS_CONFIG_INST_SEED          "seed"
+#define FFS_CONFIG_INIT_INDEPENDENT   "init_independent"
+#define FFS_CONFIG_INIT_SKIP_RATE     "init_skip_rate"
+#define FFS_CONFIG_INIT_PROB_ACCEPT   "init_prob_accept"
+#define FFS_CONFIG_INIT_TEQ           "init_teq"
+#define FFS_CONFIG_TRIAL_NSTEPMAX     "trial_nstepmax"
+#define FFS_CONFIG_TRIAL_TMAX         "trial_tmax"
 
-#define FFS_DEFAULT_INST_SIMULATIONS   1
+
+#define FFS_DEFAULT_INST_NSIM          1
 
 #define FFS_CONFIG_METHOD_TEST         "test"
 #define FFS_CONFIG_METHOD_DIRECT       "direct"
@@ -115,6 +154,33 @@ int ffs_inst_create(int id, MPI_Comm comm, ffs_inst_t ** pobj);
 void ffs_inst_free(ffs_inst_t * obj);
 
 /**
+ *  \brief Start the instance logging using fopen()-like arguments
+ *
+ *  \param obj        the FFS instance object
+ *  \param filename   the log file name for this instance
+ *  \param mode       an fopen()-like mode argument
+ *
+ *  \retval 0         a success
+ *  \retval -1        a failure
+ *
+ *  The parent is resposible for co-ordinating a sensible log file name 
+ *  on each MPI rank.
+ */
+
+int ffs_inst_start(ffs_inst_t * obj, const char * filename, const char * mode);
+
+/**
+ *  \brief Close the instance log and otther house-keeping at end
+ *
+ *  \param  obj       the FFS instance object
+ *
+ *  \retval 0         a success
+ *  \retval -1        a failure
+ */
+
+int ffs_inst_stop(ffs_inst_t * obj);
+  
+/**
  *  \brief Initialise the instance from configuration
  *
  *  \param  obj      the ffs_inst_t object
@@ -125,7 +191,7 @@ void ffs_inst_free(ffs_inst_t * obj);
  *
  */
 
-int ffs_inst_init(ffs_inst_t * obj, u_config_t * config);
+int ffs_inst_execute(ffs_inst_t * obj, u_config_t * config);
 
 /**
  *  \brief Initialise FFS parameters from configuration
@@ -141,31 +207,30 @@ int ffs_inst_init(ffs_inst_t * obj, u_config_t * config);
 int ffs_inst_param_init(ffs_inst_t * obj, u_config_t * config);
 
 /**
- *  \brief Print summary of instance
+ *  \brief Log the instance details to given mpilog object
  *
- *  \param  obj          the ffs_inst_t object
- *  \param  fp           stream
+ *  \param obj      the instance object
+ *  \param log      the mpilog_t object
  *
- *  \retval 0            a success
- *  \retval -1           a failure
+ *  \retval 0       a success
+ *  \retval -1      a failure
  */
 
-int ffs_inst_print_summary_fp(ffs_inst_t * obj, FILE * fp);
+int ffs_inst_config_log(ffs_inst_t * obj, mpilog_t * log);
 
 /**
- *  \brief  Print summary to the instance log
+ *  \brief Log instance details to the internal log
  *
- *  \param  obj           the ffs_inst_t object
+ *  \param obj      the instance
  *
- *  \retval 0             a success
- *  \retval -1            a failure
- *
+ *  \retval 0       a success
+ *  \retval -1      a failure
  */
 
-int ffs_inst_print_summary(ffs_inst_t * obj);
+int ffs_inst_config(ffs_inst_t * obj);
 
 /**
- *  \brief Return the method name
+ *  \brief Return the FFS method name
  *
  *  \param  obj    the ffs_inst_t object
  *

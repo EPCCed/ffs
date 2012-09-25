@@ -18,11 +18,13 @@
  *  \{
  */
 
+#define UT_CONTROL_NAME "ffs control test"
+
 /**
  *  \test Creation of control object from input file
  */
 
-int ut_control_create(u_test_case_t * tc);
+int ut_control(u_test_case_t * tc);
 
 /**
  * \}

@@ -2,6 +2,7 @@
 
 ffs_inst
 {
-	ffs_inst_method		test
-	ffs_inst_simulations	1
+	method		test
+	mpi_tasks       1
+	nsim            1
 }

@@ -35,6 +35,8 @@ int ut_param_create(u_test_case_t * tc) {
 
   /* Set up a config object with two interfaces. */
 
+  u_dbg("Start");
+
   dbg_err_if(u_config_create(&config));
   dbg_err_if(u_config_add_key(config, FFS_CONFIG_NLAMBDA, "2"));
   dbg_err_if(u_config_add_key(config, FFS_CONFIG_NTRIAL_DEFAULT, "10"));
@@ -112,11 +114,14 @@ int ut_param_create(u_test_case_t * tc) {
   u_config_free(config);
   ffs_param_free(param);
 
+  u_dbg("Success\n");
+
   return U_TEST_SUCCESS;
 
  err:
   if (config) u_config_free(config);
   if (param) ffs_param_free(param);
+  u_dbg("Failure\n");
 
   return U_TEST_FAILURE;
 }

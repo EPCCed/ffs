@@ -4,4 +4,9 @@ ffs
 {
   ffs_instances		1
   ffs_seed              23
+
+  ffs_inst
+  {
+    method test
+  }
 }

@@ -1,0 +1,6 @@
+# Bad ffs_seed
+ffs
+{
+	ffs_instances 1
+	ffs_seed -1
+}

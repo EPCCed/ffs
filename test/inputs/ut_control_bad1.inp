@@ -1,0 +1,6 @@
+# Too many instances should be trapped
+
+ffs
+{
+	ffs_instances 1000000
+}
