@@ -5,26 +5,48 @@
 . $MAKL_DIR/cf/makl.init
 makl_args_init "$@"
 
+${ECHO} "MAKL_ETC is ${MAKL_ETC}"
+
 #
 # --u-path=...
 #
-makl_args_def "u" "" "" "path to libu directory"
+makl_args_def "u-path" "" "" "path to libu directory"
 __makl_u ()
 {
     makl_set_var_mk "UDIR" "$2"
+    makl_set_var_mk "HAVE_LIBU" "1"
 }
 
-makl_pkg_name "sample_makl"
+#
+# --fftw-path
+#
+makl_args_def "fftw-path" "" "" "path to fftw directory"
+__makl_fftw ()
+{
+    makl_set_var_mk "FFTWDIR" "$2"
+    makl_set_var_mk "HAVE_FFTW" "1"
+}
+
+#
+# --lammps-path=...
+#
+makl_args_def "lammps-path" "" "" "Specify path to find LAMMPS"
+__makl_lammps ()
+{
+    makl_set_var_mk "LAMMPSDIR" "$2"
+    makl_set_var_mk "HAVE_LAMMPS" "1"
+}
+
+makl_pkg_name "FFS"
 makl_pkg_version
 
 makl_checkheader   0    "mpi"     "<mpi.h>"
-makl_optional      1    "featx"   "mpicc"   "MPICC"
 makl_optional      1    "featx"   "doxygen" "DOXYGEN"
 
 makl_args_handle "$@"
 
 udir=`makl_get_var_mk "UDIR"`
-echo "checking for libu in ${udir}"
+${ECHO} "checking for libu in ${udir}"
  
 makl_compile "build/libu.c" "-I${udir}/include" "-L${udir}/lib -lu"
 [ $? == 0 ] || makl_err 1 "could not find libu in ${udir}"
@@ -32,5 +54,39 @@ makl_compile "build/libu.c" "-I${udir}/include" "-L${udir}/lib -lu"
 makl_append_var_mk "CFLAGS" "-I${udir}/include"
 makl_append_var_mk "LDFLAGS" "-L${udir}/lib -lu"
 
+# Check FFTW (this is FFTW 2 for LAMMPS)
+# We require an include directory  $fftwdir/include
+# and a lib directory              $fftwdir/lib -lfftw
+
+fftw=`makl_get_var_mk "HAVE_FFTW"`
+if [ $fftw ]
+    then
+    fftwdir=`makl_get_var_mk "FFTWDIR"`
+    ${ECHO} "Looking for FFTW in ${fftwdir}"
+    makl_compile "build/fftw.c" "-I${fftwdir}/include" "-L${fftwdir}/lib -lfftw"
+    [ $? == 0 ] || makl_err 1 "could not build fftw"
+    makl_append_var_mk "LDFLAGS" "-L${fftwdir}/lib -lfftw"
+else
+    echo "No FFTW (ok)"
+fi
+
+# Check LAMMPS
+# We require LAMMPS include directory  $lmpdir/include
+# and a statically linked library      $lmpdir/lib -llmp
+# The link is via CC -lstdc++
+
+lammps=`makl_get_var_mk "HAVE_LAMMPS"`
+if [ $lammps ]
+then
+    lmpdir=`makl_get_var_mk "LAMMPSDIR"`
+    ${ECHO} "Looking for LAMMPS library in ${lmpdir}..."
+    makl_compile "build/lammps.c" "-I${lmpdir}/include" \
+	"-L${lmpdir}/lib -llmp -lstdc++ -L${fftwdir}/lib -lfftw -lm"
+    [ $? == 0 ] || makl_err 1 "could not compile LAMMPS test"
+    makl_append_var_mk "CFLAGS" "-I${lmpdir}/include"
+    makl_append_var_mk "LDFLAGS" "-L${lmpdir}/lib -lfftw"
+else
+    ${ECHO} "No LAMMPS (ok)"
+fi
 
 . $MAKL_DIR/cf/makl.term

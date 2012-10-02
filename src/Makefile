@@ -10,16 +10,17 @@ SRCS += ffs/ffs_state.c
 SRCS += ffs/ffs_control.c
 SRCS += sim/factory.c
 SRCS += sim/proxy.c
+SRCS += sim/sim_dmc.c
 SRCS += sim/sim_test.c
 SRCS += util/mpilog.c
 SRCS += util/ranlcg.c
 SRCS += util/u_extra.c
 
-CFLAGS += -I. -I./ffs -I./util
-
-ifdef HAVE_MPICC
-CC = mpicc
+ifdef HAVE_LAMMPS
+SRCS += sim/sim_lmp.c
 endif
+
+CFLAGS += -I. -I./ffs -I./util
 
 ifndef HAVE_MPI
 CFLAGS += -I./missing

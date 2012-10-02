@@ -60,3 +60,29 @@
      $ makl
 
    This will automatically build the library and run the tests.
+
+5. FFS with LAMMPS
+
+   If there is a LAMMPS library available in directory /install/path/to/lammps
+   you can specify at the configure stage
+
+     $ makl-conf  --u-path=/install/path/to/libu \
+                   --lammps-path=/install/path/to/lammps
+
+   in which case /install/path/to/lammps/include holds the LAMMPS library.h
+   header file, and /install/path/to/lammps/lib holds the static library
+   liblmp.a
+
+   (Note that LAMMPS usually builds the library in its src directory; you
+    will have to move it.)
+
+   If LAMMPS requires FFTW, then FFS also needs to know where to find
+   the FFTW library, in which case specify
+
+
+     $ makl-conf  --u-path=/install/path/to/libu \
+                   --fftw-path=/install/path/to/fftw \
+                   --lammps-path=/install/path/to/lammps
+
+   The configure script will check that these libraries are available.
+   Failures at the configure stage can be investigated via makl-conf --verbose

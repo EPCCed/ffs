@@ -41,6 +41,13 @@ int ffs_create(MPI_Comm comm, ffs_t ** pobj);
 void ffs_free(ffs_t * obj);
 
 /**
+ *  \brief Set the simulation command line
+ *
+ */
+
+int ffs_command_line_set(ffs_t * obj, char * argstring);
+
+/**
  *  \}
  */
 

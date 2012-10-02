@@ -31,6 +31,7 @@ int u_test_suite_ffs_register(u_test_t * t) {
 
   u_test_case_register(UT_FFS_CREATE_NAME, ut_ffs_create, ts);
   u_test_case_register(UT_FFS_COMMAND_LINE_NAME, ut_ffs_command_line, ts);
+  u_test_case_register(UT_FFS_EXCH_INT_NAME, ut_ffs_exch_int, ts);
 
   u_test_case_register(UT_INST_NAME, ut_inst, ts);
   u_test_case_register(UT_CONTROL_NAME, ut_control, ts);

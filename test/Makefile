@@ -26,6 +26,7 @@ SRCS += missing/mpi.c
 SRCS += missing/u_test_suite.c
 SRCS += sim/ut_factory.c
 SRCS += sim/ut_proxy.c
+SRCS += sim/ut_sim_dmc.c
 SRCS += sim/ut_sim_test.c
 SRCS += sim/ut_suite.c
 SRCS += smoke/st_gil.c
@@ -40,9 +41,6 @@ LDFLAGS += -L../src -lffs -lm
 LDADD += ../src/libffs.a
 
 # if the real MPI library is present, the following com into effect
-ifdef HAVE_MPICC
-CC = mpicc
-endif
 ifdef HAVE_MPI
 CFLAGS += -DHAVE_MPI
 LDFLAGS += -lmpi

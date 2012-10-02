@@ -22,14 +22,22 @@
 
 typedef struct ffs_s ffs_t;
 
+typedef enum {
+  FFS_VAR_INT,      /**< For integer data */
+  FFS_VAR_DOUBLE    /**< For double data */
+} ffs_var_enum_t;
+
 /**
  *  \brief Information enumerator object
  */
 
 typedef enum {
-  FFS_INFO_TIME_PUT,     /**< Provide exsiting time */ 
-  FFS_INFO_TIME_FETCH,   /**< Fetch a new time */
-  FFS_INO_LAMBDA_PUT     /**< Provide current lambda value (rank 0) */
+  FFS_INFO_TIME_PUT,         /**< Provide exsiting time */ 
+  FFS_INFO_TIME_FETCH,       /**< Fetch new time value */
+  FFS_INFO_RNG_SEED_PUT,     /**< Provide RNG seed */
+  FFS_INFO_RNG_SEED_FETCH,   /**< Fetch a random number seed */
+  FFS_INFO_LAMBDA_PUT,       /**< Provide current lambda value (rank 0) */
+  FFS_INFO_LAMBDA_FETCH      /**< Fetch a lambda value */
 } ffs_info_enum_t;
 
 
@@ -58,6 +66,12 @@ int ffs_info_double(ffs_t * obj, ffs_info_enum_t type, int n, double * data);
  */
 
 int ffs_info_int(ffs_t * obj, ffs_info_enum_t type, int n, int * data);
+
+/**
+ *  \brief Tell FFS what datatype is associated with a quantity
+ */
+
+int ffs_declare(ffs_t * obj, ffs_info_enum_t type, int n, ffs_var_enum_t t);
 
 /**
  *  \}

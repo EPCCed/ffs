@@ -12,10 +12,24 @@
 #include "u_extra.h"
 #include "ffs_private.h"
 
+typedef struct var_s var_t;
+
+struct var_s {
+  int type;
+  union {
+    int ui;
+    double ud;
+  } var;
+};
+
 struct ffs_s {
   MPI_Comm comm;
   size_t argc;
   char ** argv;
+  /* Simulation data */
+  var_t t;
+  var_t lambda;
+  int seed;
 };
 
 /*****************************************************************************
@@ -41,6 +55,9 @@ int ffs_create(MPI_Comm comm, ffs_t ** pobj) {
   nop_err_if(mpi_errno);
 
   obj->comm = comm;
+  obj->t.type = -1;
+  obj->lambda.type = -1;
+
   *pobj = obj;
 
   return 0;
@@ -162,15 +179,37 @@ int ffs_command_line_set(ffs_t * obj, char * argstring) {
  *
  *****************************************************************************/
 
-int ffs_info_int(ffs_t * obj, ffs_info_enum_t type, int ndata, int * data) {
+int ffs_info_int(ffs_t * obj, ffs_info_enum_t param, int ndata, int * data) {
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(ndata < 1, -1);
   dbg_return_if(data == NULL, -1);
 
-  switch (type) {
+  switch (param) {
+  case FFS_INFO_TIME_PUT:
+    err_err_if(obj->t.type != FFS_VAR_INT);
+    obj->t.var.ui = *data;
+    break;
+  case FFS_INFO_TIME_FETCH:
+    err_err_if(obj->t.type != FFS_VAR_INT);
+    *data = obj->t.var.ui;
+    break;
+  case FFS_INFO_RNG_SEED_PUT:
+    obj->seed = *data;
+    break;
+  case FFS_INFO_RNG_SEED_FETCH:
+    *data = obj->seed;
+    break;
+  case FFS_INFO_LAMBDA_PUT:
+    err_err_if(obj->lambda.type != FFS_VAR_INT);
+    obj->lambda.var.ui = *data;
+    break;
+  case FFS_INFO_LAMBDA_FETCH:
+    err_err_if(obj->lambda.type != FFS_VAR_INT);
+    *data = obj->lambda.var.ui;
+    break;
   default:
-    err_err("type not recognised");
+    err_err("ffs_info_enum_t not recognised");
   }
 
   return 0;
@@ -186,16 +225,68 @@ int ffs_info_int(ffs_t * obj, ffs_info_enum_t type, int ndata, int * data) {
  *
  *****************************************************************************/
 
-int ffs_info_double(ffs_t * obj, ffs_info_enum_t type, int ndata,
+int ffs_info_double(ffs_t * obj, ffs_info_enum_t param, int ndata,
 		    double * data) {
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(ndata < 1, -1);
   dbg_return_if(data == NULL, -1);
 
-  switch (type) {
+  switch (param) {
+  case FFS_INFO_TIME_PUT:
+    err_err_if(obj->t.type != FFS_VAR_DOUBLE);
+    obj->t.var.ud = *data;
+    break;
+  case FFS_INFO_TIME_FETCH:
+    err_err_if(obj->t.type != FFS_VAR_DOUBLE);
+    *data = obj->t.var.ud;
+    break;
+  case FFS_INFO_RNG_SEED_PUT:
+    obj->seed = *data;
+    break;
+  case FFS_INFO_RNG_SEED_FETCH:
+    *data = obj->seed;
+    break;
+  case FFS_INFO_LAMBDA_PUT:
+    err_err_if(obj->lambda.type != FFS_VAR_DOUBLE);
+    obj->lambda.var.ud = *data;
+    break;
+  case FFS_INFO_LAMBDA_FETCH:
+    err_err_if(obj->lambda.type != FFS_VAR_DOUBLE);
+    *data = obj->lambda.var.ud;
+    break;
   default:
-    err_err("type not recognised");
+    err_err("ffs_info_enum_t param not recognised");
+  }
+
+  return 0;
+
+ err:
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_declare
+ *
+ *****************************************************************************/
+
+int ffs_declare(ffs_t * obj, ffs_info_enum_t param, int ndata,
+		ffs_var_enum_t type) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(ndata != 1, -1);
+
+  switch (param) {
+  case FFS_INFO_TIME_PUT:
+    obj->t.type = type;
+    break;
+  case FFS_INFO_LAMBDA_PUT:
+    obj->lambda.type = type;
+    break;
+  default:
+    err_err("Inccorrent param argument");
   }
 
   return 0;

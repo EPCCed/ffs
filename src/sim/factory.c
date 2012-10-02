@@ -19,17 +19,24 @@ typedef struct factory_s factory_t;
 #define  SIM_TEST_NAME       "test"
 #define  SIM_TEST_VTABLE_ADDR &sim_test_table
 
+/* Always have DMC */
+
+#include "sim_dmc.h"
+#define SIM_DMC_NAME          "dmc"
+#define SIM_DMC_VTABLE_ADDR   &sim_dmc_table
+
 /* A placeholder to terminate the registry list. */
 
 #define LAST_NAME "To identify the end of the list"
 
 struct factory_s {
-  const char * name;
+  char * name;
   interface_table_ft ftable;
 };
 
-static factory_t registry[2] = {
+static factory_t registry[3] = {
   {SIM_TEST_NAME, SIM_TEST_VTABLE_ADDR},
+  {SIM_DMC_NAME, SIM_DMC_VTABLE_ADDR},
   {LAST_NAME, NULL}
 };
 
@@ -51,7 +58,8 @@ int factory_inquire(const char * name, int * present) {
   do {
     if (strcmp(name, registry[n].name) == 0) *present = 1;
     if (strcmp(LAST_NAME, registry[n].name) == 0) break;
-  } while (0);
+    n += 1;
+  } while (1);
 
   return 0;
 }
@@ -84,7 +92,7 @@ int factory_make(MPI_Comm comm, const char * name, interface_t * table,
     }
     if (strcmp(LAST_NAME, registry[n].name) == 0) break;
     n += 1;
-  } while (0);
+  } while (1);
 
  mpi_sync:
   MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, comm);

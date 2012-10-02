@@ -20,6 +20,9 @@ int ut_proxy(u_test_case_t * tc) {
   proxy_t * proxy = NULL;
   ffs_t * ffs = NULL;
 
+  int result;
+  MPI_Comm testcomm;
+
   u_dbg("Start");
 
   u_test_err_if(proxy_create(MPI_COMM_WORLD, &proxy));
@@ -34,6 +37,13 @@ int ut_proxy(u_test_case_t * tc) {
 
   u_test_err_if(proxy_ffs(proxy, &ffs));
   u_test_err_if(ffs == NULL);
+
+  /* The simulation communicator is a duplicate of the proxy
+   * communicator. Result of comparison should be MPI_CONGRUENT */
+
+  u_test_err_if(ffs_comm(ffs, &testcomm));
+  MPI_Comm_compare(MPI_COMM_WORLD, testcomm, &result);
+  u_test_err_if(result != MPI_CONGRUENT);
 
   proxy_free(proxy);
 

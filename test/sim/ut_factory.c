@@ -27,18 +27,19 @@ int ut_factory(u_test_case_t * tc) {
   u_test_err_if(present != 0);
 
   u_test_err_if(factory_inquire("test", &present));
-  u_test_err_if(present == 0);
+  u_test_err_ifm(present == 0, "no test");
+
+  u_test_err_if(factory_inquire("dmc", &present));
+  u_test_err_ifm(present == 0, "no dmc");
 
   u_test_err_if(factory_make(MPI_COMM_WORLD, "Non-existant", &table, &sim));
   u_test_err_if(sim != NULL);
 
   u_dbg("Success\n");
-
   return U_TEST_SUCCESS;
 
  err:
 
   u_dbg("Failure\n");
-
   return U_TEST_FAILURE;
 }
