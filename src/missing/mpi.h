@@ -116,7 +116,7 @@ enum collective_operations {MPI_MAX,
 
 /* reserved communicators */
 
-enum reserved_communicators {MPI_COMM_WORLD, MPI_COMM_SELF};
+enum reserved_communicators {MPI_COMM_WORLD = 0, MPI_COMM_SELF = 1};
 
 /* results of comminucator and group comparisons */
 

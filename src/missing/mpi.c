@@ -31,6 +31,7 @@ static void mpi_errhandler_errors_are_fatal(MPI_Comm * comm, int * rc);
 static int mpi_initialised_flag_ = 0;
 static MPI_Handler_function * mpi_errhandler_ = NULL;
 static int periods_[3];
+static int ncomm_ = MPI_COMM_SELF + 1;
 
 /*****************************************************************************
  *
@@ -46,7 +47,7 @@ int MPI_Barrier(MPI_Comm comm) {
 
   int rc;
 
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
 
   return MPI_SUCCESS;
 
@@ -68,7 +69,7 @@ int MPI_Bcast(void * buffer, int count, MPI_Datatype datatype, int root,
 
   err_err_rcif(buffer == NULL, MPI_ERR_BUFFER);
   err_err_rcif(count < 0, MPI_ERR_COUNT);
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
 
   return MPI_SUCCESS;
 
@@ -174,7 +175,6 @@ int MPI_Comm_rank(MPI_Comm comm, int * rank) {
 
   int rc;
 
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
   err_err_rcif(rank == NULL, MPI_ERR_ARG);
   *rank = 0;
 
@@ -202,7 +202,7 @@ int MPI_Comm_size(MPI_Comm comm, int * size) {
 
   int rc;
 
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(size == NULL, MPI_ERR_ARG);
   *size = 1;
 
@@ -261,7 +261,7 @@ int MPI_Send(void * buf, int count, MPI_Datatype datatype, int dest,
   int rc;
 
   err_err_rcif(buf == NULL, MPI_ERR_BUFFER);
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(1, MPI_ERR_OTHER);
 
   return MPI_SUCCESS;
@@ -295,7 +295,7 @@ int MPI_Recv(void * buf, int count, MPI_Datatype datatype, int source,
   int rc;
 
   err_err_rcif(buf == NULL, MPI_ERR_BUFFER);
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(status == NULL, MPI_ERR_ARG);
   err_err_rcif(1, MPI_ERR_OTHER);
 
@@ -330,7 +330,7 @@ int MPI_Irecv(void * buf, int count, MPI_Datatype datatype, int source,
   int rc;
 
   err_err_rcif(buf == NULL, MPI_ERR_BUFFER);
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(request == NULL, MPI_ERR_REQUEST);
   err_err_rcif(1, MPI_ERR_OTHER);
 
@@ -365,7 +365,7 @@ int MPI_Ssend(void * buf, int count, MPI_Datatype datatype, int dest,
   int rc;
 
   err_err_rcif(buf == NULL, MPI_ERR_BUFFER);
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(1, MPI_ERR_OTHER);
 
   return MPI_SUCCESS;
@@ -399,7 +399,7 @@ int MPI_Isend(void * buf, int count, MPI_Datatype datatype, int dest,
   int rc;
 
   err_err_rcif(buf == NULL, MPI_ERR_BUFFER);
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(request == NULL, MPI_ERR_REQUEST);
   err_err_rcif(1, MPI_ERR_OTHER);
 
@@ -434,7 +434,7 @@ int MPI_Issend(void * buf, int count, MPI_Datatype datatype, int dest,
   int rc;
 
   err_err_rcif(buf == NULL, MPI_ERR_BUFFER);
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(request == NULL, MPI_ERR_REQUEST);
   err_err_rcif(1, MPI_ERR_OTHER);
 
@@ -495,7 +495,7 @@ int MPI_Probe(int source, int tag, MPI_Comm comm, MPI_Status * status) {
 
   int rc;
 
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(status == NULL, MPI_ERR_ARG);
   err_err_rcif(1, MPI_ERR_OTHER);
 
@@ -538,7 +538,7 @@ int MPI_Sendrecv(void * sendbuf, int sendcount, MPI_Datatype sendtype,
 
   err_err_rcif(sendbuf == NULL, MPI_ERR_BUFFER);
   err_err_rcif(recvbuf == NULL, MPI_ERR_BUFFER);
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(1, MPI_ERR_OTHER);
 
   return MPI_SUCCESS;
@@ -576,7 +576,7 @@ int MPI_Reduce(void * sendbuf, void * recvbuf, int count, MPI_Datatype type,
 
   err_err_rcif(sendbuf == NULL, MPI_ERR_BUFFER);
   err_err_rcif(recvbuf == NULL, MPI_ERR_BUFFER);
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(count < 0, MPI_ERR_COUNT);
 
   mpi_copy(sendbuf, recvbuf, count, type);
@@ -722,10 +722,9 @@ int MPI_Comm_split(MPI_Comm comm, int colour, int key, MPI_Comm * newcomm) {
 
   int rc;
 
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
   err_err_rcif(newcomm == NULL, MPI_ERR_ARG);
 
-  *newcomm = comm;
+  *newcomm = ++ncomm_;
 
   return MPI_SUCCESS;
 
@@ -766,7 +765,8 @@ int MPI_Comm_free(MPI_Comm * comm) {
  *
  *  MPI_Comm_dup
  *
- *  Just return the old one.
+ *  Create a new handle (and increment the global count).
+ *  This is to indentify distinct communicators.
  *
  *****************************************************************************/
 
@@ -774,9 +774,8 @@ int MPI_Comm_dup(MPI_Comm oldcomm, MPI_Comm * newcomm) {
 
   int rc;
 
-  err_err_rcif(oldcomm != MPI_COMM_WORLD, MPI_ERR_COMM);
   err_err_rcif(newcomm == NULL, MPI_ERR_ARG);
-  *newcomm = oldcomm;
+  *newcomm = ++ncomm_;
 
   return MPI_SUCCESS;
 
@@ -916,7 +915,7 @@ int MPI_Errhandler_set(MPI_Comm comm, MPI_Errhandler errhandler) {
 
   int rc;
 
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
 
   switch (errhandler) {
   case (MPI_ERRORS_ARE_FATAL):
@@ -952,7 +951,7 @@ int MPI_Cart_create(MPI_Comm oldcomm, int ndims, int * dims, int * periods,
   int rc;
   int n;
 
-  err_err_rcif(oldcomm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(oldcomm < 0, MPI_ERR_COMM);
   err_err_rcif(ndims > 3, MPI_ERR_DIMS);
   err_err_rcif(periods == NULL, MPI_ERR_ARG);
   err_err_rcif(newcomm == NULL, MPI_ERR_ARG);
@@ -984,7 +983,7 @@ int MPI_Cart_get(MPI_Comm comm, int maxdims, int * dims, int * periods,
   int rc;
   int n;
 
-  err_err_rcif(comm != MPI_COMM_WORLD, MPI_ERR_COMM);
+  err_err_rcif(comm < 0, MPI_ERR_COMM);
   err_err_rcif(maxdims > 3, MPI_ERR_DIMS);
   err_err_rcif(dims == NULL, MPI_ERR_ARG);
   err_err_rcif(periods == NULL, MPI_ERR_ARG);
@@ -1086,6 +1085,8 @@ int MPI_Dims_create(int nnodes, int ndims, int * dims) {
 /*****************************************************************************
  *
  *  MPI_Comm_compare
+ *
+ *  There may be various special cases to trap, e.g., MPI_COMM_SELF.
  *
  *****************************************************************************/
 
