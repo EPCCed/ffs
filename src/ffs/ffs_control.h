@@ -127,27 +127,27 @@ void ffs_control_free(ffs_control_t * obj);
 /**
  *  \brief Drive FFS calculation from contents of u_config_t file
  *
- *  \param  obj        the ffs_control_t object
- *  \param  filename   appropriate u_config_t file
+ *  \param  obj              the ffs_control_t object
+ *  \param  configfilename   appropriate u_config_t file
  *
- *  \retval 0          a success
- *  \retval -1         a failure (all tasks in obj->comm)
+ *  \retval 0                a success
+ *  \retval -1               a failure (all tasks in obj->comm)
  */
 
-int ffs_control_execute(ffs_control_t * obj, const char * filename);
+int ffs_control_execute(ffs_control_t * obj, const char * configfilename);
 
 /**
  *  \brief Start the log file using fopen-like arguments
  *
  *  \param  obj         the ffs_control_t object
- *  \param  filename    the log file name
+ *  \param  logfile     the log file name
  *  \param  mode        an fopen()-like argument for initial file mode
  *
  *  \retval 0           a success
  *  \retval -1          a failure
  */
 
-int ffs_control_start(ffs_control_t * obj, const char * filename,
+int ffs_control_start(ffs_control_t * obj, const char * logfile,
 		      const char * mode);
 
 /**
@@ -173,7 +173,7 @@ int ffs_control_stop(ffs_control_t * obj);
  *  \retval -1         a failure
  */
 
-int ffs_control_config_log(ffs_control_t * obj, mpilog_t * log);
+int ffs_control_log_to_mpilog(ffs_control_t * obj, mpilog_t * log);
 
 /**
  *  \brief Log details of config to the default log
@@ -184,7 +184,7 @@ int ffs_control_config_log(ffs_control_t * obj, mpilog_t * log);
  *  \retval -1         a failure
  */
 
-int ffs_control_config(ffs_control_t * obj);
+int ffs_control_log(ffs_control_t * obj);
 
 
 /**

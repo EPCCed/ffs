@@ -16,6 +16,7 @@ typedef struct var_s var_t;
 
 struct var_s {
   int type;
+  int ndata;
   union {
     int ui;
     double ud;
@@ -268,22 +269,24 @@ int ffs_info_double(ffs_t * obj, ffs_info_enum_t param, int ndata,
 
 /*****************************************************************************
  *
- *  ffs_declare
+ *  ffs_type_set
  *
  *****************************************************************************/
 
-int ffs_declare(ffs_t * obj, ffs_info_enum_t param, int ndata,
-		ffs_var_enum_t type) {
+int ffs_type_set(ffs_t * obj, ffs_info_enum_t param, int ndata,
+		 ffs_var_enum_t type) {
 
   dbg_return_if(obj == NULL, -1);
-  dbg_return_if(ndata != 1, -1);
+  dbg_return_if(ndata != 1, -1);  /* Must be a scalar at moment */
 
   switch (param) {
   case FFS_INFO_TIME_PUT:
     obj->t.type = type;
+    obj->t.ndata = ndata;
     break;
   case FFS_INFO_LAMBDA_PUT:
     obj->lambda.type = type;
+    obj->lambda.ndata = ndata;
     break;
   default:
     err_err("Inccorrent param argument");
@@ -295,3 +298,38 @@ int ffs_declare(ffs_t * obj, ffs_info_enum_t param, int ndata,
 
   return -1;
 }
+
+/*****************************************************************************
+ *
+ *  ffs_type
+ *
+ *****************************************************************************/
+
+int ffs_type(ffs_t * obj, ffs_info_enum_t param, int * ndata,
+	     ffs_var_enum_t * type) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(ndata == NULL, -1);
+  dbg_return_if(type == NULL, -1);
+
+  switch (param) {
+  case FFS_INFO_TIME_PUT:
+    *type = obj->t.type;
+    *ndata = obj->t.ndata;
+    break;
+  case FFS_INFO_LAMBDA_PUT:
+    *type = obj->lambda.type;
+    *ndata = obj->lambda.ndata;
+    break;
+  default:
+    err_err("Inccorrent param argument");
+
+  }
+
+  return 0;
+
+ err:
+
+  return -1;
+}
+

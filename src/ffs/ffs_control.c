@@ -39,7 +39,6 @@ static int ffs_input(ffs_control_t * obj, const char * filename,
 			    size_t * len);
 static int ffs_broadcast_config(ffs_control_t * obj, size_t len);
 static int ffs_input_parse(ffs_control_t * obj);
-static int ffs_init_instances(ffs_control_t * obj);
 
 /*****************************************************************************
  *
@@ -90,8 +89,6 @@ int ffs_control_create(MPI_Comm parent, ffs_control_t ** pobj) {
 void ffs_control_free(ffs_control_t * obj) {
 
   dbg_return_if(obj == NULL, );
-
-  u_dbg("MPI_Comm_free(control->comm)");
 
   if (obj->ran) ranlcg_free(obj->ran);
   if (obj->log) mpilog_free(obj->log);
@@ -159,21 +156,26 @@ int ffs_control_stop(ffs_control_t * obj) {
  *
  *****************************************************************************/
 
-int ffs_control_execute(ffs_control_t * obj, const char * filename) {
+int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
 
   size_t len;
+  int sz;
   int mpi_errnol = 0, mpi_errno = 0;
   long int seed;
+  u_config_t * config = NULL;
 
   dbg_return_if(obj == NULL, -1);
-  dbg_return_if(filename == NULL, -1);
+  dbg_return_if(configfilename == NULL, -1);
 
-  /* Input config */
+  MPI_Comm_size(obj->comm, &sz);
+
+  /* Read the config file, broadcast the contents to all ranks,
+   * and then all ranks can parse the input and proceed. */
 
   mpilog(obj->log, "\n");
-  mpilog(obj->log, "Attempting to read input config: %s\n", filename);
+  mpilog(obj->log, "Attempting to read input config: %s\n", configfilename);
 
-  err_err_if(ffs_input(obj, filename, &len));
+  err_err_if(ffs_input(obj, configfilename, &len));
   MPI_Bcast(&len, 1, MPI_INT, 0, obj->comm);
 
   err_err_if(ffs_broadcast_config(obj, len));
@@ -194,13 +196,26 @@ int ffs_control_execute(ffs_control_t * obj, const char * filename) {
   mpilog(obj->log, "\n");
   mpilog(obj->log, "Started control RNG with seed %ld\n", seed);
 
-  /* Instances TODO */
-
   mpilog(obj->log, "\n");
-  mpilog(obj->log, "Starting %d FFS instance%s\n", obj->ninstances,
+  mpilog(obj->log, "MPI tasks per instance: %d\n", sz / obj->ninstances);
+  mpilog(obj->log, "Starting %d FFS instance%s...\n", obj->ninstances,
 	 (obj->ninstances > 1) ? "s" : "");
 
-  /* Compound statistics TODO (before closing instances) */
+  u_config_get_subkey(obj->input, FFS_CONFIG_FFS, &config);
+
+  /* Instance create, start, execute, stop, close */
+
+  err_err_if(ffs_inst_create(obj->inst_id, obj->comm, &obj->instance));
+  err_err_if(ffs_inst_start(obj->instance, "inst-blah.log", "w+"));
+  err_err_if(ffs_inst_execute(obj->instance, config));
+  err_err_if(ffs_inst_stop(obj->instance));
+
+  /* Compound statistics TODO (before finishing off instances) */
+
+  ffs_inst_free(obj->instance);
+  obj->instance = NULL;
+
+  mpilog(obj->log, "Finshed instances.\n");
 
   return 0;
 
@@ -316,14 +331,20 @@ static int ffs_broadcast_config(ffs_control_t * obj, size_t len) {
  *  At this stage everyone in obj->comm should agree on the contents
  *  of config, so failures are collective.
  *
+ *  If the details are acceptable, we can set the instance id via
+ *  integer division
+ *     inst_id = rank / mpi tasks per instance
+ *  so inst id runs 0, ...
+ *
  *****************************************************************************/
 
 static int ffs_input_parse(ffs_control_t * obj) {
 
-  int ntask;
+  int rank, ntask;
   int ifail;
   u_config_t * ffs = NULL;
 
+  MPI_Comm_rank(obj->comm, &rank);
   MPI_Comm_size(obj->comm, &ntask);
 
   ifail = ((ffs = u_config_get_child(obj->input, FFS_CONFIG_FFS)) == NULL);
@@ -340,13 +361,18 @@ static int ffs_input_parse(ffs_control_t * obj) {
 					 FFS_DEFAULT_FFS_SEED,
 					 &obj->seed));
 
-  /* Check parameters */
+  /* Log the parameters received; sanity check parameters */
 
-  ffs_control_config(obj);
+  ffs_control_log(obj);
+
+  ifail = (obj->ninstances < 1);
+  mpilog_if(ifail, obj->log, "Number of instances (%d) is less than one!\n",
+	    obj->ninstances);
+  dbg_err_ifm(ifail, "Number of instances < 1 (%d)", obj->ninstances);
 
   ifail = (ntask < obj->ninstances);
-  mpilog_if(ifail, obj->log, "Requested too many instances\n");
-  dbg_err_ifm(ifail, "Too many instances");
+  mpilog_if(ifail, obj->log, "Requested more instances than MPI tasks\n");
+  dbg_err_ifm(ifail, "Number of instances > MPI tasks (%d)", ntask);
 
   ifail = ((ntask % obj->ninstances) != 0);
   mpilog_if(ifail, obj->log, "Must have equal number of tasks per instance\n");
@@ -354,7 +380,11 @@ static int ffs_input_parse(ffs_control_t * obj) {
 
   ifail = (obj->seed < 1);
   mpilog_if(ifail, obj->log, "%s must be > 0\n", FFS_CONFIG_FFS_SEED);
-  dbg_err_ifm(ifail, "Bad seed");
+  dbg_err_ifm(ifail, "Bad seed (%d)", obj->seed);
+
+  /* Set the instance id */
+
+  obj->inst_id = rank / (ntask / obj->ninstances);
 
   return 0;
 
@@ -367,47 +397,13 @@ static int ffs_input_parse(ffs_control_t * obj) {
 
 /*****************************************************************************
  *
- *  ffs_init_instances
+ *  ffs_control_log_to_mpilog
+ *
+ *  Log details to the specified log as a config object.
  *
  *****************************************************************************/
 
-static int ffs_init_instances(ffs_control_t * obj) {
-
-  int rank, ntask, id;
-  u_config_t * input = NULL;
-
-  MPI_Comm_rank(obj->comm, &rank);
-  MPI_Comm_size(obj->comm, &ntask);
-
-  /* Divide the available MPI tasks by the number of instances requested,
-     and initialise. */
-
-  id = rank / (ntask / obj->ninstances);
-
-  dbg_err_if(u_config_get_subkey(obj->input, FFS_CONFIG_FFS, &input));
-  err_err_if(ffs_inst_create(id, obj->comm, &obj->instance));
-
-  err_err_if(ffs_inst_execute(obj->instance, input));
-
-  return 0;
-
- err:
-
-  if (obj->instance) ffs_inst_free(obj->instance);
-  obj->instance = NULL;
-
-  mpilog(obj->log, "Problem creating instances\n");
-
-  return -1;
-}
-
-/*****************************************************************************
- *
- *  ffs_control_log_config
- *
- *****************************************************************************/
-
-int ffs_control_config_log(ffs_control_t * obj, mpilog_t * log) {
+int ffs_control_log_to_mpilog(ffs_control_t * obj, mpilog_t * log) {
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(log == NULL, -1);
@@ -424,14 +420,16 @@ int ffs_control_config_log(ffs_control_t * obj, mpilog_t * log) {
 
 /*****************************************************************************
  *
- *  ffs_control_config
+ *  ffs_control_log
+ *
+ *  Log config details to default log.
  *
  *****************************************************************************/
 
-int ffs_control_config(ffs_control_t * obj) {
+int ffs_control_log(ffs_control_t * obj) {
 
   dbg_return_if(obj == NULL, -1);
-  dbg_return_if(ffs_control_config_log(obj, obj->log), -1);
+  dbg_return_if(ffs_control_log_to_mpilog(obj, obj->log), -1);
 
   return 0;
 }

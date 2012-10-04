@@ -30,8 +30,14 @@ typedef struct proxy_s proxy_t;
 /**
  *  \brief Create a proxy object
  *
- *  \param comm    the communicator for proxy and delegate (simulation)
- *  \param pobj    a pointer to the object to be returned
+ *  \param parent    a communicator
+ *  \param pobj      a pointer to the object to be returned
+ *
+ *
+ *  The proxy will duplicate the parent communicator and retain
+ *  the resulting handle for (simulation) communication. The
+ *  proxy creation is a collective call in the parent communicator
+ *  and will return a consistent return code on all ranks.
  *
  *  \retval 0      a success
  *  \retval -1     a failure
@@ -52,6 +58,9 @@ void proxy_free(proxy_t * obj);
  *
  *  \param obj   the proxy object
  *  \param name  a string identifying the delegate object
+ *
+ *  All ranks in the proxy communicator will return a consistent
+ *  return code.
  *
  *  \retval 0    a success
  *  \retval -1   a failure

@@ -48,6 +48,13 @@ void ffs_free(ffs_t * obj);
 int ffs_command_line_set(ffs_t * obj, char * argstring);
 
 /**
+ *  \brief Examine type information
+ */
+
+int ffs_type(ffs_t * obj, ffs_info_enum_t param, int * ndata,
+	     ffs_var_enum_t * type);
+
+/**
  *  \}
  */
 

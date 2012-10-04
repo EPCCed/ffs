@@ -16,6 +16,8 @@
 
 #include "../util/ffs_util.h"
 #include "../util/mpilog.h"
+#include "../sim/proxy.h"
+
 #include "ffs_param.h"
 #include "ffs_inst.h"
 
@@ -26,9 +28,17 @@ struct ffs_inst_type {
   int nsim;             /* Number of simulations */
   MPI_Comm parent;      /* Parent communicator */
   MPI_Comm comm;        /* FFS instance communicator */
-  ffs_param_t * param;  /* Parameters */
+  ffs_param_t * param;  /* Parameters (interfaces) */
   mpilog_t * log;       /* Instance log */
+
+  /* Simulation details */
+  u_string_t * sim_name;   /* The name used to identify the proxy */
+  u_string_t * sim_argv;   /* The command line */
 };
+
+static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input);
+static int ffs_inst_branched(ffs_inst_t * obj);
+static int ffs_inst_direct(ffs_inst_t * obj);
 
 /*****************************************************************************
  *
@@ -88,10 +98,10 @@ void ffs_inst_free(ffs_inst_t * obj) {
 
   dbg_return_if(obj == NULL, );
 
-  u_dbg("MPI_Comm_free(inst->comm)");
-
   if (obj->log) mpilog_free(obj->log);
   if (obj->param) ffs_param_free(obj->param);
+  if (obj->sim_name) u_string_free(obj->sim_name);
+  if (obj->sim_argv) u_string_free(obj->sim_argv);
 
   MPI_Comm_free(&obj->comm);
   U_FREE(obj);
@@ -107,7 +117,6 @@ void ffs_inst_free(ffs_inst_t * obj) {
 
 int ffs_inst_start(ffs_inst_t * obj, const char * filename,
 		   const char * mode) {
-
   int sz;
 
   dbg_return_if(obj == NULL, -1);
@@ -118,7 +127,7 @@ int ffs_inst_start(ffs_inst_t * obj, const char * filename,
 
   err_err_if(mpilog_fopen(obj->log, filename, mode));
   mpilog(obj->log, "FFS instance log for instance id %d\n", obj->id);
-  mpilog(obj->log, "Running on %d MPI task%s", sz, (sz > 1) ? "s" : "");
+  mpilog(obj->log, "Running on %d MPI task%s\n", sz, (sz > 1) ? "s" : "");
 
   return 0;
  err:
@@ -140,6 +149,7 @@ int ffs_inst_stop(ffs_inst_t * obj) {
   mpilog(obj->log, "\n");
   mpilog(obj->log, "Instance finished cleanly\n");
   mpilog(obj->log, "Closing log file.\n");
+  mpilog_fclose(obj->log);
 
   return 0;
 }
@@ -152,38 +162,71 @@ int ffs_inst_stop(ffs_inst_t * obj) {
 
 int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
 
-  int ntask;
-  int ifail;
-  const char * method = NULL;
-  u_config_t * config = NULL;
-
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(input == NULL, -1);
 
-  MPI_Comm_size(obj->comm, &ntask);
+  err_err_if(ffs_inst_read_config(obj, input));
+
+  switch (obj->method) {
+  case FFS_METHOD_TEST:
+    /* Instant success! */
+    mpilog(obj->log, "Test method does nothing\n");
+    break;
+  case FFS_METHOD_BRANCHED:
+    mpilog(obj->log, "Starting branched FFS calculation\n");
+    err_err_if(ffs_inst_branched(obj));
+    break;
+  case FFS_METHOD_DIRECT:
+    mpilog(obj->log, "Starting direct FFS calculation\n");
+    err_err_if(ffs_inst_direct(obj));
+    break;
+  default:
+    err_err("Internal error: no method");
+  }
+
+  mpilog(obj->log, "Finishing instance execution.\n");
+
+  return 0;
+
+ err:
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_read_config
+ *
+ *  Look for the method, the number of mpi_tasks requested, and
+ *  the number of simulations requested.
+ *
+ *  Also retreive the simulation (proxy) name, and the command
+ *  line strings.
+ *
+ *  Any check of these data is deferred until the relevant time.
+ *
+ *****************************************************************************/
+
+static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
+
+  int ifail;
+  u_config_t * config = NULL;
+  const char * method;
+  const char * sim_name;
+  const char * sim_argv;
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(input == NULL, -1);
 
   /* Parse input */
 
   ifail = ((config = u_config_get_child(input, FFS_CONFIG_INST)) == NULL);
   mpilog_if(ifail, obj->log, "Config has no %s section\n", FFS_CONFIG_INST);
-  dbg_err_ifm(ifail, "No config");
+  err_err_ifm(ifail, "No config");
 
-  /* Check the actual number of tasks against the requested number */
+  /* Set method; default is the test method */
 
-  dbg_err_if(u_config_get_subkey_value_i(config, FFS_CONFIG_INST_NTASK,
-					 0, &obj->ntask_request));
-  ifail = (ntask != obj->ntask_request);
-  mpilog_if(ifail, obj->log, "Mismatch is actual and requested task number\n");
-  dbg_err_ifm(ifail, "Number of tasks mismatched");
-
-  /* Set number of simulations */
-
-  err_err_if(u_config_get_subkey_value_i(config, FFS_CONFIG_INST_NSIM,
-					 FFS_DEFAULT_INST_NSIM, &obj->nsim));
-  err_err_ifm(obj->nsim > ntask, "Must have at least one task per simulation");
-  err_err_ifm(ntask % obj->nsim, "No. simuations not divisor of inst. size");
-
-  /* Set method */
+  obj->method = FFS_METHOD_TEST;
 
   method = u_config_get_subkey_value(config, FFS_CONFIG_INST_METHOD);
   err_err_ifm(method == NULL, "Must have an %s key in the %s config\n",
@@ -197,30 +240,52 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
   }
   else if (strcmp(method, FFS_CONFIG_METHOD_DIRECT) == 0) {
     obj->method = FFS_METHOD_DIRECT;
-    err_err("direct not operational yet");
   }
   else {
-    /* Not recognised */
+    /* The requested method was not recognised */
     err_err("%s (%s) not recognised in %s\n", FFS_CONFIG_INST_METHOD, method,
 	    FFS_CONFIG_INST);
   }
+
+  err_err_if(u_config_get_subkey_value_i(config, FFS_CONFIG_INST_NTASK,
+					 -1, &obj->ntask_request));
+  err_err_if(u_config_get_subkey_value_i(config, FFS_CONFIG_INST_NSIM,
+					 FFS_DEFAULT_INST_NSIM, &obj->nsim));
+
+  /* Simulation and command line */
+
+  sim_name = u_config_get_subkey_value(config, FFS_CONFIG_SIM_NAME);
+  if (sim_name == NULL) sim_name = "test";
+
+  sim_argv = u_config_get_subkey_value(config, FFS_CONFIG_SIM_ARGV);
+  if (sim_argv == NULL) sim_argv = "";
+
+  err_err_if(u_string_create(sim_name, strlen(sim_name), &obj->sim_name));
+  err_err_if(u_string_create(sim_argv, strlen(sim_argv), &obj->sim_argv));
+
+  /* Report */
+
+  ffs_inst_config(obj);
+
+  /* Check input */
+  /* Check the actual number of tasks against the requested number */
+  /* Set number of simulations */
+  /*
+  ifail = (ntask != obj->ntask_request);
+  mpilog_if(ifail, obj->log, "Mismatch is actual and requested task number\n");
+  dbg_err_ifm(ifail, "Number of tasks (%d) requested (%d)", ntask, obj->ntask_request);
+
+  err_err_ifm(obj->nsim > ntask, "Must have at least one task per simulation");
+  err_err_ifm(ntask % obj->nsim, "No. simuations not divisor of inst. size");
+  */
 
   return 0;
 
  err:
 
+  mpilog(obj->log, "Problem parsing the instance config\n");
+
   return -1;
-}
-
-/*****************************************************************************
- *
- * ffs_inst_param_init
- *
- *****************************************************************************/
-
-int ffs_inst_param_init(ffs_inst_t * obj, u_config_t * config) {
-
-  return 0;
 }
 
 /*****************************************************************************
@@ -262,6 +327,8 @@ int ffs_inst_config_log(ffs_inst_t * obj, mpilog_t * log) {
   mpilog(log, "\t%s\t%s\n", FFS_CONFIG_INST_METHOD, ffs_inst_method_name(obj));
   mpilog(log, "\t%s\t%d\n", FFS_CONFIG_INST_NTASK, obj->ntask_request);
   mpilog(log, "\t%s\t%d\n", FFS_CONFIG_INST_NSIM, obj->nsim);
+  mpilog(log, "\t%s\t%s\n", FFS_CONFIG_SIM_NAME, u_string_c(obj->sim_name));
+  mpilog(log, "\t%s\t%s\n", FFS_CONFIG_SIM_ARGV, u_string_c(obj->sim_argv));
   mpilog(log, "}\n");
 
   return 0;
@@ -279,4 +346,50 @@ int ffs_inst_config(ffs_inst_t * obj) {
   dbg_return_if(obj->log == NULL, -1);
 
   return ffs_inst_config_log(obj, obj->log);
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_branched
+ *
+ *****************************************************************************/
+
+static int ffs_inst_branched(ffs_inst_t * obj) {
+
+  proxy_t * proxy = NULL;
+
+  dbg_return_if(obj == NULL, -1);
+
+  /* Check input for branched */
+
+  err_err_if(proxy_create(obj->comm, &proxy));
+  err_err_if(proxy_delegate_create(proxy, u_string_c(obj->sim_name)));
+
+  /* Do the run */
+
+  err_err_if(proxy_delegate_free(proxy));
+  proxy_free(proxy);
+
+  return 0;
+
+ err:
+
+  if (proxy) proxy_free(proxy);
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_direct
+ *
+ *****************************************************************************/
+
+static int ffs_inst_direct(ffs_inst_t * obj) {
+
+  dbg_return_if(obj == NULL, -1);
+
+  mpilog(obj->log, "DIRECT FFS NOT VERY INTERSTING YET\n");
+
+  return 0;
 }

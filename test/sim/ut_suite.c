@@ -33,6 +33,7 @@ int uts_sim_register(u_test_t * t) {
 
   u_test_case_register(UT_SIM_DMC_TEST_NAME, ut_sim_dmc, ts);
   u_test_case_register(UT_SIM_DMC_PROXY_TEST_NAME, ut_sim_dmc_proxy, ts);
+  u_test_case_register(UT_SIM_DMC_INFO_TEST_NAME, ut_sim_dmc_info, ts);
 
   return u_test_suite_add(ts, t);
 }

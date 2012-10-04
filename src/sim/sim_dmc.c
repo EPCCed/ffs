@@ -158,8 +158,8 @@ int sim_dmc_execute(sim_dmc_t * dmc, ffs_t * ffs, sim_execute_enum_t action) {
     ifail += ffs_command_line(ffs, &argc, &argv);
     ifail += dmc_init(&dyn, argc, argv);
 
-    ifail += ffs_declare(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_DOUBLE);
-    ifail += ffs_declare(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_INT);
+    ifail += ffs_type_set(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_DOUBLE);
+    ifail += ffs_type_set(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_INT);
 
     break;
 
@@ -243,6 +243,8 @@ int sim_dmc_state(sim_dmc_t * dmc, ffs_t * ffs, sim_state_enum_t action,
 int sim_dmc_info(sim_dmc_t * dmc, ffs_t * ffs, ffs_info_enum_t param) {
 
   int ifail;
+  int seed;
+  long int lseed;
   double t;
 
   switch (param) {
@@ -250,14 +252,13 @@ int sim_dmc_info(sim_dmc_t * dmc, ffs_t * ffs, ffs_info_enum_t param) {
     t = dyn.state.t;
     ifail += ffs_info_double(ffs, param, 1, &t);
     break;
-    /* RECONSIDER THIS
-  case FFS_INFO_TIME_FETCH:
-    ifail += ffs_info_double(ffs, param, 1, &t);
-    dyn.state.t = t;
-    break;
-    */
   case FFS_INFO_LAMBDA_PUT:
     ifail += sim_dmc_lambda(dmc, ffs);
+    break;
+  case FFS_INFO_RNG_SEED_FETCH:
+    ifail += ffs_info_int(ffs, FFS_INFO_RNG_SEED_FETCH, 1, &seed);
+    lseed = seed;
+    ifail += ranlcg_state_set(dyn.rng, lseed);
     break;
   default:
     /* FFS has asked for something we don't supply */
