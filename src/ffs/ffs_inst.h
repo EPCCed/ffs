@@ -72,6 +72,8 @@
  *
  *  }
  *  \endcode
+ *
+ *  An 
  */
 
 /**
@@ -106,7 +108,8 @@
 #define FFS_CONFIG_INIT_TEQ           "init_teq"
 #define FFS_CONFIG_TRIAL_NSTEPMAX     "trial_nstepmax"
 #define FFS_CONFIG_TRIAL_TMAX         "trial_tmax"
-
+#define FFS_CONFIG_SIM_NAME          "sim_name"
+#define FFS_CONFIG_SIM_ARGV          "sim_argv"
 
 #define FFS_DEFAULT_INST_NSIM          1
 
@@ -134,6 +137,10 @@ enum ffs_inst_method {FFS_METHOD_TEST,
  *  \param id         Unique instance id
  *  \param comm       Parent communicator
  *  \param pobj       a pointer to the object to be returned
+ *
+ *  The parent communicator will be split on the basis of the instance
+ *  id passed to the call via MPI_Comm_split(). The return code will be
+ *  consistent on all ranks in the parent communicator.
  *
  *  \retval 0         a success
  *  \retval -1        a failure

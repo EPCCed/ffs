@@ -35,7 +35,6 @@ int ut_control(u_test_case_t * tc) {
 
   u_dbg("Good inputs");
   u_test_err_if(ffs_control_execute(ffs, "inputs/ut_control_ffs1.inp"));
-  u_test_err_if(ffs_control_config(ffs));
   u_test_err_if(ffs_control_stop(ffs));
   ffs_control_free(ffs);
 

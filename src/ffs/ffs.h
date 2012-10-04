@@ -71,7 +71,7 @@ int ffs_info_int(ffs_t * obj, ffs_info_enum_t type, int n, int * data);
  *  \brief Tell FFS what datatype is associated with a quantity
  */
 
-int ffs_declare(ffs_t * obj, ffs_info_enum_t type, int n, ffs_var_enum_t t);
+int ffs_type_set(ffs_t * obj, ffs_info_enum_t type, int n, ffs_var_enum_t t);
 
 /**
  *  \}

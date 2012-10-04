@@ -101,8 +101,8 @@ int ut_ffs_exch_int(u_test_case_t * tc) {
   u_dbg("Start\n");
 
   u_test_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
-  u_test_err_if(ffs_declare(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_INT));
-  u_test_err_if(ffs_declare(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_INT));
+  u_test_err_if(ffs_type_set(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_INT));
+  u_test_err_if(ffs_type_set(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_INT));
 
   iref = 11;
   u_test_err_if(ffs_info_int(ffs, FFS_INFO_TIME_PUT, 1, &iref));
