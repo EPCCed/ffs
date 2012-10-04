@@ -8,6 +8,15 @@ makl_args_init "$@"
 ${ECHO} "MAKL_ETC is ${MAKL_ETC}"
 
 #
+# --debug
+#
+makl_args_def "--with-debug" "" "" "Add -DDEBUG to CFLAGS"
+__makl_debug ()
+{
+    makl_append_var_mk "CFLAGS" "-DDEBUG"
+}
+
+#
 # --u-path=...
 #
 makl_args_def "u-path" "" "" "path to libu directory"
@@ -40,7 +49,7 @@ __makl_lammps ()
 makl_pkg_name "FFS"
 makl_pkg_version
 
-makl_checkheader   0    "mpi"     "<mpi.h>"
+makl_optional      1    "lib"     "mpi"
 makl_optional      1    "featx"   "doxygen" "DOXYGEN"
 
 makl_args_handle "$@"

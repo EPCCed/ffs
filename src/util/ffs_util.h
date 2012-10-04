@@ -57,21 +57,21 @@
  */
 
 /**
- *  \define Jump to label \b mpi_sync if \b expr is true
+ *  \def Jump to label \b mpi_sync if \b expr is true
  */
 
 #define mpi_sync_if(expr) \
   do { msg_ifb(err_, expr) {goto mpi_sync;} } while (0)
 
 /**
- * \define Jump to label \c mpi_sync if \c expr is true and report ...
+ * \def Jump to label \c mpi_sync if \c expr is true and report ...
  */
 
 #define mpi_sync_sif(expr) \
   do { if (expr) { msg_noargs(err_, errno, #expr); goto mpi_sync; } } while (0)
 
 /**
- *  \define Jump to label \c mpi_sync if \c expr is true and report printf-like
+ *  \def Jump to label \c mpi_sync if \c expr is true and report printf-like
  *  message
  */
 
