@@ -242,7 +242,7 @@ int sim_dmc_state(sim_dmc_t * dmc, ffs_t * ffs, sim_state_enum_t action,
 
 int sim_dmc_info(sim_dmc_t * dmc, ffs_t * ffs, ffs_info_enum_t param) {
 
-  int ifail;
+  int ifail = 0;
   int seed;
   long int lseed;
   double t;
