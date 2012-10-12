@@ -43,7 +43,7 @@ LDADD += ../src/libffs.a
 # if the real MPI library is present, the following com into effect
 ifdef HAVE_MPI
 CFLAGS += -DHAVE_MPI
-LDFLAGS += -lmpi
+#LDFLAGS += -lmpi
 endif
 
 include prog.mk
