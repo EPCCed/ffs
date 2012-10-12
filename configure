@@ -40,7 +40,14 @@ __makl_lammps ()
 makl_pkg_name "FFS"
 makl_pkg_version
 
-makl_optional      1    "featx"   "mpicc"   "MPI"
+#
+#  Compilers
+#  MPI is 'optional' in the sense that the library may
+#  be replaced by the stubs for serial execution
+#
+
+makl_checkheader   0    "mpi"    "<mpi.h>"
+makl_optional      0    "lib"   "mpi"
 makl_optional      0    "featx"   "doxygen" "DOXYGEN"
 
 makl_args_handle "$@"
