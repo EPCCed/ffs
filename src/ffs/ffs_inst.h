@@ -56,19 +56,21 @@
  *  \code
  *  ffs_inst
  *  {
- *    method      string       # "branched" or "direct" or "test"
- *    mpi_tasks   int          # number of MPI tasks for this FFS instance
- *    nsim        int          # number of simulation instances to use
+ *    method           string      # "branched" or "direct" or "test"
  *
- *    init_independent flag    # Use independent initial states
- *    init_skip_rate   int     # Crossing skip rate
- *    init_prob_accept double  # Crossing acceptance rate
- *    init_teq         double  # Equilibration time
+ *    sim_nsim_inst    int         # number of simulation instances to use
+ *    sim_name         string      # used to identify simulation
+ *    sim_argv         string      # command line to be passed to simulation
  *
- *    trial_nstepmax    int    # Maximum length of trial (steps)
- *    trial_tmax        double # Maximum time of trial (simulation units)
+ *    init_independent flag        # Use independent initial states
+ *    init_skip_rate   int         # Crossing skip rate
+ *    init_prob_accept double      # Crossing acceptance rate
+ *    init_teq         double      # Equilibration time
  *
- *    seed0             int    # RNG seed for this instance
+ *    trial_nstepmax    int        # Maximum length of trial (steps)
+ *    trial_tmax        double     # Maximum time of trial (simulation units)
+ *
+ *    seed0             int        # RNG seed for this instance
  *
  *  }
  *  \endcode
@@ -81,10 +83,8 @@
  *  Key string for the instance config section
  *  \def FFS_CONFIG_INST_METHOD
  *  Key string for the FFS algorithm to be used
- *  \def FFS_CONFIG_INST_NTASK
- *  Key for the number of MPI tasks requested for this simulation
  *  \def FFS_CONFIG_INST_NSIM
- *  Key string for number of simulations
+ *  Key string for number of simulation instances per FFS instance
  *
  *  \def FFS_DEFAULT_INST_NSIM
  *  Default number of simulations of instance
@@ -99,8 +99,6 @@
 
 #define FFS_CONFIG_INST               "ffs_inst"
 #define FFS_CONFIG_INST_METHOD        "method"
-#define FFS_CONFIG_INST_NTASK         "mpi_tasks"
-#define FFS_CONFIG_INST_NSIM          "nsim"
 #define FFS_CONFIG_INST_SEED          "seed"
 #define FFS_CONFIG_INIT_INDEPENDENT   "init_independent"
 #define FFS_CONFIG_INIT_SKIP_RATE     "init_skip_rate"
@@ -108,10 +106,11 @@
 #define FFS_CONFIG_INIT_TEQ           "init_teq"
 #define FFS_CONFIG_TRIAL_NSTEPMAX     "trial_nstepmax"
 #define FFS_CONFIG_TRIAL_TMAX         "trial_tmax"
-#define FFS_CONFIG_SIM_NAME          "sim_name"
-#define FFS_CONFIG_SIM_ARGV          "sim_argv"
+#define FFS_CONFIG_SIM_NSIM           "sim_nsim_inst"
+#define FFS_CONFIG_SIM_NAME           "sim_name"
+#define FFS_CONFIG_SIM_ARGV           "sim_argv"
 
-#define FFS_DEFAULT_INST_NSIM          1
+#define FFS_DEFAULT_SIM_NSIM          1
 
 #define FFS_CONFIG_METHOD_TEST         "test"
 #define FFS_CONFIG_METHOD_DIRECT       "direct"

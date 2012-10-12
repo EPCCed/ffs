@@ -30,11 +30,12 @@ typedef struct proxy_s proxy_t;
 /**
  *  \brief Create a proxy object
  *
+ *  \param id        the proxy id
  *  \param parent    a communicator
  *  \param pobj      a pointer to the object to be returned
  *
  *
- *  The proxy will duplicate the parent communicator and retain
+ *  The proxy will split the parent communicator based on \c id and retain
  *  the resulting handle for (simulation) communication. The
  *  proxy creation is a collective call in the parent communicator
  *  and will return a consistent return code on all ranks.
@@ -43,7 +44,7 @@ typedef struct proxy_s proxy_t;
  *  \retval -1     a failure
  */
 
-int proxy_create(MPI_Comm comm, proxy_t ** pobj);
+int proxy_create(int id, MPI_Comm comm, proxy_t ** pobj);
 
 /**
  *  \brief Release resources used by a proxy object

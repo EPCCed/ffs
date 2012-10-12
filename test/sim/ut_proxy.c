@@ -25,7 +25,7 @@ int ut_proxy(u_test_case_t * tc) {
 
   u_dbg("Start");
 
-  u_test_err_if(proxy_create(MPI_COMM_WORLD, &proxy));
+  u_test_err_if(proxy_create(0, MPI_COMM_WORLD, &proxy));
   u_test_err_if(proxy_delegate_create(proxy, "test"));
 
   u_test_err_if(proxy_execute(proxy, SIM_EXECUTE_INIT));

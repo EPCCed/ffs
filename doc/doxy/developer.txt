@@ -1,0 +1,31 @@
+/**
+ *  \page develop Information for developers
+
+Configuration
+-------------
+
+The build process is based on makl from Koanlogic. Documentation
+on makl is available from the
+[makl wiki](http://github.com/koanlogic/makl/wiki).
+
+The basic process of configuration and build proceeds as follows
+\code
+$ makl-conf
+$ makl
+\endcode
+which will provide a minimum sets of options.
+
+If you are doing development, it is also useful to
+\code
+$ makl depend
+\endcode
+which will set the dependencies and prevent the need for complete
+recompilation.
+
+makl toolchains
+---------------
+
+Error Handling
+--------------
+
+ */

@@ -14,7 +14,7 @@ CFLAGS += -I../src/missing
 endif
 
 SRCS += util/ranlcg.c
-SRCS += util/u_extra.c
+SRCS += util/ut_util.c
 SRCS += util/u_test_suite.c
 SRCS += ffs/ut_ffs.c
 SRCS += ffs/ut_ffs_control.c

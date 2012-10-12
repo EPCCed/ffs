@@ -19,7 +19,7 @@
 
 /**
  * \defgroup mpilog_t MPI log facility
- * \ingroup ulitities
+ * \ingroup utilities
  * \{
  *
  *  A Simple MPI-aware logging facility

@@ -7,7 +7,7 @@
 #include <float.h>
 
 #include "ffs_private.h"
-#include "u_extra.h"
+#include "ffs_util.h"
 #include "proxy.h"
 #include "sim_dmc.h"
 #include "ut_sim_dmc.h"
@@ -68,7 +68,7 @@ int ut_sim_dmc_proxy(u_test_case_t * tc) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_split(MPI_COMM_WORLD, rank, 0, &comm);
 
-  u_test_err_if(proxy_create(comm, &proxy));
+  u_test_err_if(proxy_create(rank, comm, &proxy));
   u_test_err_if(proxy_delegate_create(proxy, "dmc"));
 
   u_test_err_if(proxy_ffs(proxy, &ffs));
@@ -123,7 +123,7 @@ int ut_sim_dmc_info(u_test_case_t * tc) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_split(MPI_COMM_WORLD, rank, 0, &comm);
 
-  u_test_err_if(proxy_create(comm, &proxy));
+  u_test_err_if(proxy_create(rank, comm, &proxy));
   u_test_err_if(proxy_delegate_create(proxy, "dmc"));
 
   u_test_err_if(proxy_ffs(proxy, &ffs));
@@ -146,7 +146,7 @@ int ut_sim_dmc_info(u_test_case_t * tc) {
   u_test_err_if(ffs_info_double(ffs, FFS_INFO_TIME_PUT, 1, &tref));
   u_test_err_if(proxy_info(proxy, FFS_INFO_TIME_PUT));
   u_test_err_if(ffs_info_double(ffs, FFS_INFO_TIME_FETCH, 1, &t));
-  u_test_err_if(u_extra_compare_double(t, tref, DBL_EPSILON) == 0);
+  u_test_err_if(util_compare_double(t, tref, DBL_EPSILON) == 0);
 
   sref = -1;
   u_test_err_if(ffs_info_int(ffs, FFS_INFO_LAMBDA_PUT, 1, &sref));
