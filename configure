@@ -40,10 +40,20 @@ __makl_lammps ()
 makl_pkg_name "FFS"
 makl_pkg_version
 
-makl_checkheader   0    "mpi"     "<mpi.h>"
+#makl_checkheader   0    "mpi"     "<mpi.h>"
+makl_optional      1    "featx"   "mpicc"   "MPI"
 makl_optional      1    "featx"   "doxygen" "DOXYGEN"
 
 makl_args_handle "$@"
+
+have_mpi=`makl_get_var_mk "HAVE_MPI"`
+path_mpi=`makl_get_var_mk "PATH_MPI"`
+if [ $have_mpi ]
+    then
+    makl_set_var_mk "CC" "${path_mpi}"
+else
+    makl_err 1 "No mpicc"
+fi
 
 udir=`makl_get_var_mk "UDIR"`
 ${ECHO} "checking for libu in ${udir}"
