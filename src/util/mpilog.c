@@ -13,7 +13,7 @@
 #include <stdlib.h>
 
 #include "u/libu.h"
-#include "u_extra.h"
+#include "ffs_util.h"
 #include "mpilog.h"
 
 enum mpilog_enum {MPILOG_ROOT = 0};

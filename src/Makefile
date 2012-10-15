@@ -12,9 +12,9 @@ SRCS += sim/factory.c
 SRCS += sim/proxy.c
 SRCS += sim/sim_dmc.c
 SRCS += sim/sim_test.c
+SRCS += util/ffs_util.c
 SRCS += util/mpilog.c
 SRCS += util/ranlcg.c
-SRCS += util/u_extra.c
 
 ifdef HAVE_LAMMPS
 SRCS += sim/sim_lmp.c

@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include "u/libu.h"
+#include "mpilog.h"
 
 /**
  *  \defgroup ffs_param FFS interface parameters
@@ -267,6 +268,18 @@ int ffs_param_check(ffs_param_t * obj);
  */
 
 int ffs_param_print_summary_fp(ffs_param_t * obj, FILE * fp);
+
+/**
+ *  \brief Log human-readable summary
+ *
+ *  \param  obj     the ffs_param_t object
+ *  \param  log     an mpilog_t object
+ *
+ *  \retval 0       a success
+ *  \retval -1      a failure
+ */
+
+int ffs_param_log_to_mpilog(ffs_param_t * obj, mpilog_t * log);
 
 /**
  *  \}

@@ -1,0 +1,7 @@
+/**
+ * \page user Information for users
+
+Instructions
+------------
+
+ */

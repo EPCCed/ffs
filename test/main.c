@@ -4,7 +4,6 @@
 #include <mpi.h>
 #include "u/libu.h"
 #include "../src/util/mpilog.h"
-#include "../src/util/u_extra.h"
 
 int u_test_suite_ffs_register(u_test_t * t);
 int u_test_suite_util_register(u_test_t * t);

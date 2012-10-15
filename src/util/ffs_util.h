@@ -12,14 +12,12 @@
 #define FFS_UTIL_H
 
 #include <errno.h>
-
 #include "u/libu.h"
 
 /**
- *  \defgroup mpi_util MPI utilities
+ *  \defgroup ffs_util Utilities
  *  \ingroup utilities
  *  \{
- *     Some utilities related to message passing.
  *
  *  There are a number of macros in the style of libu/include/toolbox/carpal.h
  *  which are used to aid error handling in MPI. As different paths through
@@ -57,29 +55,60 @@
  */
 
 /**
- *  \define Jump to label \b mpi_sync if \b expr is true
+ *  \def Jump to label \b mpi_sync if \b expr is true
  */
 
 #define mpi_sync_if(expr) \
   do { msg_ifb(err_, expr) {goto mpi_sync;} } while (0)
 
 /**
- * \define Jump to label \c mpi_sync if \c expr is true and report ...
+ * \def Jump to label \c mpi_sync if \c expr is true and report ...
  */
 
 #define mpi_sync_sif(expr) \
   do { if (expr) { msg_noargs(err_, errno, #expr); goto mpi_sync; } } while (0)
 
 /**
- *  \define Jump to label \c mpi_sync if \c expr is true and report printf-like
+ *  \def Jump to label \c mpi_sync if \c expr is true and report printf-like
  *  message
  */
 
 #define mpi_sync_ifm(expr, ...) \
   do { if ((expr)) { msg(err_, 0, __VA_ARGS__); goto mpi_sync; } } while (0)
 
+
 /**
- *  \}
+ *  \brief Return a double value associated with a configuration subkey
+ *
+ *  \param  c         the configuration object
+ *  \param  subkey    the subkey of the child configuration obeject
+ *  \param  def       value to return if subkey is not present
+ *  \param  out       pointer to the double value to be returned
+ *
+ *  \retval 0         a success
+ *  \retval -1        a failure
+ *
+ */
+
+int util_config_get_subkey_value_d(u_config_t * c, const char * subkey,
+				   double def, double * out);
+
+/**
+ *  \brief Compare two double values to within a tolerance
+ *
+ *  \param  a    double
+ *  \param  b    double
+ *  \param  tol  tolerance
+ *
+ *  \retval 0    fabs(a - b) < tol
+ *  \retval -1   otherwise
+ *
+ */
+
+int util_compare_double(double a, double b, double tol);
+
+/**
+ * \}
  */
 
 #endif /* FFS_UTIL_H */
