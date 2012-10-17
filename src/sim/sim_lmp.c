@@ -27,6 +27,22 @@ struct sim_lmp_s {
   /* and anything else relating to lammps */
 };
 
+static int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs);
+static int lmp_parse_action(sim_lmp_t * obj, const char * line);
+static int lmp_find_inputfile(int *narg, char **arg, char * infile);
+static int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs);
+static int lmp_write_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub);
+static int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub);
+static int lmp_execute(sim_lmp_t * obj);
+static int lmp_unfix(sim_lmp_t * obj);
+static int lmp_state_delete(sim_lmp_t * obj, ffs_t * ffs, const char * stub);
+static int lmp_set_seed(sim_lmp_t * obj, const int seed);
+/*dimer problem specific*/
+static int dimer_evaluate_lambda(sim_lmp_t * obj, ffs_t * ffs, double * lambda);
+static int get_coord_with_type(double * coords, int * types, int natoms, int desired_type, double * dc, int * nc);
+static int lammps_get_3Dboxsize(void *lmp, double * BL);
+static int calculate_pair_separation(double * coord , double * BoxLength, double * separation);
+
 const interface_t sim_lmp_interface = {
   (interface_table_ft)   &sim_lmp_table,
   (interface_create_ft)  &sim_lmp_create,
@@ -108,12 +124,6 @@ int sim_lmp_execute(sim_lmp_t * obj, ffs_t * ffs,
     ffs_comm(ffs, &comm);
     ffs_command_line(ffs, &argc, &argv);
    
-    /*
-    for (i=0;i<argc;i++){
-      printf("%d %s\n",i,argv[i]);
-    }
-    */
-    
     if(lmp_find_inputfile(&argc, argv, &obj->input_file) != 0){
       ifail = 1;
     }
@@ -127,8 +137,9 @@ int sim_lmp_execute(sim_lmp_t * obj, ffs_t * ffs,
     lammps_open(argc, argv, comm, &obj->lmp);
     if (obj->lmp == NULL) ifail += 1;
     
-    ifail += ffs_declare(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_DOUBLE);
-    ifail += ffs_declare(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_DOUBLE);
+     ifail += ffs_type_set(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_DOUBLE);
+     ifail += ffs_type_set(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_DOUBLE);
+     
     break;
 
   case SIM_EXECUTE_RUN:
@@ -166,6 +177,9 @@ int sim_lmp_state(sim_lmp_t * obj, ffs_t * ffs, sim_state_enum_t action,
 
   int ifail = 0;
   int seed = 0;
+  int argc = 0;
+  char ** argv = NULL;
+  MPI_Comm comm = MPI_COMM_NULL;
   
   switch (action) {
   case SIM_STATE_INIT:
@@ -175,14 +189,18 @@ int sim_lmp_state(sim_lmp_t * obj, ffs_t * ffs, sim_state_enum_t action,
     obj->seed=242334; /*set the seed here for now*/
     ifail += lmp_execute_input(obj, ffs);
     
-    /*printf("run command: %s\n",obj->run_command);*/
     break;
+    
   case SIM_STATE_READ:
     /* create a file name from the stub, and read the data */
-    
+    ifail += sim_lmp_execute(obj, ffs, SIM_EXECUTE_FINISH);
+    ifail += ffs_comm(ffs, &comm);
+    ifail += ffs_command_line(ffs, &argc, &argv);
+    lammps_open(argc, argv, comm, &obj->lmp);
     ifail += lmp_read_restart(obj, ffs, stub);
-    /*ifail += */
     ifail += lmp_execute_input(obj, ffs);
+    /*ifail += sim_lmp_info(obj, ffs, FFS_INFO_RNG_SEED_FETCH);*/
+    
     break;
   case SIM_STATE_WRITE:
     /* create a file name from the stub, and write the data */
@@ -228,6 +246,7 @@ int sim_lmp_info (sim_lmp_t * obj, ffs_t * ffs, ffs_info_enum_t param) {
   int ifail = 0;
   double time;
   int seed;
+  char command[1024];
   
   /* Examine param, and put or get the appropriate information. */
   switch(param) {
@@ -245,7 +264,10 @@ int sim_lmp_info (sim_lmp_t * obj, ffs_t * ffs, ffs_info_enum_t param) {
   case FFS_INFO_RNG_SEED_FETCH:
     ifail += ffs_info_int(ffs, param, 1, &seed);
     obj->seed = seed;
-    /*sim_lmp_unfix_fix()*/
+    ifail += lmp_unfix(obj);
+    sprintf(command, obj->fix_command, obj->seed);
+    lammps_command(obj->lmp, command);
+    
     break;
   case FFS_INFO_LAMBDA_PUT:
     ifail += sim_lmp_lambda(obj, ffs);
@@ -310,7 +332,7 @@ int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs){
   return ifail;
 }
   
-int lmp_parse_action(sim_lmp_t * obj, char line[1024]){
+int lmp_parse_action(sim_lmp_t * obj, const char * line){
 
   int ifail = 0;
   char a[1024],b[1024];
@@ -346,12 +368,6 @@ int lmp_parse_action(sim_lmp_t * obj, char line[1024]){
   return 0;
 }
 
-int remove_ncharacters(char * string, const int n) {
-  
-  if(strlen(string) < n) return -1; /* not good */
-  
-}
-  
 int lmp_find_inputfile(int *narg, char **arg, char * infile){
    
   int iarg = 0;
@@ -426,6 +442,7 @@ int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs) {
     else {
       strcpy(command, line);
     }
+    /*printf("command: %s\n",command);*/
     lammps_command(obj->lmp, command);
   }
 
@@ -460,6 +477,8 @@ int lmp_write_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
       printf("error could not open file %s\n",filename);
       return 1;
     }
+  
+    sprintf(obj->restart_file, "%s.restart", stub);
     
     sprintf(line, "%s\n", obj->input_file);
     fputs(line, fp);
@@ -477,8 +496,7 @@ int lmp_write_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
   }
 
   /*now write lammps restart file using all procs */
-  sprintf(filename, "%s.restart", stub);
-  sprintf(command, "write_restart %s", filename);
+  sprintf(command, "write_restart %s", obj->restart_file);
   lammps_command(obj->lmp, command);
   lammps_command(obj->lmp, "run 0");
 
@@ -605,9 +623,41 @@ int lmp_execute(sim_lmp_t * obj) {
 
   return ifail;
 }
+ 
+int lmp_unfix(sim_lmp_t * obj){
   
+  char a[1024],b[1024];
+  char command[1024];
+  
+  sscanf(obj->fix_command, "%s %s", &a, &b);/*second item is the fix_id*/
+  sprintf(command, "unfix %s", b);
+  lammps_command(obj->lmp, command);
+  
+  return 0;
+}
+  
+  
+
+ 
 int lmp_state_delete(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
   /*here we delete the state */
+  char filename[1024];
+  int ifail = 0;
+  MPI_Comm comm = MPI_COMM_NULL;
+  int me;
+  /*this could be problematic in parallel */
+  /* maybe only root should do it */
+  
+  ifail += ffs_comm(ffs, &comm);
+  MPI_Comm_rank(comm, &me);
+  
+  if (me == 0){
+    sprintf(filename, "%s.in", stub);
+    ifail += remove(filename);
+    sprintf(filename, "%s.restart", stub);
+    ifail += remove(filename);
+  }
+  return ifail;
 }
    
 int lmp_set_seed(sim_lmp_t * obj, const int seed) {
@@ -628,6 +678,7 @@ int dimer_evaluate_lambda(sim_lmp_t * obj, ffs_t * ffs, double * lambda){
   int nc;
   
   int natoms = lammps_get_natoms(obj->lmp);
+  /*printf("natoms: %d\n", natoms);*/
   double *coords = (double *) malloc(3*natoms*sizeof(double));
   int *id = (int *) malloc(natoms*sizeof(int));
   int *type = (int *) malloc(natoms*sizeof(int));
@@ -635,7 +686,7 @@ int dimer_evaluate_lambda(sim_lmp_t * obj, ffs_t * ffs, double * lambda){
   lammps_gather_atoms(obj->lmp, "x", 1, 3, coords);
   lammps_gather_atoms(obj->lmp, "id", 0, 1, id);
   lammps_gather_atoms(obj->lmp, "type", 0, 1, type);
-
+  
   if(get_coord_with_type(coords, type, natoms, 2, dimer_coords, &nc) != 0){
     free(coords);
     free(id);
