@@ -1,0 +1,18 @@
+#
+# Test lambda_a -> lambda_b 'automatic' assignment
+#
+interfaces
+{
+	nlambda	        9
+	lambda_a      -24
+	lambda_b      +25
+
+	ntrial_default  3
+	nstate_default  1
+	nskeep_default  0
+
+	interface1
+	{
+		   nstate 10
+	}
+}
