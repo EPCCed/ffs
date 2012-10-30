@@ -15,6 +15,7 @@
 #include <mpi.h>
 #include "u/libu.h"
 #include "../util/mpilog.h"
+#include "ffs_param.h"
 
 /**
  *  \defgroup ffs_inst FFS instance
@@ -62,10 +63,11 @@
  *    sim_name         string      # used to identify simulation
  *    sim_argv         string      # command line to be passed to simulation
  *
- *    init_independent flag        # Use independent initial states
- *    init_skip_rate   int         # Crossing skip rate
+ *    init_independent flag        # Use independent (parallel) initial states
+ *    init_nstepmax    int         # Maximum length of run in state A
+ *    init_nskip       int         # Crossing skip rate (steps)
  *    init_prob_accept double      # Crossing acceptance rate
- *    init_teq         double      # Equilibration time
+ *    init_teq         double      # Equilibration time (simulation units)
  *
  *    trial_nstepmax    int        # Maximum length of trial (steps)
  *    trial_tmax        double     # Maximum time of trial (simulation units)
@@ -81,14 +83,92 @@
 /**
  *  \def FFS_CONFIG_INST
  *  Key string for the instance config section
+ *
  *  \def FFS_CONFIG_INST_METHOD
  *  Key string for the FFS algorithm to be used
- *  \def FFS_CONFIG_INST_NSIM
- *  Key string for number of simulation instances per FFS instance
  *
- *  \def FFS_DEFAULT_INST_NSIM
- *  Default number of simulations of instance
+ *  \def FFS_CONFIG_INST_SEED
+ *  Key string for the instance RNG seed
+ */
+
+#define FFS_CONFIG_INST               "ffs_inst"
+#define FFS_CONFIG_INST_METHOD        "method"
+#define FFS_CONFIG_INST_SEED          "seed"
+
+/**
+ *  \def FFS_CONFIG_TRIAL_NSTEPMAX
+ *  Key for maximum number of simulations steps per trial run
  *
+ *  \def FFS_CONFIG_TRIAL_TMAX
+ *  Key for maximum trial run length (simulation units)
+ */
+
+#define FFS_CONFIG_TRIAL_NSTEPMAX     "trial_nstepmax"
+#define FFS_CONFIG_TRIAL_TMAX         "trial_tmax"
+
+/**
+ *  \def FFS_CONFIG_SIM_NSIM
+ *  Key for number of simulation instances per FFS instance
+ *
+ *  \def FFS_CONFIG_SIM_NAME
+ *  Key for simulation name (to identify proxy)
+ *
+ *  \def FFS_CONFIG_SIM_ARGV
+ *  Key for simulation 'command line argument' string
+ *
+ *  \def FFS_DEFAULT_SIM_NSIM
+ *  Default number of simulation instances per FFS instance
+ */
+
+#define FFS_CONFIG_SIM_NSIM           "sim_nsim_inst"
+#define FFS_CONFIG_SIM_NAME           "sim_name"
+#define FFS_CONFIG_SIM_ARGV           "sim_argv"
+#define FFS_DEFAULT_SIM_NSIM          1
+
+/**
+ * \def FFS_CONFIG_INIT_INDEPENDENT
+ * Key for initialisation method (serial/parallel)
+ *
+ * \def FFS_CONFIG_INIT_NSTEPMAX
+ * Key for maximum number of simulation steps in initialisation runs
+ *
+ * \def FFS_CONFIG_INIT_NSKIP
+ * Key for number of crossings to skip at lambda_A in initialisations
+ *
+ * \def FFS_CONFIG_INIT_PROB_ACCEPT
+ * Key for probability of acceptance of initial interface crossing
+ *
+ * \def FFS_CONFIG_INIT_TEQ
+ * Key for equilibration time for initialisation runs
+ *
+ * \def FFS_DEFAULT_INIT_INDEPENDENT
+ * Use parallel initialisation of states at lambda_A
+ *
+ * \def FFS_DEFAULT_INIT_NSTEPMAX
+ * Should be specified by the user
+ *
+ * \def FFS_DEFAULT_INIT_NSKIP
+ * Take every crossing as an initial state if 1
+ *
+ * \def FFS_DEFAULT_INIT_PROB_ACCEPT
+ * Probability that crossing is accepted as initial state
+ *
+ * \def FFS_DEFAULT_INIT_TEQ
+ * Should be specified by the user
+ */ 
+
+#define FFS_CONFIG_INIT_INDEPENDENT   "init_independent"
+#define FFS_CONFIG_INIT_NSTEPMAX      "init_nstepmax"
+#define FFS_CONFIG_INIT_NSKIP         "init_nskip"
+#define FFS_CONFIG_INIT_PROB_ACCEPT   "init_prob_accept"
+#define FFS_CONFIG_INIT_TEQ           "init_teq"
+#define FFS_DEFAULT_INIT_INDEPENDENT  1
+#define FFS_DEFAULT_INIT_NSTEPMAX     0
+#define FFS_DEFAULT_INIT_NSKIP        1
+#define FFS_DEFAULT_INIT_PROB_ACCEPT  1.0
+#define FFS_DEFAULT_INIT_TEQ          0.0
+
+/**
  *  \def FFS_CONFIG_METHOD_TEST
  *  Value string for test method
  *  \def FFS_CONFIG_METHOD_DIRECT
@@ -96,21 +176,6 @@
  *  \def FFS_CONFIG_METHOD_BRANCHED
  *  Value string for branched ffs method
  */
-
-#define FFS_CONFIG_INST               "ffs_inst"
-#define FFS_CONFIG_INST_METHOD        "method"
-#define FFS_CONFIG_INST_SEED          "seed"
-#define FFS_CONFIG_INIT_INDEPENDENT   "init_independent"
-#define FFS_CONFIG_INIT_SKIP_RATE     "init_skip_rate"
-#define FFS_CONFIG_INIT_PROB_ACCEPT   "init_prob_accept"
-#define FFS_CONFIG_INIT_TEQ           "init_teq"
-#define FFS_CONFIG_TRIAL_NSTEPMAX     "trial_nstepmax"
-#define FFS_CONFIG_TRIAL_TMAX         "trial_tmax"
-#define FFS_CONFIG_SIM_NSIM           "sim_nsim_inst"
-#define FFS_CONFIG_SIM_NAME           "sim_name"
-#define FFS_CONFIG_SIM_ARGV           "sim_argv"
-
-#define FFS_DEFAULT_SIM_NSIM          1
 
 #define FFS_CONFIG_METHOD_TEST         "test"
 #define FFS_CONFIG_METHOD_DIRECT       "direct"
@@ -158,6 +223,18 @@ int ffs_inst_create(int id, MPI_Comm comm, ffs_inst_t ** pobj);
  */
 
 void ffs_inst_free(ffs_inst_t * obj);
+
+/**
+ *  \brief Return the instance id
+ *
+ *  \param  obj       the ffs_inst_t object
+ *  \param  inst_id   a pointer to the integer id
+ *
+ *  \retval 0         a success
+ *  \retval -1        a NULL point was received
+ */
+
+int ffs_inst_id(ffs_inst_t * obj, int * inst_id);
 
 /**
  *  \brief Start the instance logging using fopen()-like arguments
@@ -245,6 +322,30 @@ int ffs_inst_config(ffs_inst_t * obj);
  */
 
 const char * ffs_inst_method_name(ffs_inst_t * obj);
+
+/**
+ *  \brief Return a reference to the instance parameters
+ *
+ *  \param obj      the ffs_inst_t data type
+ *  \param param    a pointer to the ffs_param_t data type
+ *
+ *  \retval 0       a success
+ *  \retval -1      a NULL pointer was received
+ */
+
+int ffs_inst_param(ffs_inst_t * obj, ffs_param_t ** param);
+
+/**
+ *  \brief  Return number of simulation instances
+ *
+ *  \param  obj     the ffs_inst_t data type
+ *  \param  nsim    a pointer to the integer number to be returned
+ *
+ *  \retval 0       a success
+ *  \retval -1      a NULL pointer was received
+ */
+
+int ffs_inst_nsim(ffs_inst_t * obj, int * nsim);
 
 /**
  * \}

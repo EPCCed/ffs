@@ -333,3 +333,39 @@ int ffs_type(ffs_t * obj, ffs_info_enum_t param, int * ndata,
   return -1;
 }
 
+/*****************************************************************************
+ *
+ *  ffs_lambda
+ *
+ *****************************************************************************/
+
+int ffs_lambda(ffs_t * obj, double * lambda) {
+
+  dbg_return_if(ffs == NULL, -1);
+  dbg_return_if(lambda == NULL, -1);
+  dbg_return_if(obj->lambda.type < 0, -1);
+
+  if (obj->lambda.type == FFS_VAR_INT) *lambda = 1.0*obj->lambda.var.ui;
+  if (obj->lambda.type == FFS_VAR_DOUBLE) *lambda = obj->lambda.var.ud;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_time
+ *
+ *****************************************************************************/
+
+int ffs_time(ffs_t * obj, double * t) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(t == NULL, -1);
+  dbg_return_if(obj->t.type < 0, -1);
+
+  if (obj->t.type == FFS_VAR_INT) *t = 1.0*obj->t.var.ui;
+  if (obj->t.type == FFS_VAR_DOUBLE) *t = obj->t.var.ud;
+
+  return 0;
+}
+

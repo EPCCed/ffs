@@ -2,38 +2,6 @@
  *
  *  ffs_param.c
  *
- *  Interface parameters. The object should be instantiated via the
- *  appropriate u_config_t configuration object read from input:
- *
- *  interfaces
- *  {
- *    nlambda            <integer>   mandatory, at least 2 interfaces required
- *
- *    ntrials_default    <integer>   optional, defaults to 1
- *    nstates_default    <integer>   optional, defaults to 1
- *    nskeep_default     <integer>   optional, defaults to 1
- *    pprune_default     <double>    optional, defaults to 0.0
- *
- *    interface1
- *    {
- *      lambda           <double>    mandatory for each interface
- *      ntrials          <integer>   optional, defaults to ntrials_default
- *      nstates          <integer>   optional, defaults to nstates_default
- *      nskeep           <integer>   optional, defaults to nskeep_default
- *      pprune           <double>    optional, defaults to pprune_default
- *    }
- *    interface2
- *    ...
- *  }
- *
- *
- *  The series of lambda should be monotonically increasing; this and
- *  the other parameters are sanity checked via ffs_param_check().
- *
- *  Note that (nlambda + 1) interfaces are stored. interface[0] is
- *  added for convenience, and other interfaces are indexed using
- *  natural numbers 1, ..., nlambda.
- *
  *  Parallel Forward Flux Sampling
  *  (c) 2012 The University of Edinburgh
  *  Funded by United Kingdom EPSRC Grant EP/I030298/1
@@ -54,7 +22,7 @@ struct ffs_interface_type {
   int    nstates;  /* Target number of states to generate at this interface */
   int    nskeep;   /* Target number of states to keep */
 
-  double weight;
+  double weight;   /* Result; weighted probability at this interface */
 
 };
 
@@ -75,17 +43,14 @@ struct ffs_param_type {
 };
 
 static int ffs_param_defaults_set(u_config_t * config, ffs_param_t * obj);
+static int ffs_param_interfaces_parse(ffs_param_t * obj, u_config_t * config);
 static int ffs_param_interfaces_set(u_config_t * config, ffs_param_t * obj);
+static int ffs_param_interfaces_auto(u_config_t * config, ffs_param_t * obj);
+static int ffs_param_interface_zero_set(ffs_param_t * obj);
 
 /******************************************************************************
  *
- *  \brief Create a new ffs_param_t object from the configuration details
- *
- *  \param  config      a valid configuration file of u_config_t
- *  \param  pobj        a pointer to the new object to be returned
- *
- *  \retval 0           a success
- *  \retval -1          a failure
+ *  ffs_param_create
  *
  *****************************************************************************/
 
@@ -105,9 +70,8 @@ int ffs_param_create(u_config_t * config, ffs_param_t ** pobj) {
   obj->interfaces = u_calloc(nlambda + 1, sizeof(ffs_interface_t));
   err_err_sif(obj->interfaces == NULL);
 
-  /* Defaults should be set first, then interface values */
-  err_err_if(ffs_param_defaults_set(config, obj));
-  err_err_if(ffs_param_interfaces_set(config, obj));
+  err_err_if(ffs_param_interfaces_parse(obj, config));
+
   *pobj = obj;
 
   return 0;
@@ -138,18 +102,13 @@ void ffs_param_free(ffs_param_t * obj) {
  *
  *  ffs_param_nlambda
  *
- *  \param  obj     the exsiting ffs_param_t object
- *  \param  n       pointer to the number of interfaces to be returned
- *
- *  \retval 0       a success
- *  \retval -1      a failure, i.e., a NULL pointer was supplied
- *
  *****************************************************************************/
 
 int ffs_param_nlambda(ffs_param_t * obj, int * n) {
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(n == NULL, -1);
+
   *n = obj->nlambda;
 
   return 0;
@@ -157,14 +116,7 @@ int ffs_param_nlambda(ffs_param_t * obj, int * n) {
 
 /*****************************************************************************
  *
- *  \brief Return the lambda value associated with interface n
- *
- *  \param  obj       the ffs_param_t object
- *  \param  n         number of interface [0, ..., nlambda]
- *  \param  lambda    a pointer to the value to be returned
- *
- *  \retval 0         a success
- *  \retval -1        a failure
+ *  ffs_param_lambda
  *
  *****************************************************************************/
 
@@ -182,14 +134,7 @@ int ffs_param_lambda(ffs_param_t * obj, int n, double * lambda) {
 
 /*****************************************************************************
  *
- *  \brief Return ntrials for the nth interface
- *
- *  \param  obj      the ffs_param_t object
- *  \param  n        interface number
- *  \param  ntrials  a pointer to the value to be returned
- *
- *  \retval 0        a success
- *  \retval -1       a failure
+ *  ffs_param_ntrial
  *
  *****************************************************************************/
 
@@ -207,14 +152,7 @@ int ffs_param_ntrial(ffs_param_t * obj, int n, int * ntrials) {
 
 /*****************************************************************************
  *
- *  \brief Return the target number of states at interface n
- *
- *  \param  obj       the ffs_para_t object
- *  \param  n         interface number
- *  \param  nstates   a pointer to the value to be returned
- *
- *  \retval 0         a success
- *  \retval -1        a failure
+ *  ffs_param_nstate
  *
  *****************************************************************************/
 
@@ -232,14 +170,7 @@ int ffs_param_nstate(ffs_param_t * obj, int n, int * nstates) {
 
 /*****************************************************************************
  *
- *  \brief  Return the pruning probability associated with nth interface
- *
- *  \param  obj           the ffs_param_t object
- *  \param  n             interface
- *  \param  pprune        pointer to the value to be returned
- *
- *  \retval 0             a success
- *  \retval -1            a failure
+ *  ffs_param_pprune
  *
  *****************************************************************************/
 
@@ -257,14 +188,7 @@ int ffs_param_pprune(ffs_param_t * obj, int n, double * pprune) {
 
 /*****************************************************************************
  *
- *  \brief  Return the number of states to keep at nth interface
- *
- *  \param  obj          the ffs_param_t object
- *  \param  n            interface
- *  \param  nskeep       pointer to value to be returned
- *
- *  \retval 0            a success
- *  \retval -1           a failure
+ *  ffs_param_nskeep
  *
  *****************************************************************************/
 
@@ -282,16 +206,13 @@ int ffs_param_nskeep(ffs_param_t * obj, int n, int * nskeep) {
 
 /*****************************************************************************
  *
- *  \brief  Validate before use
+ *  ffs_param_check
  *
  *  - there must be at least two interfaces
  *  - the lambda values must be monotonically increasing
  *  - interface[1].pprune must be 1.0 (simply enforced)
  *
- *  \param  obj  the initialised ffs_param_t object
- *
- *  \retval 0    a success
- *  \retval -1   a failure
+ *  Assumes all ranks receive the same input.
  *
  *****************************************************************************/
 
@@ -324,13 +245,9 @@ int ffs_param_check(ffs_param_t * obj) {
 
 /*****************************************************************************
  *
- *  \brief  Print a tabulated summary of the interfaces
+ *  ffs_param_print_summary_fp
  *
- *  \param  obj     the ffs_param_t object
- *  \param  fp      stream
- *
- *  \retval 0       a success
- *  \retval -1      a failure (a NULL pointer was supplied)
+ *  Prefer the log version.
  *
  *****************************************************************************/
 
@@ -402,20 +319,18 @@ int ffs_param_log_to_mpilog(ffs_param_t * obj, mpilog_t * log) {
 
 /*****************************************************************************
  *
- *  \brief Set up the default interface values from the configuration
+ *  ffs_param_defaults_set
+ *
+ *  Set up the default interface values from the configuration
  *
  *  Some basic "default default" values are provided via the ref
  *  argument to u_config_get_subkey_value...
  *
- *  \param  config     the configuration object "interfaces"
- *  \param  obj        the ffs_param_t object
- *
- *  \retval 0          default values set correctly
- *  \retval -1         a failure
- *
  *****************************************************************************/
 
 static int ffs_param_defaults_set(u_config_t * config, ffs_param_t * obj) {
+
+  int n;
 
   dbg_err_if(config == NULL);
   dbg_err_if(obj == NULL);
@@ -433,6 +348,14 @@ static int ffs_param_defaults_set(u_config_t * config, ffs_param_t * obj) {
 					    FFS_CONFIG_PPRUNE_DEFAULT,
 					    FFS_PPRUNE_DEFAULT,
 					    &obj->pprune_default));
+
+  for (n = 1; n <= obj->nlambda; n++) {
+    obj->interfaces[n].ntrials = obj->ntrials_default;
+    obj->interfaces[n].nstates = obj->nstates_default;
+    obj->interfaces[n].nskeep = obj->nskeep_default;
+    obj->interfaces[n].pprune = obj->pprune_default;
+  }
+
   return 0;
 
  err:
@@ -442,13 +365,86 @@ static int ffs_param_defaults_set(u_config_t * config, ffs_param_t * obj) {
 
 /*****************************************************************************
  *
- *  \brief Set up the interface parameters from the configuration
+ *  ffs_param_interfaces_parse
  *
- *  \param  config      the configuration object "interfaces"
- *  \param  obj         the ffs_param_t object
+ *****************************************************************************/
+
+static int ffs_param_interfaces_parse(ffs_param_t * obj, u_config_t * config) {
+
+  const char * key_a = NULL;
+  const char * key_b = NULL;
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(config == NULL, -1);
+
+  key_a = u_config_get_subkey_value(config, FFS_CONFIG_LAMBDA_A);
+  key_b = u_config_get_subkey_value(config, FFS_CONFIG_LAMBDA_B);
+
+  /* Set the default values; look for an 'automatic' declaration;
+   * and finally look for any explicit definition. */
+
+  err_err_if(ffs_param_defaults_set(config, obj));
+
+  if (key_a && key_b) {
+    err_err_if(ffs_param_interfaces_auto(config, obj));
+  }
+
+  err_err_if(ffs_param_interfaces_set(config, obj));
+  err_err_if(ffs_param_interface_zero_set(obj));
+
+
+  return 0;
+ err:
+
+  return -1;
+}
+
+/*****************************************************************************
  *
- *  \retval 0           interface values set correctly
- *  \retval -1          a problem was encountered
+ *  ffs_param_interfaces_auto
+ *
+ *  Set evenly spaced lambda values based on lambda_a, lambda_b.
+ *
+ *****************************************************************************/
+
+static int ffs_param_interfaces_auto(u_config_t * config, ffs_param_t * obj) {
+
+  const char * key_a = NULL;
+  const char * key_b = NULL;
+  int n;
+  double lambda;
+  double lambda_a;
+  double lambda_b;
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(config == NULL, -1);
+
+  key_a = u_config_get_subkey_value(config, FFS_CONFIG_LAMBDA_A);
+  key_b = u_config_get_subkey_value(config, FFS_CONFIG_LAMBDA_B);
+
+  err_err_if(u_atof(key_a, &lambda_a));
+  err_err_if(u_atof(key_b, &lambda_b));
+
+  obj->interfaces[0].lambda = lambda_a;
+  obj->interfaces[1].lambda = lambda_a;
+
+  for (n = 2; n <= obj->nlambda; n++) {
+    lambda = lambda_a + (n - 1)*(lambda_b - lambda_a)/(obj->nlambda - 1);
+    obj->interfaces[n].lambda = lambda;
+  }
+
+  return 0;
+
+ err:
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_param_interfaces_set
+ *
+ *  Set up the interface parameters from the configuration
  *
  *****************************************************************************/
 
@@ -464,45 +460,42 @@ static int ffs_param_interfaces_set(u_config_t * config, ffs_param_t * obj) {
   dbg_err_if(obj == NULL);
 
   err_err_if(u_string_create("interfaceXXX", strlen("interfaceXXX"), &key));
-  err_err_if(obj->nlambda > 999);
+  err_err_ifm(obj->nlambda > 999, "format botch");
 
-  /* Interface zero is set at the end; get the rest, i.e.,
-   * 1 ... nlambda, from the config file */
+  /* Look through interface 1 ... nlambda, from the config file */
 
   for (n = 1; n <= obj->nlambda; n++) {
+
     err_err_if(u_string_do_printf(key, 1, "%s%d", "interface", n));
     subconf = u_config_get_child(config, u_string_c(key));
-    err_err_ifm(subconf == NULL, "Expecting key %s but found none",
-		u_string_c(key));
 
-    v = u_config_get_subkey_value(subconf, FFS_CONFIG_LAMBDA);
-    err_err_ifm(v == NULL, "Expecting %s for %s", FFS_CONFIG_LAMBDA,
-		u_string_c(key));
-    err_err_if(u_atof(v, &value));
-    obj->interfaces[n].lambda = value;
+    if (subconf == NULL) continue;
 
-    err_err_if(u_config_get_subkey_value_i(subconf, FFS_CONFIG_NTRIAL,
-					   obj->ntrials_default,
+    err_err_if(util_config_get_subkey_value_d(subconf,
+					      FFS_CONFIG_LAMBDA,
+					      obj->interfaces[n].lambda,
+					      &obj->interfaces[n].lambda));
+
+    err_err_if(u_config_get_subkey_value_i(subconf,
+					   FFS_CONFIG_NTRIAL,
+					   obj->interfaces[n].ntrials,
 					   &obj->interfaces[n].ntrials));
-    err_err_if(u_config_get_subkey_value_i(subconf, FFS_CONFIG_NSTATE,
-					   obj->nstates_default,
+
+    err_err_if(u_config_get_subkey_value_i(subconf,
+					   FFS_CONFIG_NSTATE,
+					   obj->interfaces[n].nstates,
 					   &obj->interfaces[n].nstates));
-    err_err_if(u_config_get_subkey_value_i(subconf, FFS_CONFIG_NSKEEP,
-					   obj->nskeep_default,
+
+    err_err_if(u_config_get_subkey_value_i(subconf,
+					   FFS_CONFIG_NSKEEP,
+					   obj->interfaces[n].nskeep,
 					   &obj->interfaces[n].nskeep));
-    err_err_if(util_config_get_subkey_value_d(subconf, FFS_CONFIG_PPRUNE,
-					      obj->pprune_default,
+
+    err_err_if(util_config_get_subkey_value_d(subconf,
+					      FFS_CONFIG_PPRUNE,
+					      obj->interfaces[n].pprune,
 					      &obj->interfaces[n].pprune));
   }
-
-  /* Interface 0. This is only for convenience of access to
-   * previous obj->interfaces[n-1] when n = 1 */
-
-  obj->interfaces[0].lambda = obj->interfaces[1].lambda;
-  obj->interfaces[0].ntrials = 1;
-  obj->interfaces[0].nstates = 1;
-  obj->interfaces[0].pprune = 1.0;
-  obj->interfaces[0].weight = 1.0;
 
   u_string_free(key);
 
@@ -510,6 +503,132 @@ static int ffs_param_interfaces_set(u_config_t * config, ffs_param_t * obj) {
 
  err:
   if (key) u_string_free(key);
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_param_interface_zero_set
+ *
+ *  This is only for convenience of access to
+ *  previous obj->interfaces[n-1] when n = 1
+ *
+ *****************************************************************************/
+
+static int ffs_param_interface_zero_set(ffs_param_t * obj) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(obj->interfaces == NULL, -1);
+
+  obj->interfaces[0].lambda = obj->interfaces[1].lambda;
+  obj->interfaces[0].ntrials = 1;
+  obj->interfaces[0].nstates = 1;
+  obj->interfaces[0].pprune = 1.0;
+  obj->interfaces[0].weight = 1.0;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_param_lambda_a
+ *
+ *****************************************************************************/
+
+int ffs_param_lambda_a(ffs_param_t * obj, double * lambda) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(obj->interfaces == NULL, -1);
+  dbg_return_if(lambda == NULL, -1);
+
+  *lambda = obj->interfaces[0].lambda;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_param_lambda_b
+ *
+ *****************************************************************************/
+
+int ffs_param_lambda_b(ffs_param_t * obj, double * lambda) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(obj->interfaces == NULL, -1);
+  dbg_return_if(lambda == NULL, -1);
+
+  *lambda = obj->interfaces[obj->nlambda].lambda;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_param_weight
+ *
+ *****************************************************************************/
+
+int ffs_param_weight(ffs_param_t * obj, int n, double * wt) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(obj->interfaces == NULL, -1);
+  dbg_return_if(wt == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+
+  *wt = obj->interfaces[n].weight;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_param_weight_accum
+ *
+ *****************************************************************************/
+
+int ffs_param_weight_accum(ffs_param_t * obj, int n, double wt) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(obj->interfaces == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+
+  obj->interfaces[n].weight += wt;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_param_pprune_set_default
+ *
+ *  All ranks are assumed to receive the same input.
+ *
+ *****************************************************************************/
+
+int ffs_param_pprune_set_default(ffs_param_t * obj) {
+
+  int n;
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(obj->interfaces == NULL, -1);
+
+  obj->interfaces[0].pprune = 1.0;
+  obj->interfaces[1].pprune = 1.0;
+
+  for (n = 2; n < obj->nlambda; n++) {
+    err_err_if(obj->interfaces[n].ntrials == 0);
+    obj->interfaces[n].pprune = 1.0 - 1.0 / (1.0*obj->interfaces[n].ntrials);
+  }
+
+  obj->interfaces[obj->nlambda].pprune = 0.0;
+
+  return 0;
+
+ err:
 
   return -1;
 }

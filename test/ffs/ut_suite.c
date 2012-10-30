@@ -26,8 +26,9 @@ int u_test_suite_ffs_register(u_test_t * t) {
 
   u_test_suite_new("ffs suite", &ts);
 
-  u_test_case_register("ffs param create", ut_param_create, ts);
-  u_test_case_register("ffs param from file", ut_param_from_file, ts);
+  u_test_case_register(UT_PARAM_CREATE_NAME, ut_param_create, ts);
+  u_test_case_register(UT_PARAM_FROM_FILE_NAME, ut_param_from_file, ts);
+  u_test_case_register(UT_PARAM_AUTO_NAME, ut_param_auto, ts);
 
   u_test_case_register(UT_FFS_CREATE_NAME, ut_ffs_create, ts);
   u_test_case_register(UT_FFS_COMMAND_LINE_NAME, ut_ffs_command_line, ts);

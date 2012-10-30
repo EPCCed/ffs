@@ -33,18 +33,18 @@
  *  {
  *    nlambda           <integer>  # mandatory, at least 2 interfaces required
  *
- *    ntrials_default   <integer>  # optional, defaults to FFS_NTRIAL_DEFAULT
- *    nstates_default   <integer>  # optional, defaults to FFS_NSTATE_DEFAULT
+ *    ntrial_default    <integer>  # optional, defaults to FFS_NTRIAL_DEFAULT
+ *    nstate_default    <integer>  # optional, defaults to FFS_NSTATE_DEFAULT
  *    nskeep_default    <integer>  # optional, defaults to FFS_NSKEEP_DEFAULT
  *    pprune_default    <double>   # optional, defaults to FFS_PPRUNE_DEFAULT
  *
  *    interface1
  *    {
- *      lambda           <double>    mandatory for each interface
- *      ntrials          <integer>   optional, defaults to ntrials_default
- *      nstates          <integer>   optional, defaults to nstates_default
- *      nskeep           <integer>   optional, defaults to nskeep_default
- *      pprune           <double>    optional, defaults to pprune_default
+ *      lambda           <double>  #  mandatory for each interface
+ *      ntrial           <integer> #  optional, defaults to ntrials_default
+ *      nstate           <integer> #  optional, defaults to nstates_default
+ *      nskeep           <integer> #  optional, defaults to nskeep_default
+ *      pprune           <double>  #  optional, defaults to pprune_default
  *    }
  *    interface2
  *    ...
@@ -90,6 +90,10 @@ typedef struct ffs_param_type ffs_param_t;
  *  Key string for the top-level u_config_t interfaces section.
  *  \def FFS_CONFIG_NLAMBDA
  *  Key string for the number of interfaces.
+ *  \def FFS_CONFIG_LAMBDA_A
+ *  Key string for first lambda value ("state A")
+ *  \def FFS_CONFIG_LAMBDA_B
+ *  Key string for final lambda value ("state B")
  *  \def FFS_CONFIG_NTRIAL_DEFAULT
  *  Key string to set the default number of trials at each interface.
  *  \def FFS_CONFIG_NSTATE_DEFAULT
@@ -124,6 +128,8 @@ typedef struct ffs_param_type ffs_param_t;
 
 #define FFS_CONFIG_INTERFACES     "interfaces"
 #define FFS_CONFIG_NLAMBDA        "nlambda"
+#define FFS_CONFIG_LAMBDA_A       "lambda_a"
+#define FFS_CONFIG_LAMBDA_B       "lambda_b"
 #define FFS_CONFIG_NTRIAL_DEFAULT "ntrial_default"
 #define FFS_CONFIG_NSTATE_DEFAULT "nstate_default"
 #define FFS_CONFIG_NSKEEP_DEFAULT "nskeep_default"
@@ -280,6 +286,71 @@ int ffs_param_print_summary_fp(ffs_param_t * obj, FILE * fp);
  */
 
 int ffs_param_log_to_mpilog(ffs_param_t * obj, mpilog_t * log);
+
+/**
+ *  \brief Return first interface lambda value ("state A")
+ *
+ *  \param obj       the ffs_param_t object
+ *  \param lambda    a pointer to the double value to be returned
+ *
+ *  \retval 0        a success
+ *  \retval -1       a NULL pointer was received or no interfaces were present
+ */
+
+int ffs_param_lambda_a(ffs_param_t * obj, double * lambda);
+
+/**
+ *  \brief Return last interface lambda value ("state B")
+ *
+ *  \param obj       the ffs_param_t object
+ *  \param lambda    a pointer to the double value to be returned
+ *
+ *  \retval 0        a success
+ *  \retval -1       a NULL pointer was received or no interfaces were present
+ */
+
+int ffs_param_lambda_b(ffs_param_t * obj, double * lambda);
+
+/**
+ *  \brief Accumulate weight contribution for given interface
+ *
+ *  \param  obj     the ffs_param_t data type
+ *  \param  n       the index of the interface
+ *  \param  wt      the weight to accumulate
+ *
+ *  \retval 0       a success
+ *  \retval -1      the weight could not be accumulated
+ */
+
+int ffs_param_weight_accum(ffs_param_t * obj, int n, double wt);
+
+/**
+ *  \brief Get the weight value for a given interface
+ *
+ *  \param  obj      the ffs_param_t data type
+ *  \param  n        the index of the interface
+ *  \param  wt       a pointer to the double value to be returned
+ *
+ *  \retval 0        a success
+ *  \retval -1       no value could be returned
+ */
+
+int ffs_param_weight(ffs_param_t * obj, int n, double * wt);
+
+/**
+ *  \brief Set the pruning probabilities to \c 1 - 1/ntrial 
+ *
+ *  \param  obj       the ffs_param_t data type
+ *
+ *  \retval 0         a success
+ *  \retval -1        a failure
+ *
+ *  This is the standard situation for branched FFS. For the first
+ *  interface the pruning probability is 1, and for the last the
+ *  probabiltity is 0, irrespective of ntrial.
+ */   
+
+int ffs_param_pprune_set_default(ffs_param_t * obj);
 
 /**
  *  \}

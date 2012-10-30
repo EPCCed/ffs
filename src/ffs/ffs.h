@@ -22,6 +22,10 @@
 
 typedef struct ffs_s ffs_t;
 
+/**
+ *  \brief Datatype enumerator
+ */
+
 typedef enum {
   FFS_VAR_INT,      /**< For integer data */
   FFS_VAR_DOUBLE    /**< For double data */

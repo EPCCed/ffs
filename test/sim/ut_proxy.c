@@ -20,30 +20,34 @@ int ut_proxy(u_test_case_t * tc) {
   proxy_t * proxy = NULL;
   ffs_t * ffs = NULL;
 
+  int id = -1;
   int result;
   MPI_Comm testcomm;
 
   u_dbg("Start");
 
-  u_test_err_if(proxy_create(0, MPI_COMM_WORLD, &proxy));
-  u_test_err_if(proxy_delegate_create(proxy, "test"));
+  dbg_err_if(proxy_create(0, MPI_COMM_WORLD, &proxy));
+  dbg_err_if(proxy_id(proxy, &id));
+  dbg_err_if(id != 0);
 
-  u_test_err_if(proxy_execute(proxy, SIM_EXECUTE_INIT));
-  u_test_err_if(proxy_state(proxy, SIM_STATE_INIT, "no stub"));
-  u_test_err_if(proxy_lambda(proxy));
-  u_test_err_if(proxy_info(proxy, FFS_INFO_TIME_PUT));
+  dbg_err_if(proxy_delegate_create(proxy, "test"));
 
-  u_test_err_if(proxy_delegate_free(proxy));
+  dbg_err_if(proxy_execute(proxy, SIM_EXECUTE_INIT));
+  dbg_err_if(proxy_state(proxy, SIM_STATE_INIT, "no stub"));
+  dbg_err_if(proxy_lambda(proxy));
+  dbg_err_if(proxy_info(proxy, FFS_INFO_TIME_PUT));
 
-  u_test_err_if(proxy_ffs(proxy, &ffs));
-  u_test_err_if(ffs == NULL);
+  dbg_err_if(proxy_delegate_free(proxy));
+
+  dbg_err_if(proxy_ffs(proxy, &ffs));
+  dbg_err_if(ffs == NULL);
 
   /* The simulation communicator is a duplicate of the proxy
    * communicator. Result of comparison should be MPI_CONGRUENT */
 
-  u_test_err_if(ffs_comm(ffs, &testcomm));
+  dbg_err_if(ffs_comm(ffs, &testcomm));
   MPI_Comm_compare(MPI_COMM_WORLD, testcomm, &result);
-  u_test_err_if(result != MPI_CONGRUENT);
+  dbg_err_if(result != MPI_CONGRUENT);
 
   proxy_free(proxy);
 

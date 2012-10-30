@@ -16,21 +16,24 @@ int u_test_ffs_state_create(u_test_case_t * tc) {
   int * pidref;
   int * pid = NULL;
 
-  u_test_err_if(ffs_state_create(&state));
-  u_test_err_if(ffs_state_id_set(state, 10));
-  u_test_err_if(ffs_state_id(state, &id));
-  u_test_err_if(id != 10);
+  u_dbg("Start");
+  dbg_err_if(ffs_state_create(0, 0, &state));
+  dbg_err_if(ffs_state_id_set(state, 10));
+  dbg_err_if(ffs_state_id(state, &id));
+  dbg_err_if(id != 10);
 
   dbg_err_if((pidref = u_calloc(1, sizeof(int))) == NULL);
 
   *pidref = 11;
-  u_test_err_if(ffs_state_mem_set(state, (void *) pidref));
-  u_test_err_if(ffs_state_mem(state, (void *) &pid));
-  u_test_err_if(*pid != 11);
+  dbg_err_if(ffs_state_mem_set(state, (void *) pidref));
+  dbg_err_if(ffs_state_mem(state, (void *) &pid));
+  dbg_err_if(*pid != 11);
+  dbg_err_if(ffs_state_stub(state) == NULL);
 
   u_free(pidref);
   ffs_state_free(state);
 
+  u_dbg("Success\n");
   return U_TEST_SUCCESS;
 
  err:
@@ -38,5 +41,6 @@ int u_test_ffs_state_create(u_test_case_t * tc) {
   if (pidref) u_free(pidref);
   if (state) ffs_state_free(state);
 
+  u_dbg("Failure\n");
   return U_TEST_FAILURE;
 }

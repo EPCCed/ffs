@@ -16,9 +16,14 @@
 #include "ffs_state.h"
 
 struct ffs_state_type {
-  int id;           /* For file identification */
-  void * memory;    /* For simulation memory block, if required */
+  int inst_id;        /* Instance id */
+  int proxy_id;       /* Simluation proxy id */
+  int id;             /* For file identification */
+  void * memory;      /* For simulation memory block, if required */
+  u_string_t * stub;  /* Stub file name */
 };
+
+static int ffs_state_stub_set(ffs_state_t * obj);
 
 /*****************************************************************************
  *
@@ -26,13 +31,17 @@ struct ffs_state_type {
  *
  *****************************************************************************/
 
-int ffs_state_create(ffs_state_t ** pobj) {
+int ffs_state_create(int inst, int proxy, ffs_state_t ** pobj) {
 
   ffs_state_t * obj;
 
   dbg_return_if(pobj == NULL, -1);
 
   err_err_sif((obj = u_calloc(1, sizeof(ffs_state_t))) == NULL);
+
+  obj->inst_id = inst;
+  obj->proxy_id = proxy;
+  err_err_if(ffs_state_stub_set(obj));
   *pobj = obj;
 
   return 0;
@@ -45,14 +54,7 @@ int ffs_state_create(ffs_state_t ** pobj) {
 
 /*****************************************************************************
  *
- *  \brief  Release a previously allocated object
- *
- *  The user is responsible for releasing any memory assocaited
- *  with memblock.
- *
- *  \param  obj     the object to be released
- *
- *  \return void
+ *  ffs_state_free
  *
  *****************************************************************************/
 
@@ -60,6 +62,7 @@ void ffs_state_free(ffs_state_t * obj) {
 
   dbg_return_if(obj == NULL, );
 
+  if (obj->stub) u_string_free(obj->stub);
   u_free(obj);
 
   return;
@@ -67,13 +70,7 @@ void ffs_state_free(ffs_state_t * obj) {
 
 /*****************************************************************************
  *
- *  \brief  Return the integer id identifying the state
- *
- *  \param  obj     the ffs_state_t object
- *  \param  id      pointer to the id to be returned
- *
- *  \return 0       a success
- *  \return -1      a failure
+ *  ffs_state_id
  *
  *****************************************************************************/
 
@@ -88,13 +85,7 @@ int ffs_state_id(ffs_state_t * obj, int * id) {
 
 /*****************************************************************************
  *
- *  \brief  Set the id assoicaited with the state object
- *
- *  \param  obj     the ffs_state_t object
- *  \param  id      the new id
- *
- *  \retval 0       a success
- *  \retval -1      a failure
+ *  ffs_state_id_set
  *
  *****************************************************************************/
 
@@ -103,18 +94,18 @@ int ffs_state_id_set(ffs_state_t * obj, int id) {
   dbg_return_if(obj == NULL, -1);
 
   obj->id = id;
+  err_err_if(ffs_state_stub_set(obj));
+
   return 0;
+
+ err:
+
+  return -1;
 }
 
 /*****************************************************************************
  *
- *  \brief
- *
- *  \param  obj      the ffs_state_t object
- *  \param  mem      pointer to void memory
- *
- *  \retval 0        a success
- *  \retval -1       a failure
+ *  ffs_state_mem
  *
  *****************************************************************************/
 
@@ -129,13 +120,7 @@ int ffs_state_mem(ffs_state_t * obj, void ** memblock) {
 
 /*****************************************************************************
  *
- *  \brief
- *
- *  \param  obj          the ffs_state_t object
- *  \param  memblock     void pointer to object to be referenced (may be NULL)
- *
- *  \retval 0            a success
- *  \retval -1           a failure
+ *  ffs_state_mem_set
  *
  *****************************************************************************/
 
@@ -145,4 +130,45 @@ int ffs_state_mem_set(ffs_state_t * obj, void * memblock) {
 
   obj->memory = memblock;
   return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_state_stub
+ *
+ *****************************************************************************/
+
+const char * ffs_state_stub(ffs_state_t * obj) {
+
+  dbg_return_if(obj == NULL, NULL);
+
+  return u_string_c(obj->stub);
+}
+
+/*****************************************************************************
+ *
+ *  ffs_state_stub_set
+ *
+ *****************************************************************************/
+
+static int ffs_state_stub_set(ffs_state_t * obj) {
+
+  dbg_return_if(obj == NULL, -1);
+
+  if (obj->stub == NULL) {
+    err_err_if(u_string_create("", strlen(""), &obj->stub));
+  }
+
+  err_err_ifm(obj->inst_id > 9999, "Format botch inst_id = %d", obj->inst_id);
+  err_err_ifm(obj->proxy_id > 9999, "Format botch proxy = %d", obj->proxy_id);
+  err_err_ifm(obj->id > 99999, "Format botch state id = %d", obj->id);
+
+  err_err_if(u_string_sprintf(obj->stub, "inst-%4.4d-proxy-%4.4d-state%5.5d",
+			      obj->inst_id, obj->proxy_id, obj->id));
+
+  return 0;
+
+ err:
+
+  return -1;
 }

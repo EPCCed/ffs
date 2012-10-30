@@ -41,6 +41,8 @@ typedef struct ffs_state_type ffs_state_t;
 /**
  *  \brief Create a state object
  *
+ *  \param inst_id   the instance id (to form part of file stub)
+ *  \param proxy_id  the simulation proxy id (also to form part of the stub)
  *  \param pobj      a pointer to the new object to be returned
  *
  *  \retval 0        a success
@@ -48,7 +50,7 @@ typedef struct ffs_state_type ffs_state_t;
  *
  */
 
-int ffs_state_create(ffs_state_t ** pobj);
+int ffs_state_create(int inst_id, int proxy_id, ffs_state_t ** pobj);
 
 /**
  *  \brief Release a state object
@@ -112,6 +114,16 @@ int ffs_state_mem(ffs_state_t * obj, void ** memblock);
  */
 
 int ffs_state_mem_set(ffs_state_t * obj, void * memblock);
+
+/**
+ *  \brief Return the file stub associated with state
+ *
+ *  \param obj      the ffs_state_t object
+ *
+ *  \returns        The string value or NULL if an error occurred
+ */
+
+const char * ffs_state_stub(ffs_state_t * obj); 
 
 /**
  * \}
