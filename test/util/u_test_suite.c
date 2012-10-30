@@ -13,8 +13,8 @@
 
 int u_test_ranlcg_create(u_test_case_t * tc);
 int u_test_ranlcg_state(u_test_case_t * tc);
-int u_test_extra_misc(u_test_case_t * tc);
-int u_test_extra_config(u_test_case_t * tc);
+
+#include "ut_util.h"
 
 /*
  * Suite
@@ -29,9 +29,9 @@ int u_test_suite_util_register (u_test_t * t) {
   u_test_case_register("ranlcg_create", u_test_ranlcg_create, ts);
   u_test_case_register("ranlcg_state", u_test_ranlcg_state, ts);
 
-  u_test_case_register("u extra misc", u_test_extra_misc, ts);
-  u_test_case_register("u extra config", u_test_extra_config, ts);
-  u_test_case_depends_on("u extra config", "u extra misc", ts);
+  u_test_case_register(UT_UTIL_MISC_NAME, ut_util_misc, ts);
+  u_test_case_register(UT_UTIL_CONFIG_NAME, ut_util_config, ts);
+  u_test_case_depends_on(UT_UTIL_CONFIG_NAME, UT_UTIL_MISC_NAME, ts);
 
   return u_test_suite_add(ts, t);
 }

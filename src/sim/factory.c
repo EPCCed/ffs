@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include "u/libu.h"
-#include "u_extra.h"
+#include "ffs_util.h"
 #include "factory.h"
 
 typedef struct factory_s factory_t;

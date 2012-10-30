@@ -8,6 +8,15 @@ makl_args_init "$@"
 ${ECHO} "MAKL_ETC is ${MAKL_ETC}"
 
 #
+# --debug
+#
+makl_args_def "--with-debug" "" "" "Add -DDEBUG to CFLAGS"
+__makl_debug ()
+{
+    makl_append_var_mk "CFLAGS" "-DDEBUG"
+}
+
+#
 # --u-path=...
 #
 makl_args_def "u-path" "" "" "path to libu directory"

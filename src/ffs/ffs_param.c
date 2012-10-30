@@ -43,7 +43,7 @@
 #include <stdio.h>
 
 #include "u/libu.h"
-#include "../util/u_extra.h"
+#include "ffs_util.h"
 #include "ffs_param.h"
 
 struct ffs_interface_type {
@@ -366,6 +366,42 @@ int ffs_param_print_summary_fp(ffs_param_t * obj, FILE * fp) {
 
 /*****************************************************************************
  *
+ *  ffs_param_log_to_mpilog
+ *
+ *****************************************************************************/
+
+int ffs_param_log_to_mpilog(ffs_param_t * obj, mpilog_t * log) {
+
+  int n;
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(log == NULL, -1);
+
+  mpilog(log, "\n");
+  mpilog(log, "Number of interfaces: %d\n", obj->nlambda);
+  mpilog(log, "Default ntrials:      %d\n", obj->ntrials_default);
+  mpilog(log, "Default nstates:      %d\n", obj->nstates_default);
+  mpilog(log, "Default nskeep:       %d\n", obj->nskeep_default);
+  mpilog(log, "Default pprune:       %5.3f\n", obj->pprune_default);
+  mpilog(log, "\n");
+
+  mpilog(log, "index      lambda   ntrial   nstate  nskeep   pprune\n");
+  mpilog(log, "----------------------------------------------------\n");
+
+  for (n = 1; n <= obj->nlambda; n++) {
+    mpilog(log, "  %3d  %10.3e   %6d   %6d  %6d    %5.3f\n",
+	    n, obj->interfaces[n].lambda, obj->interfaces[n].ntrials,
+	    obj->interfaces[n].nstates, obj->interfaces[n].nskeep,
+	    obj->interfaces[n].pprune);
+  }
+
+  mpilog(log, "\n");
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
  *  \brief Set up the default interface values from the configuration
  *
  *  Some basic "default default" values are provided via the ref
@@ -393,10 +429,10 @@ static int ffs_param_defaults_set(u_config_t * config, ffs_param_t * obj) {
   err_err_if(u_config_get_subkey_value_i(config, FFS_CONFIG_NSKEEP_DEFAULT,
 					 FFS_NSKEEP_DEFAULT,
 					 &obj->nskeep_default));
-  err_err_if(u_extra_config_get_subkey_value_d(config,
-					       FFS_CONFIG_PPRUNE_DEFAULT,
-					       FFS_PPRUNE_DEFAULT,
-					       &obj->pprune_default));
+  err_err_if(util_config_get_subkey_value_d(config,
+					    FFS_CONFIG_PPRUNE_DEFAULT,
+					    FFS_PPRUNE_DEFAULT,
+					    &obj->pprune_default));
   return 0;
 
  err:
@@ -454,9 +490,9 @@ static int ffs_param_interfaces_set(u_config_t * config, ffs_param_t * obj) {
     err_err_if(u_config_get_subkey_value_i(subconf, FFS_CONFIG_NSKEEP,
 					   obj->nskeep_default,
 					   &obj->interfaces[n].nskeep));
-    err_err_if(u_extra_config_get_subkey_value_d(subconf, FFS_CONFIG_PPRUNE,
-						 obj->pprune_default,
-						 &obj->interfaces[n].pprune));
+    err_err_if(util_config_get_subkey_value_d(subconf, FFS_CONFIG_PPRUNE,
+					      obj->pprune_default,
+					      &obj->interfaces[n].pprune));
   }
 
   /* Interface 0. This is only for convenience of access to

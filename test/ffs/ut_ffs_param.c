@@ -2,7 +2,7 @@
  *
  *  ffs_param.c
  *
- *  Unit test for ../../src/ffs/ffs_param.c
+ *  Unit test.
  *
  *****************************************************************************/
 
@@ -12,7 +12,8 @@
 #include <mpi.h>
 
 #include "u/libu.h"
-#include "u_extra.h"
+#include "mpilog.h"
+#include "ffs_util.h"
 #include "ffs_param.h"
 
 /*****************************************************************************
@@ -71,7 +72,7 @@ int ut_param_create(u_test_case_t * tc) {
 
   lambda = 0.0;
   u_test_err_if(ffs_param_lambda(param, 1, &lambda));
-  u_test_err_if(u_extra_compare_double(lambda, 0.1, DBL_EPSILON));
+  u_test_err_if(util_compare_double(lambda, 0.1, DBL_EPSILON));
 
   ntrial = 0;
   u_test_err_if(ffs_param_ntrial(param, 1, &ntrial));
@@ -84,13 +85,13 @@ int ut_param_create(u_test_case_t * tc) {
   u_test_err_if(nskeep != 12);
   pprune = 0.0;
   u_test_err_if(ffs_param_pprune(param, 1, &pprune));
-  u_test_err_if(u_extra_compare_double(pprune, 1.0, DBL_EPSILON));
+  u_test_err_if(util_compare_double(pprune, 1.0, DBL_EPSILON));
 
   /* Interface 2 */
 
   lambda = 0.0;
   u_test_err_if(ffs_param_lambda(param, 2, &lambda));
-  u_test_err_if(u_extra_compare_double(lambda, 0.2, DBL_EPSILON));
+  u_test_err_if(util_compare_double(lambda, 0.2, DBL_EPSILON));
 
   u_test_err_if(ffs_param_ntrial(param, 2, &ntrial));
   u_test_err_if(ntrial != 1000);
@@ -99,13 +100,13 @@ int ut_param_create(u_test_case_t * tc) {
   u_test_err_if(ffs_param_nskeep(param, 2, &nskeep));
   u_test_err_if(nskeep != 2);
   u_test_err_if(ffs_param_pprune(param, 2, &pprune));
-  u_test_err_if(u_extra_compare_double(pprune, 0.5, DBL_EPSILON));
+  u_test_err_if(util_compare_double(pprune, 0.5, DBL_EPSILON));
 
   /* Interface 0 (lambda = interface 1) */
 
   lambda = 0.0;
   u_test_err_if(ffs_param_lambda(param, 0, &lambda));
-  u_test_err_if(u_extra_compare_double(lambda, 0.1, DBL_EPSILON));
+  u_test_err_if(util_compare_double(lambda, 0.1, DBL_EPSILON));
 
   u_test_err_if(ffs_param_check(param));
 
@@ -134,12 +135,13 @@ int ut_param_create(u_test_case_t * tc) {
 
 int ut_param_from_file(u_test_case_t * tc) {
 
-  int ntask;
   ffs_param_t * param = NULL;
   u_config_t * config = NULL;
   u_config_t * subconfig = NULL;
+  mpilog_t * log = NULL;
 
-  dbg_err_if(u_config_load_from_file("inputs/ut_param1.inp", &config));
+  u_dbg("Start");
+  u_test_err_if(u_config_load_from_file("inputs/ut_param1.inp", &config));
 
   /* The ffs_param_t could take a full interfaces{}, but ... */
   subconfig = u_config_get_child(config, FFS_CONFIG_INTERFACES);
@@ -147,21 +149,24 @@ int ut_param_from_file(u_test_case_t * tc) {
   u_test_err_if(ffs_param_create(subconfig, &param));
   u_test_err_if(ffs_param_check(param));
 
-  MPI_Comm_size(MPI_COMM_WORLD, &ntask);
+  u_test_err_if(mpilog_create(MPI_COMM_WORLD, &log));
+  u_test_err_if(mpilog_fopen(log, "logs/ut_param.log", "w+"));
+  u_test_err_if(ffs_param_log_to_mpilog(param, log));
 
-  if (ntask == 1) {
-    u_test_err_if(ffs_param_print_summary_fp(param, stdout));
-  }
-
+  mpilog_fclose(log);
+  mpilog_free(log);
   ffs_param_free(param);
   u_config_free(config);
 
+  u_dbg("Success\n");
   return U_TEST_SUCCESS;
 
  err:
 
   if (config) u_config_free(config);
   if (param) ffs_param_free(param);
+  if (log) mpilog_free(log);
 
+  u_dbg("Failure\n");
   return U_TEST_FAILURE;
 }

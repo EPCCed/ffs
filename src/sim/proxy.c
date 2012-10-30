@@ -9,10 +9,12 @@
 
 #include "u/libu.h"
 #include "ffs_private.h"
+#include "ffs_util.h"
 #include "factory.h"
 #include "proxy.h"
 
 struct proxy_s {
+  int id;
   abstract_sim_t * delegate;
   interface_t vtable;
   MPI_Comm parent;
@@ -26,31 +28,41 @@ struct proxy_s {
  *
  *****************************************************************************/
 
-int proxy_create(MPI_Comm parent, proxy_t ** pobj) {
+int proxy_create(int id, MPI_Comm parent, proxy_t ** pobj) {
 
+  int rank;
   int mpi_errno = 0, mpi_errnol = 0;
   MPI_Comm newcomm = MPI_COMM_NULL;
   proxy_t * obj = NULL;
 
   dbg_return_if(pobj == NULL, -1);
 
-  MPI_Comm_dup(parent, &newcomm);
+  mpi_errnol = (id < 0);
+  mpi_sync_ifm(mpi_errnol, "id < 0");
+
+  MPI_Comm_rank(parent, &rank);
+  MPI_Comm_split(parent, id, rank, &newcomm);
 
   mpi_errnol = ((obj = u_calloc(1, sizeof(proxy_t))) == NULL);
-  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, parent);
+  mpi_sync_ifm(mpi_errnol, "calloc(proxy_t) failed");
 
-  err_err_ifm(mpi_errno, "calloc(proxy_t) failed");
-
+  obj->id = id;
   obj->parent = parent;
   obj->comm = newcomm;
-  err_err_if(ffs_create(newcomm, &obj->ffs));
+
+  err_err_if(ffs_create(obj->comm, &obj->ffs));
+
   *pobj = obj;
+
+ mpi_sync:
+  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, parent);
+  nop_err_if(mpi_errno);
 
   return 0;
 
  err:
-  /* Take care not to free the newly dup'd communicator twice if
-   * the object exists */
+
+  /* A little care required not to free new communicator twice */
 
   MPI_Comm_free(&newcomm);
   if (obj) {

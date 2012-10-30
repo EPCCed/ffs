@@ -9,7 +9,7 @@
 #include <mpi.h>
 #include "u/libu.h"
 
-#include "u_extra.h"
+#include "ffs_util.h"
 #include "ffs_private.h"
 
 typedef struct var_s var_t;
