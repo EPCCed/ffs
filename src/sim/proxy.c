@@ -101,9 +101,13 @@ void proxy_free(proxy_t * obj) {
 
 int proxy_delegate_create(proxy_t * obj, const char * name) {
 
+  int present = 0;
+
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(name == NULL, -1);
 
+  err_err_if(factory_inquire(name, &present));
+  err_err_ifm(present == 0, "No proxy with %d", name);
   err_err_if(factory_make(obj->comm, name, &obj->vtable, &obj->delegate));
 
   return 0;
@@ -194,6 +198,22 @@ int proxy_ffs(proxy_t * obj, ffs_t ** ffs) {
   dbg_return_if(obj == NULL, -1);
 
   *ffs = obj->ffs;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  proxy_id
+ *
+ *****************************************************************************/
+
+int proxy_id(proxy_t * obj, int * proxy_id) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(proxy_id == NULL, -1);
+
+  *proxy_id = obj->id;
 
   return 0;
 }

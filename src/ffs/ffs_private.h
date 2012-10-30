@@ -35,7 +35,7 @@ int ffs_create(MPI_Comm comm, ffs_t ** pobj);
  *
  *  \param obj       the object
  *
- *  \returns         nothing
+ *  \return         nothing
  */
 
 void ffs_free(ffs_t * obj);
@@ -53,6 +53,32 @@ int ffs_command_line_set(ffs_t * obj, char * argstring);
 
 int ffs_type(ffs_t * obj, ffs_info_enum_t param, int * ndata,
 	     ffs_var_enum_t * type);
+
+/**
+ *  \brief Return current lambda as a double
+ *
+ *  \param obj      the ffs_t object
+ *  \param lambda   a pointer to the double value to be returned
+ *
+ *  \retval 0       a success
+ *  \retval -1      a NULL pointer was received or the lambda data
+ *                  type has not been set via a call to ffs_type_set()
+ */
+
+int ffs_lambda(ffs_t * obj, double * lambda);
+
+/**
+ *  \brief Return the current time value as a double
+ *
+ *  \param obj        the ffs_t object
+ *  \param t          a pointer to the time value to be returned
+ *
+ *  \retval 0         a success
+ *  \retval -1        a NULL pointer was received or the time data
+ *                    type has not been et via a call to ffs_type_set()
+ */
+
+int ffs_time(ffs_t * obj, double * t);
 
 /**
  *  \}

@@ -18,7 +18,7 @@
 #include "../util/mpilog.h"
 #include "../sim/proxy.h"
 
-#include "ffs_param.h"
+#include "ffs_branched.h"
 #include "ffs_inst.h"
 
 struct ffs_inst_type {
@@ -33,9 +33,18 @@ struct ffs_inst_type {
   int sim_nsim_inst;       /* Number of simulation instances */
   u_string_t * sim_name;   /* The name used to identify the proxy */
   u_string_t * sim_argv;   /* The command line */
+
+  /* Initialisation */
+  int init_independent;    /* Use independent (parallel) states at A */
+  int init_nskip;          /* Skip every n crossings at A */
+  int init_nstepmax;       /* Maximum length of initial run */
+  double init_prob_accept; /* Probability of accepting crossing at A */
+  double init_teq;         /* Equilibration time in A */
+
 };
 
 static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input);
+static int ffs_inst_read_init(ffs_inst_t * obj, u_config_t * config);
 static int ffs_inst_branched(ffs_inst_t * obj);
 static int ffs_inst_direct(ffs_inst_t * obj);
 
@@ -110,6 +119,22 @@ void ffs_inst_free(ffs_inst_t * obj) {
 
 /*****************************************************************************
  *
+ *  ffs_inst_id
+ *
+ *****************************************************************************/
+
+int ffs_inst_id(ffs_inst_t * obj, int * id) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(id == NULL, -1);
+
+  *id = obj->inst_id;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
  *  ffs_inst_start
  *
  *****************************************************************************/
@@ -165,7 +190,6 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
   dbg_return_if(input == NULL, -1);
 
   err_err_if(ffs_inst_read_config(obj, input));
-  err_err_if(ffs_param_create(input, &obj->param));
 
   switch (obj->method) {
   case FFS_METHOD_TEST:
@@ -200,8 +224,8 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
  *
  *  ffs_inst_read_config
  *
- *  Look for the method, the number of mpi_tasks requested, and
- *  the number of simulations requested.
+ *  Parse the ffs_inst section of the config. It is assumed every
+ *  rank receives exactly the same config, so failures are collective.
  *
  *  Also retreive the simulation (proxy) name, and the command
  *  line strings.
@@ -225,7 +249,7 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
 
   ifail = ((config = u_config_get_child(input, FFS_CONFIG_INST)) == NULL);
   mpilog_if(ifail, obj->log, "Config has no %s section\n", FFS_CONFIG_INST);
-  err_err_ifm(ifail, "No config");
+  err_err_ifm(ifail, "No inst config");
 
   /* Set method; default is the test method */
 
@@ -250,7 +274,7 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
 	    FFS_CONFIG_INST);
   }
 
-  /* Simulation and command line */
+  /* Simulation name, number of instances, and command line */
 
   err_err_if(u_config_get_subkey_value_i(config,
 					 FFS_CONFIG_SIM_NSIM,
@@ -266,6 +290,18 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
   err_err_if(u_string_create(sim_name, strlen(sim_name), &obj->sim_name));
   err_err_if(u_string_create(sim_argv, strlen(sim_argv), &obj->sim_argv));
 
+  /* Initialisation section */
+
+  err_err_if(ffs_inst_read_init(obj, config));
+
+  /* Interface section */
+
+  ifail = ((config = u_config_get_child(input, FFS_CONFIG_INTERFACES)) == NULL);
+  mpilog_if(ifail, obj->log, "Config has no %s\n", FFS_CONFIG_INTERFACES);
+  err_err_ifm(ifail, "No inst interfaces");
+
+  err_err_if(ffs_param_create(config, &obj->param));
+
   /* Report */
 
   ffs_inst_config(obj);
@@ -275,6 +311,56 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
  err:
 
   mpilog(obj->log, "Problem parsing the instance config\n");
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_read_init
+ *
+ *  Parse the initialisation parameters.
+ *
+ *  The config object should have stripped off the ffs_init { }
+ *  at this stage.
+ *
+ *  We assume every rank receives exactly the same config, so
+ *  errors are collective.
+ *
+ *****************************************************************************/
+
+static int ffs_inst_read_init(ffs_inst_t * obj, u_config_t * config) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(config == NULL, -1);
+
+  err_err_if(u_config_get_subkey_value_i(config,
+					 FFS_CONFIG_INIT_INDEPENDENT,
+					 FFS_DEFAULT_INIT_INDEPENDENT,
+					 &obj->init_independent));
+
+  err_err_if(u_config_get_subkey_value_i(config,
+					 FFS_CONFIG_INIT_NSTEPMAX,
+					 FFS_DEFAULT_INIT_NSTEPMAX,
+					 &obj->init_nstepmax));
+
+  err_err_if(u_config_get_subkey_value_i(config,
+					 FFS_CONFIG_INIT_NSKIP,
+					 FFS_DEFAULT_INIT_NSKIP,
+					 &obj->init_nskip));
+
+  err_err_if(util_config_get_subkey_value_d(config,
+					    FFS_CONFIG_INIT_PROB_ACCEPT,
+					    FFS_DEFAULT_INIT_PROB_ACCEPT,
+					    &obj->init_prob_accept));
+
+  err_err_if(util_config_get_subkey_value_d(config,
+					    FFS_CONFIG_INIT_TEQ,
+					    FFS_DEFAULT_INIT_TEQ,
+					    &obj->init_teq));
+  return 0;
+
+ err:
 
   return -1;
 }
@@ -309,16 +395,26 @@ const char * ffs_inst_method_name(ffs_inst_t * obj) {
 
 int ffs_inst_config_log(ffs_inst_t * obj, mpilog_t * log) {
 
+  const char * fmts = "\t %-20s  %s\n";
+  const char * fmti = "\t %-20s  %d\n";
+  const char * fmtd = "\t %-20s  %12.6e\n";
+
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(obj == NULL, -1);
 
   mpilog(log, "\n");
   mpilog(log, "%s\n", FFS_CONFIG_INST);
   mpilog(log, "{\n");
-  mpilog(log, "\t%s\t%s\n", FFS_CONFIG_INST_METHOD, ffs_inst_method_name(obj));
-  mpilog(log, "\t%s\t%d\n", FFS_CONFIG_SIM_NSIM, obj->sim_nsim_inst);
-  mpilog(log, "\t%s\t%s\n", FFS_CONFIG_SIM_NAME, u_string_c(obj->sim_name));
-  mpilog(log, "\t%s\t%s\n", FFS_CONFIG_SIM_ARGV, u_string_c(obj->sim_argv));
+  mpilog(log, fmts, FFS_CONFIG_INST_METHOD, ffs_inst_method_name(obj));
+  mpilog(log, fmti, FFS_CONFIG_SIM_NSIM, obj->sim_nsim_inst);
+  mpilog(log, fmts, FFS_CONFIG_SIM_NAME, u_string_c(obj->sim_name));
+  mpilog(log, fmts, FFS_CONFIG_SIM_ARGV, u_string_c(obj->sim_argv));
+  mpilog(log, "\n");
+  mpilog(log, fmti, FFS_CONFIG_INIT_INDEPENDENT, obj->init_independent);
+  mpilog(log, fmti, FFS_CONFIG_INIT_NSTEPMAX, obj->init_nstepmax);
+  mpilog(log, fmti, FFS_CONFIG_INIT_NSKIP, obj->init_nskip);
+  mpilog(log, fmtd, FFS_CONFIG_INIT_PROB_ACCEPT, obj->init_prob_accept);
+  mpilog(log, fmtd, FFS_CONFIG_INIT_TEQ, obj->init_teq);
   mpilog(log, "}\n");
 
   return 0;
@@ -347,6 +443,7 @@ int ffs_inst_config(ffs_inst_t * obj) {
 static int ffs_inst_branched(ffs_inst_t * obj) {
 
   int rank, proxy_id;
+  ffs_t * ffs = NULL;
   proxy_t * proxy = NULL;
 
   dbg_return_if(obj == NULL, -1);
@@ -354,9 +451,17 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   /* Check input for branched */
 
   mpilog(obj->log, "Checking branched input\n");
+  mpilog(obj->log, "Setting pruning probabilities to default values\n");
+
+  err_err_if(ffs_param_check(obj->param));
+  err_err_if(ffs_param_pprune_set_default(obj->param));
 
   /* Interface details to log */
 
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "The interface parameters are as follows\n");
+  
+  ffs_param_log_to_mpilog(obj->param, obj->log);
 
   /* Start proxy */
 
@@ -367,11 +472,14 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
 
   err_err_if(proxy_create(proxy_id, obj->comm, &proxy));
   err_err_if(proxy_delegate_create(proxy, u_string_c(obj->sim_name)));
+  err_err_if(proxy_ffs(proxy, &ffs));
+  err_err_if(ffs_command_line_set(ffs, u_string_c(obj->sim_argv)));
+
+  mpilog(obj->log, "The simulation is %s\n", u_string_c(obj->sim_name));
 
   /* Do the run */
 
-  /* mpi_errnol = ffs_branched_run();
-     mpi_sync_if(mpi_errnol); */
+  ffs_branched_run(obj, proxy, 1, obj->log);
 
   mpilog(obj->log, "Closing down the simulation proxy\n");
 
@@ -398,6 +506,38 @@ static int ffs_inst_direct(ffs_inst_t * obj) {
   dbg_return_if(obj == NULL, -1);
 
   mpilog(obj->log, "DIRECT FFS NOT VERY INTERSTING YET\n");
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_param
+ *
+ *****************************************************************************/
+
+int ffs_inst_param(ffs_inst_t * obj, ffs_param_t ** param) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(param == NULL, -1);
+
+  *param = obj->param;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_nsim
+ *
+ *****************************************************************************/
+
+int ffs_inst_nsim(ffs_inst_t * obj, int * nsim) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(nsim == NULL, -1);
+
+  *nsim = obj->sim_nsim_inst;
 
   return 0;
 }

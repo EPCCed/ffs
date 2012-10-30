@@ -470,6 +470,8 @@ int dmc_init(dynam_t * dyn, int argc, char ** argv) {
 
   int ifail = 0;
 
+  if (argc < 3) return -1;
+
   ifail += dmc_read_components(dyn, argv[1]);
   ifail += dmc_read_reactions(dyn, argv[2]);
   ifail += dmc_print_reactions(dyn);

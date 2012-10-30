@@ -44,7 +44,7 @@ typedef struct proxy_s proxy_t;
  *  \retval -1     a failure
  */
 
-int proxy_create(int id, MPI_Comm comm, proxy_t ** pobj);
+int proxy_create(int id, MPI_Comm parent, proxy_t ** pobj);
 
 /**
  *  \brief Release resources used by a proxy object
@@ -142,6 +142,18 @@ int proxy_info(proxy_t * obj, ffs_info_enum_t param);
  */
 
 int proxy_ffs(proxy_t * obj, ffs_t ** ref);
+
+/**
+ *  \brief Return the proxy id
+ *
+ *  \param obj        the proxy_t object
+ *  \param proxy_id   a pointer to the integer to be returned
+ *
+ *  \retval 0         a success
+ *  \retval -1        a NULL pointer was received
+ */
+
+int proxy_id(proxy_t * obj, int * proxy_id);
 
 /**
  *  \}

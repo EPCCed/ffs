@@ -9,4 +9,7 @@ ffs
   {
     method test
   }
+  interfaces
+  {
+  } 
 }

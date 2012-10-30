@@ -6,3 +6,7 @@ ffs_inst
 	mpi_tasks       1
 	nsim            1
 }
+
+interfaces
+{
+}
