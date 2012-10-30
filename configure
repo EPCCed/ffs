@@ -10,11 +10,21 @@ ${ECHO} "MAKL_ETC is ${MAKL_ETC}"
 #
 # --debug
 #
-makl_args_def "--with-debug" "" "" "Add -DDEBUG to CFLAGS"
+makl_args_def "debug" "" "No -DDEBUG" "Add -DDEBUG to CFLAGS"
 __makl_debug ()
 {
     makl_append_var_mk "CFLAGS" "-DDEBUG"
 }
+
+#
+#  --docs
+#
+makl_args_def "docs" "" "No doxygen" "Attempt to produce doxygen docs"
+__makl_docs ()
+{
+    makl_optional      1    "featx"   "doxygen" "DOXYGEN"
+}
+
 
 #
 # --u-path=...
@@ -49,8 +59,8 @@ __makl_lammps ()
 makl_pkg_name "FFS"
 makl_pkg_version
 
-makl_optional      1    "lib"     "mpi"
-makl_optional      1    "featx"   "doxygen" "DOXYGEN"
+makl_checkheader   0    "mpi"     "<mpi.h>"
+makl_optional      0    "lib"     "mpi"
 
 makl_args_handle "$@"
 
