@@ -60,7 +60,7 @@ makl_pkg_name "FFS"
 makl_pkg_version
 
 
-makl_checkheader   1    "mpi"     "<mpi.h>"
+makl_checkheader   0    "mpi"     "<mpi.h>"
 makl_optional      1    "lib"     "mpi"
 
 makl_args_handle "$@"
