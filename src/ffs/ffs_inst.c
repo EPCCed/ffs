@@ -18,6 +18,7 @@
 #include "../util/mpilog.h"
 #include "../sim/proxy.h"
 
+#include "ffs_private.h"
 #include "ffs_branched.h"
 #include "ffs_inst.h"
 
@@ -479,7 +480,8 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
 
   /* Do the run */
 
-  ffs_branched_run(obj, proxy, 1, obj->log);
+  ffs_branched_run(obj->param, proxy, obj->inst_id, obj->sim_nsim_inst,
+		   1, obj->log);
 
   mpilog(obj->log, "Closing down the simulation proxy\n");
 

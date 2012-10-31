@@ -43,9 +43,15 @@ void ffs_free(ffs_t * obj);
 /**
  *  \brief Set the simulation command line
  *
+ *  \param obj          the ffs_t data type
+ *  \param argstring    a string which will make up the command line
+ *
+ *  \retval 0           a success
+ *  \retval -1          a NULL pointer was received or tokenisation
+ *                      of supplied string failed
  */
 
-int ffs_command_line_set(ffs_t * obj, char * argstring);
+int ffs_command_line_set(ffs_t * obj, const char * argstring);
 
 /**
  *  \brief Examine type information

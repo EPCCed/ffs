@@ -453,8 +453,6 @@ static int ffs_param_interfaces_set(u_config_t * config, ffs_param_t * obj) {
   int n;
   u_string_t * key = NULL;
   u_config_t * subconf = NULL;
-  const char * v;
-  double value;
 
   dbg_err_if(config == NULL);
   dbg_err_if(obj == NULL);

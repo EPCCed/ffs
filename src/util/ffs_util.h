@@ -12,6 +12,8 @@
 #define FFS_UTIL_H
 
 #include <errno.h>
+#include <mpi.h>
+
 #include "u/libu.h"
 
 /**
@@ -76,6 +78,30 @@
 #define mpi_sync_ifm(expr, ...) \
   do { if ((expr)) { msg(err_, 0, __VA_ARGS__); goto mpi_sync; } } while (0)
 
+
+/**
+ *  \brief Return -1 is any expr in communicator comm is not 0
+ *
+ *  \param expr        an integer expression
+ *  \param comm        the MPI communicator
+ *
+ *  \retval 0          all expr were 0
+ *  \retval -1         one or more expr were non-zero
+ *
+ *  This calls MPI_Allreduce() in comm, so is collective.
+ */
+
+int util_mpi_any(int expr, MPI_Comm comm);
+
+/**
+ *  \brief Jump to label mpi_sync: if any expr in comm is non-zero
+ *
+ *  This ultimately uses MPI_Allreduce() in comm to agree on synchronisation,
+ *  so should be used with discretion.
+ */
+
+#define mpi_sync_if_any(expr, comm) \
+  do { msg_ifb(err_, util_mpi_any((expr), comm)) {goto mpi_sync;} } while (0)
 
 /**
  *  \brief Return a double value associated with a configuration subkey

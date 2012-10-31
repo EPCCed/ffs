@@ -138,7 +138,7 @@ int ffs_command_line(ffs_t * obj, int * argc, char *** argv) {
  *
  *****************************************************************************/
 
-int ffs_command_line_set(ffs_t * obj, char * argstring) {
+int ffs_command_line_set(ffs_t * obj, const char * argstring) {
 
   int n;
   size_t argc = 0;

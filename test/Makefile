@@ -20,6 +20,7 @@ SRCS += ffs/ut_ffs.c
 SRCS += ffs/ut_ffs_control.c
 SRCS += ffs/ut_ffs_param.c
 SRCS += ffs/ut_ffs_state.c
+SRCS += ffs/ut_ffs_init.c
 SRCS += ffs/ut_ffs_inst.c
 SRCS += ffs/ut_suite.c
 SRCS += missing/mpi.c

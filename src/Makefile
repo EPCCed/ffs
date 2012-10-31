@@ -4,6 +4,7 @@ include ../Makefile.conf
 
 LIB = ffs
 SRCS += ffs/ffs.c
+SRCS += ffs/ffs_init.c
 SRCS += ffs/ffs_inst.c
 SRCS += ffs/ffs_param.c
 SRCS += ffs/ffs_state.c
@@ -29,3 +30,6 @@ SRCS += missing/mpi.c
 endif
 
 include lib.mk
+
+SUBDIR = bin
+include subdir.mk
