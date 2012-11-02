@@ -245,3 +245,26 @@ int ffs_init_nsteplambda_set(ffs_init_t * obj, int nsteplambda) {
 
   return 0;
 }
+
+/*****************************************************************************
+ *
+ *  ffs_init_log_to_mpilog
+ *
+ *****************************************************************************/
+
+int ffs_init_log_to_mpilog(ffs_init_t * obj, mpilog_t * log) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(log == NULL, -1);
+
+  mpilog(log, "\n");
+  mpilog(log, "Parameters for initial state generation\n");
+  mpilog(log, "independent:   %d\n", obj->independent);
+  mpilog(log, "nstepmax:      %d\n", obj->nstepmax);
+  mpilog(log, "nskip:         %d\n", obj->nskip);
+  mpilog(log, "nsteplambda:   %d\n", obj->nsteplambda);
+  mpilog(log, "prob. accept:  %f\n", obj->prob_accept);
+  mpilog(log, "t_equilib:     %f\n", obj->teq);
+
+  return 0;
+}

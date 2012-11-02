@@ -24,7 +24,7 @@ struct result_s {
   double tmax;
 };
 
-int ffs_branched_init(ffs_param_t * param, proxy_t * proxy,
+int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
 		      ffs_state_t * sinit,
 		      ranlcg_t * ran, int seed, result_t * res, int * status);
 
@@ -32,15 +32,17 @@ static int ffs_branched_run_to_time(proxy_t * proxy, double teq,
 				    int nstepmax, int * status);
 
 int ffs_branched_recursive(int interface, int inst_id, int id, double wt,
+			   int nstepmax, int nsteplambda,
 			   ffs_param_t * param, proxy_t * proxy,
 			   ranlcg_t * ran);
 
 int ffs_branched_run_to_lambda(proxy_t * proxy, double lambda_min,
-			       double lambda_max, int nstepmax, int * status);
+			       double lambda_max, int nstepmax,
+			       int nsteplambda, int * status);
 
 int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
 		       int interface, double * wt,
-		       int nstepmax, int * status);
+		       int nstepmax, int nsteplambda, int * status);
 
 /*****************************************************************************
  *
@@ -48,7 +50,8 @@ int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
  *
  *****************************************************************************/
 
-int ffs_branched_run(ffs_param_t * param, proxy_t * proxy, int inst_id,
+int ffs_branched_run(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
+		     int inst_id,
 		     int inst_nsim, int seed, mpilog_t * log) {
 
   int nlambda;
@@ -58,6 +61,8 @@ int ffs_branched_run(ffs_param_t * param, proxy_t * proxy, int inst_id,
   int ntrial;
   int n, nstart;
   int status;
+  int nstepmax;
+  int nsteplambda;
   long int lseed;
   double wt;
   ffs_t * ffs = NULL;
@@ -66,9 +71,14 @@ int ffs_branched_run(ffs_param_t * param, proxy_t * proxy, int inst_id,
 
   result_t * stats = NULL;
 
+  dbg_return_if(init == NULL, -1);
   dbg_return_if(param == NULL, -1);
   dbg_return_if(proxy == NULL, -1);
   dbg_return_if(log == NULL, -1);
+
+  /* trial limits */
+  nstepmax = 10000000;
+  nsteplambda = 1;
 
   /* Results object */
 
@@ -104,9 +114,10 @@ int ffs_branched_run(ffs_param_t * param, proxy_t * proxy, int inst_id,
   mpilog(log, "Starting %d trials each on %d tasks\n", ntrial, inst_nsim);
 
   for (n = nstart; n < nstart + ntrial; n++) {
-    ffs_branched_init(param, proxy, sinit, ran, 1 + n, stats, &status);
+    ffs_branched_init(init, param, proxy, sinit, ran, 1 + n, stats, &status);
     wt = 1.0;
-    ffs_branched_recursive(1, inst_id, 1, wt, param, proxy, ran);
+    ffs_branched_recursive(1, inst_id, 1, wt, nstepmax, nsteplambda,
+			   param, proxy, ran);
   }
 
   err_err_if(proxy_state(proxy, SIM_STATE_WRITE, ffs_state_stub(sinit)));
@@ -160,7 +171,7 @@ int ffs_branched_run(ffs_param_t * param, proxy_t * proxy, int inst_id,
  *
  *****************************************************************************/
 
-int ffs_branched_init(ffs_param_t * param, proxy_t * proxy,
+int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
 		      ffs_state_t * sinit, ranlcg_t * ran, int seed,
 		      result_t * res, int * status) {
 
@@ -176,15 +187,21 @@ int ffs_branched_init(ffs_param_t * param, proxy_t * proxy,
   double lambda, lambda_old;
   double random;
 
-  /* TEST */
-  int init_independent = 0;
-  int init_nstepmax = 10000000;
-  int init_nskip = 10;
-  double init_prob_accept = 1.0;
-  double teq = 100.0;
+  int init_independent;
+  int init_nstepmax;
+  int init_nskip;
+  double init_prob_accept;
+  double teq;
 
+  dbg_return_if(init == NULL, -1);
   dbg_return_if(param == NULL, -1);
   dbg_return_if(proxy == NULL, -1);
+
+  ffs_init_independent(init, &init_independent);
+  ffs_init_nstepmax(init, &init_nstepmax);
+  ffs_init_nskip(init, &init_nskip);
+  ffs_init_prob_accept(init, &init_prob_accept);
+  ffs_init_teq(init, &teq);
 
   ffs_param_lambda_a(param, &lambda_a);
   ffs_param_lambda_b(param, &lambda_b);
@@ -280,6 +297,7 @@ int ffs_branched_init(ffs_param_t * param, proxy_t * proxy,
  *****************************************************************************/
 
 int ffs_branched_recursive(int interface, int inst_id, int id, double wt,
+			   int nstepmax, int nsteplambda,
 			   ffs_param_t * param, proxy_t * proxy,
 			   ranlcg_t * ran) {
 
@@ -291,8 +309,6 @@ int ffs_branched_recursive(int interface, int inst_id, int id, double wt,
   double lambda_max;
   double wtnow;
   ffs_state_t * s_keep = NULL;
-
-  int nstepmax = 10000000; /* TRIAL NSTEPMAX */
 
   ffs_param_nlambda(param, &nlambda);
   ffs_param_weight_accum(param, interface, wt);
@@ -318,15 +334,16 @@ int ffs_branched_recursive(int interface, int inst_id, int id, double wt,
     wtnow = wt / ((double) ntrial);
 
     ffs_branched_run_to_lambda(proxy, lambda_min, lambda_max, nstepmax,
-			       &status);
+			       nsteplambda, &status);
 
     if (status == FFS_TRIAL_WENT_BACKWARDS || status == FFS_TRIAL_TIMED_OUT) {
       ffs_branched_prune(param, proxy, ran, interface, &wtnow, nstepmax,
-			 &status);
+			 nsteplambda, &status);
     }
 
     if (status == FFS_TRIAL_SUCCEEDED) {
-      ffs_branched_recursive(interface + 1, inst_id, ++id, wtnow, param,
+      ffs_branched_recursive(interface + 1, inst_id, ++id, wtnow,
+			     nstepmax, nsteplambda, param,
 			     proxy, ran);
     }
 
@@ -391,11 +408,10 @@ static int ffs_branched_run_to_time(proxy_t * proxy, double teq, int nstepmax,
  *****************************************************************************/
 
 int ffs_branched_run_to_lambda(proxy_t * proxy, double lambda_min,
-			       double lambda_max, int nstepmax, int * status) {
-
+			       double lambda_max, int nstepmax,
+			       int nsteplambda, int * status) {
   int n;
   int nstep = 0;
-  int nsteplambda = 1; /* REPLACE ME */
   double lambda;
   ffs_t * ffs = NULL;
 
@@ -436,7 +452,7 @@ int ffs_branched_run_to_lambda(proxy_t * proxy, double lambda_min,
 
 int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
 		       int interface, double * wt,
-		       int nstepmax, int * status) {
+		       int nstepmax, int nsteplambda, int * status) {
 
   int n;
   double lambda_min, lambda_max;
@@ -468,7 +484,7 @@ int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
 
     ffs_param_lambda(param, n - 2, &lambda_min);
     ffs_branched_run_to_lambda(proxy, lambda_min, lambda_max, nstepmax,
-			       status);
+			       nsteplambda, status);
 
     if (*status == FFS_TRIAL_SUCCEEDED) break;
   }

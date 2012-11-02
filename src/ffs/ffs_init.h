@@ -7,6 +7,8 @@
 #ifndef FFS_INIT_H
 #define FFS_INIT_H
 
+#include "mpilog.h"
+
 /**
  *  \defgroup ffs_init FFS initial state parameters
  *  \ingroup ffs_library
@@ -105,6 +107,13 @@ int ffs_init_nsteplambda(ffs_init_t * obj, int * nsteplambda);
  */
 
 int ffs_init_nsteplambda_set(ffs_init_t * obj, int nsteplambda);
+
+/**
+ * \brief Log details to mpilog
+ *
+ */
+
+int ffs_init_log_to_mpilog(ffs_init_t * obj, mpilog_t * log);
 
 /**
  * \}

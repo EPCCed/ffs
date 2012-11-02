@@ -33,7 +33,6 @@ struct ffs_control_type {
   u_string_t * logname;        /* Log file name */
   mpilog_t * log;              /* Control log. */
   int seed;                    /* Overall RNG seed */
-  ranlcg_t * ran;              /* Control serial RNG */
 };
 
 static int ffs_input(ffs_control_t * obj, const char * filename,
@@ -91,7 +90,6 @@ void ffs_control_free(ffs_control_t * obj) {
 
   dbg_return_if(obj == NULL, );
 
-  if (obj->ran) ranlcg_free(obj->ran);
   if (obj->logname) u_string_free(obj->logname);
   if (obj->log) mpilog_free(obj->log);
   if (obj->instance) ffs_inst_free(obj->instance);
@@ -168,9 +166,12 @@ int ffs_control_stop(ffs_control_t * obj) {
 int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
 
   size_t len;
+  int n;
   int sz;
+  int seed;
   int mpi_errnol = 0, mpi_errno = 0;
-  long int seed;
+
+  ranlcg_t * ran = NULL;
   u_config_t * config = NULL;
 
   dbg_return_if(obj == NULL, -1);
@@ -194,16 +195,8 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
 
   /* Start control serial RNG (all ranks) */
 
-  seed = (long int) obj->seed;
-  mpi_errnol = ranlcg_create(seed, &obj->ran);
-  mpi_sync_ifm(mpi_errnol, "ranlcg_create() failed\n");
-
- mpi_sync:
-  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, obj->comm);
-  nop_err_if(mpi_errno);
-
   mpilog(obj->log, "\n");
-  mpilog(obj->log, "Started control RNG with seed %ld\n", seed);
+  mpilog(obj->log, "Started control RNG with seed %d\n", obj->seed);
 
   mpilog(obj->log, "\n");
   mpilog(obj->log, "MPI tasks per instance: %d\n", sz / obj->ninstances);
@@ -212,9 +205,26 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
 
   u_config_get_subkey(obj->input, FFS_CONFIG_FFS, &config);
 
+  /* Generate instance seed by inst_id iterations of the
+   * the 32-bit RNG initialised with master seed. */
+
+  seed = obj->seed;
+
+  mpi_errnol = ranlcg_create32(seed, &ran);
+  mpi_sync_ifm(mpi_errnol, "ranlcg_create() failed\n");
+
+ mpi_sync:
+  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, obj->comm);
+  nop_err_if(mpi_errno);
+
+  for (n = 0; n < obj->inst_id; n++) {
+    ranlcg_reep_int32(ran, &seed);
+  }
+
   /* Instance create, start, execute, stop, close */
 
   err_err_if(ffs_inst_create(obj->inst_id, obj->comm, &obj->instance));
+  err_err_if(ffs_inst_seed_set(obj->instance, seed));
 
   err_err_ifm(obj->ninstances > 9999, "Format botch (internal error)");
   err_err_if(u_string_aprintf(obj->logname, "-inst-%4.4d.log", obj->inst_id));

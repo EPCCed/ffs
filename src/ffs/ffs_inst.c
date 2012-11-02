@@ -18,13 +18,16 @@
 #include "../util/mpilog.h"
 #include "../sim/proxy.h"
 
+#include "ffs_init.h"
 #include "ffs_private.h"
 #include "ffs_branched.h"
 #include "ffs_inst.h"
 
 struct ffs_inst_type {
+
   int inst_id;          /* Unique id */
   int method;           /* ffs_method_enum */
+  int seed;             /* RNG seed */
   MPI_Comm parent;      /* Parent communicator */
   MPI_Comm comm;        /* FFS instance communicator */
   ffs_param_t * param;  /* Parameters (interfaces) */
@@ -35,13 +38,8 @@ struct ffs_inst_type {
   u_string_t * sim_name;   /* The name used to identify the proxy */
   u_string_t * sim_argv;   /* The command line */
 
-  /* Initialisation */
-  int init_independent;    /* Use independent (parallel) states at A */
-  int init_nskip;          /* Skip every n crossings at A */
-  int init_nstepmax;       /* Maximum length of initial run */
-  double init_prob_accept; /* Probability of accepting crossing at A */
-  double init_teq;         /* Equilibration time in A */
-
+  /* Initialisation parameters */
+  ffs_init_t * init;
 };
 
 static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input);
@@ -82,6 +80,9 @@ int ffs_inst_create(int id, MPI_Comm parent, ffs_inst_t ** pobj) {
   mpi_errnol = mpilog_create(obj->comm, &obj->log);
   mpi_sync_ifm(mpi_errnol, "mpilog_create() failed\n");
 
+  mpi_errnol = ffs_init_create(&obj->init);
+  mpi_sync_ifm(mpi_errnol, "ffs_init_create_failed\n");
+
  mpi_sync:
   MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, parent);
   nop_err_if(mpi_errno);
@@ -108,6 +109,7 @@ void ffs_inst_free(ffs_inst_t * obj) {
   dbg_return_if(obj == NULL, );
 
   if (obj->log) mpilog_free(obj->log);
+  if (obj->init) ffs_init_free(obj->init);
   if (obj->param) ffs_param_free(obj->param);
   if (obj->sim_name) u_string_free(obj->sim_name);
   if (obj->sim_argv) u_string_free(obj->sim_argv);
@@ -332,33 +334,48 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
 
 static int ffs_inst_read_init(ffs_inst_t * obj, u_config_t * config) {
 
+  int init_independent = 0;    /* Use independent (parallel) states at A */
+  int init_nskip = 0;          /* Skip every n crossings at A */
+  int init_nstepmax = 0;       /* Maximum length of initial run */
+  int init_nsteplambda = 1;    /* Steps between lambda evalutations */ 
+  double prob_accept = 0.0;    /* Probability of accepting crossing at A */
+  double teq = 0.0;            /* Equilibration time in A */
+
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(config == NULL, -1);
 
-  err_err_if(u_config_get_subkey_value_i(config,
+  err_err_if(u_config_get_subkey_value_b(config,
 					 FFS_CONFIG_INIT_INDEPENDENT,
 					 FFS_DEFAULT_INIT_INDEPENDENT,
-					 &obj->init_independent));
+					 &init_independent));
 
   err_err_if(u_config_get_subkey_value_i(config,
 					 FFS_CONFIG_INIT_NSTEPMAX,
 					 FFS_DEFAULT_INIT_NSTEPMAX,
-					 &obj->init_nstepmax));
+					 &init_nstepmax));
 
   err_err_if(u_config_get_subkey_value_i(config,
 					 FFS_CONFIG_INIT_NSKIP,
 					 FFS_DEFAULT_INIT_NSKIP,
-					 &obj->init_nskip));
+					 &init_nskip));
 
   err_err_if(util_config_get_subkey_value_d(config,
 					    FFS_CONFIG_INIT_PROB_ACCEPT,
 					    FFS_DEFAULT_INIT_PROB_ACCEPT,
-					    &obj->init_prob_accept));
+					    &prob_accept));
 
   err_err_if(util_config_get_subkey_value_d(config,
 					    FFS_CONFIG_INIT_TEQ,
 					    FFS_DEFAULT_INIT_TEQ,
-					    &obj->init_teq));
+					    &teq));
+
+  ffs_init_independent_set(obj->init, init_independent);
+  ffs_init_nstepmax_set(obj->init, init_nstepmax);
+  ffs_init_nskip_set(obj->init, init_nskip);
+  ffs_init_prob_accept_set(obj->init, prob_accept);
+  ffs_init_teq_set(obj->init, teq);
+  ffs_init_nsteplambda_set(obj->init, init_nsteplambda);
+
   return 0;
 
  err:
@@ -398,7 +415,6 @@ int ffs_inst_config_log(ffs_inst_t * obj, mpilog_t * log) {
 
   const char * fmts = "\t %-20s  %s\n";
   const char * fmti = "\t %-20s  %d\n";
-  const char * fmtd = "\t %-20s  %12.6e\n";
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(obj == NULL, -1);
@@ -410,12 +426,6 @@ int ffs_inst_config_log(ffs_inst_t * obj, mpilog_t * log) {
   mpilog(log, fmti, FFS_CONFIG_SIM_NSIM, obj->sim_nsim_inst);
   mpilog(log, fmts, FFS_CONFIG_SIM_NAME, u_string_c(obj->sim_name));
   mpilog(log, fmts, FFS_CONFIG_SIM_ARGV, u_string_c(obj->sim_argv));
-  mpilog(log, "\n");
-  mpilog(log, fmti, FFS_CONFIG_INIT_INDEPENDENT, obj->init_independent);
-  mpilog(log, fmti, FFS_CONFIG_INIT_NSTEPMAX, obj->init_nstepmax);
-  mpilog(log, fmti, FFS_CONFIG_INIT_NSKIP, obj->init_nskip);
-  mpilog(log, fmtd, FFS_CONFIG_INIT_PROB_ACCEPT, obj->init_prob_accept);
-  mpilog(log, fmtd, FFS_CONFIG_INIT_TEQ, obj->init_teq);
   mpilog(log, "}\n");
 
   return 0;
@@ -443,7 +453,9 @@ int ffs_inst_config(ffs_inst_t * obj) {
 
 static int ffs_inst_branched(ffs_inst_t * obj) {
 
-  int rank, proxy_id;
+  int rank, sz;            /* MPI rank, size */
+  int perproxy;            /* MPI tasks per proxy */
+  int proxy_id;            /* Computed proxy id */
   ffs_t * ffs = NULL;
   proxy_t * proxy = NULL;
 
@@ -461,15 +473,22 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
 
   mpilog(obj->log, "\n");
   mpilog(obj->log, "The interface parameters are as follows\n");
-  
+
   ffs_param_log_to_mpilog(obj->param, obj->log);
+  ffs_init_log_to_mpilog(obj->init, obj->log);  
 
   /* Start proxy */
 
-  mpilog(obj->log, "Starting the simulation proxy\n");
-
+  MPI_Comm_size(obj->comm, &sz);
   MPI_Comm_rank(obj->comm, &rank);
-  proxy_id = rank / obj->sim_nsim_inst;
+  perproxy = sz / obj->sim_nsim_inst;
+  err_err_if(perproxy == 0); /* SHOULD HAVE BEEN CHECKED ! */
+  proxy_id = rank / perproxy;
+
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "Starting the simulation proxy (%d instance%s)\n",
+	 obj->sim_nsim_inst, obj->sim_nsim_inst > 1 ? "s" : "");
+  mpilog(obj->log, "Tasks per (proxy) simulation: %d\n", perproxy);
 
   err_err_if(proxy_create(proxy_id, obj->comm, &proxy));
   err_err_if(proxy_delegate_create(proxy, u_string_c(obj->sim_name)));
@@ -480,8 +499,9 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
 
   /* Do the run */
 
-  ffs_branched_run(obj->param, proxy, obj->inst_id, obj->sim_nsim_inst,
-		   1, obj->log);
+  ffs_branched_run(obj->init, obj->param, proxy,
+		   obj->inst_id, obj->sim_nsim_inst,
+		   obj->seed, obj->log);
 
   mpilog(obj->log, "Closing down the simulation proxy\n");
 
@@ -540,6 +560,22 @@ int ffs_inst_nsim(ffs_inst_t * obj, int * nsim) {
   dbg_return_if(nsim == NULL, -1);
 
   *nsim = obj->sim_nsim_inst;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_seed_set
+ *
+ *****************************************************************************/
+
+int ffs_inst_seed_set(ffs_inst_t * obj, int seed) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(seed < 0, -1);
+
+  obj->seed = seed;
 
   return 0;
 }

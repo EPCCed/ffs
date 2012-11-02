@@ -348,6 +348,18 @@ int ffs_inst_param(ffs_inst_t * obj, ffs_param_t ** param);
 int ffs_inst_nsim(ffs_inst_t * obj, int * nsim);
 
 /**
+ *  \brief Set the RNG seed for this instance
+ *
+ *  \param  obj      the ffs_inst_t structure
+ *  \param  seed     32-bit integer RNG seed
+ *
+ *  \retval 0        a success
+ *  \retval -1       a failure (seed must be 0 < seed < INT_MAX)
+ */
+
+int ffs_inst_seed_set(ffs_inst_t * obj, int seed);
+
+/**
  * \}
  */
 

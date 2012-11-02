@@ -43,6 +43,34 @@
 typedef struct ranlcg_type ranlcg_t;
 
 /**
+ *
+ *  \def RANLCG_ADEFAULT32
+ *  Parameter \c a value for 32-bit integer
+ *  \def RANLCG_CDEFAULT32
+ *  Parameter \c c value for 32-bit integer
+ *  \def RANLCG_MDEFAULT32
+ *  Parameter \c m value for 32-bit integer
+ */
+
+#define RANLCG_ADEFAULT32 1389796
+#define RANLCG_CDEFAULT32 0
+#define RANLCG_MDEFAULT32 2147483647
+
+/**
+ *
+ *  \def RANLCG_ADEFAULT64
+ *  Parameter \c a value for 64-bit integer
+ *  \def RANLCG_CDEFAULT64
+ *  Parameter \c c value for 64-bit integer
+ *  \def RANLCG_MDEFAULT64
+ *  Parameter \c m value for 64-bit integer
+ */
+
+#define RANLCG_ADEFAULT64 561860773102413563
+#define RANLCG_CDEFAULT64 0
+#define RANLCG_MDEFAULT64 1152921504606846883
+
+/**
  *  \def RANLCG_ADEFAULT
  *  Default parameter value for constant multiplier \c a.
  *  \def RANLCG_CDEFAULT
@@ -51,14 +79,15 @@ typedef struct ranlcg_type ranlcg_t;
  *  Default parameter value for modulus \c m.
  */
 
+
 #if LONG_MAX == 2147483647
-#define RANLCG_ADEFAULT 1389796
-#define RANLCG_CDEFAULT 0
-#define RANLCG_MDEFAULT LONG_MAX
+#define RANLCG_ADEFAULT RANLCG_ADEFAULT32
+#define RANLCG_CDEFAULT RANLCG_CDEFAULT32
+#define RANLCG_MDEFAULT RANLCG_MDEFAULT32
 #else
-#define RANLCG_ADEFAULT 561860773102413563
-#define RANLCG_CDEFAULT 0
-#define RANLCG_MDEFAULT 1152921504606846883
+#define RANLCG_ADEFAULT RANLCG_ADEFAULT64
+#define RANLCG_CDEFAULT RANLCG_CDEFAULT64
+#define RANLCG_MDEFAULT RANLCG_MDEFAULT64
 #endif
 
 /**
@@ -72,6 +101,22 @@ typedef struct ranlcg_type ranlcg_t;
  */
 
 int ranlcg_create(long int state, ranlcg_t ** pnew);
+
+/**
+ *  \brief Create a 32-bit version
+ *
+ *  \param   seed      the 32-bit integer seed
+ *  \param   pobj      a point to the new structure to be returned
+ *
+ *  \retval  0         a success
+ *  \retval  -1        a failure (a NULL pointer or invalid seed was
+ *                     received)
+ *
+ *  This uses the 32-bit parameter values and is intended for use
+ *  with ranlcg_reep_int32() (only).
+ */
+
+int ranlcg_create32(int seed, ranlcg_t ** pobj);
 
 /**
  *  \brief Release a ranlcg_t object

@@ -53,16 +53,7 @@ static long int ranlcg_multiply(long a, long s, long c, long m);
 
 /*****************************************************************************
  *
- *  \brief ranlcg_create allocates a new object and sets the state
- *
- *  This function uses the default parameters a, c, and m for
- *  initialisation, but an initial state must be supplied.
- *
- *  \param state      the initial state 0 < state < RANLCG_MDEFAULT
- *  \param pnew       a pointer to the new object to be returned
- *
- *  \retval 0         a success
- *  \retval -1        a failure
+ *  ranlcg_create
  *
  *****************************************************************************/
 
@@ -94,11 +85,45 @@ int ranlcg_create(long int state, ranlcg_t ** pnew) {
 
 /*****************************************************************************
  *
- *  \brief ranlcg_free deallocates the supplied object
+ *  ranlcg_create32
  *
- *  \param p  a pointer to the object
+ *  Everything is the same, except this accapts a 32-bit integer
+ *  as the seed, and uses the 32-bit defaults.
  *
- *  \return   void
+ *****************************************************************************/
+
+int ranlcg_create32(int seed, ranlcg_t ** pobj) {
+
+  long int lseed;
+  ranlcg_t * p;
+
+  dbg_return_if(pobj == NULL, -1);
+
+  err_err_sif((p = u_calloc(1, sizeof(ranlcg_t))) == NULL);
+
+  /* Check and set all parameters, including rnorm, via ... */
+
+  p->a = RANLCG_ADEFAULT32;
+  p->c = RANLCG_CDEFAULT32;
+  p->m = RANLCG_MDEFAULT32;
+  lseed = (long) seed;
+
+  err_err_if(ranlcg_param_set(p, p->a, p->c, p->m) != 0);
+  err_err_if(ranlcg_state_set(p, lseed) != 0);
+
+  *pobj = p;
+
+  return 0;
+
+ err:
+  if (p) u_free(p);
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ranlcg_free
  *
  *****************************************************************************/
 
@@ -113,13 +138,7 @@ void ranlcg_free(ranlcg_t * p) {
 
 /*****************************************************************************
  *
- *  \brief ranlcg_state returns the current state
- *
- *  \param p              a pointer to the generator object
- *  \param state          a pointer to the state to be returned [0, LONG_MAX]
- *
- *  \retval  0            a success
- *  \retval -1            a failure
+ *  ranlcg_state
  *
  *****************************************************************************/
 
@@ -134,21 +153,15 @@ int ranlcg_state(const ranlcg_t * p, long int * state) {
 
 /*****************************************************************************
  *
- *  \brief ranlcg_state_set resets the state to existing object
- *
- *  \param p    a pointer to the object
- *  \param s    the new state value 0 < s < m
- *
- *  \retval 0   a success
- *  \retval -1  a failure
+ *  ranlcg_state_set
  *
  *****************************************************************************/
 
 int ranlcg_state_set(ranlcg_t * p, long int s) {
 
   dbg_return_if(p == NULL, -1);
-  dbg_return_ifm(s >= p->m, -1, "invalid state %ld >= m %ld", s, p->m);
-  dbg_return_ifm(s <= 0, -1, "invalid state %ld <= 0", s);
+  err_return_ifm(s >= p->m, -1, "invalid state %ld >= m %ld", s, p->m);
+  err_return_ifm(s <= 0, -1, "invalid state %ld <= 0", s);
 
   p->state = s;
 
@@ -157,15 +170,7 @@ int ranlcg_state_set(ranlcg_t * p, long int s) {
 
 /*****************************************************************************
  *
- *  \brief ranlcg_reep generatess a uniform double on [0, 1).
- *
- *  The state is updated and used to generate a new deviate.
- *
- *  \param p             a pointer to the generator object
- *  \param reep          a pointer to value to be returned
- *
- *  \retval 0            a success
- *  \retval -1           a failure
+ *  ranlcg_reep
  *
  *****************************************************************************/
 
@@ -181,16 +186,7 @@ int ranlcg_reep(ranlcg_t * p, double * reep) {
 
 /*****************************************************************************
  *
- *  \brief ranlcg_reep_int32 generates a random integer
- *
- *  Here we use the updated state to generate a (32-bit) int
- *  on [0, INT_MAX-1].
- *
- *  \param  p            a pointer to the generator object
- *  \param  ireep        a pointer to the value to be returned [0, INT_MAX - 1]
- *
- *  \retval 0            a success
- *  \retvl  -1           a failure
+ *  ranlcg_reep_int32
  *
  *****************************************************************************/
 
@@ -206,24 +202,14 @@ int ranlcg_reep_int32(ranlcg_t * p, int * ireep) {
 
 /*****************************************************************************
  *
- *  \brief ranlcg_param_set allows a new parameter set to be supplied
- *
- *  There are various conditions such that s -> (a*s + c) % m works
- *  in the desired fashion. These must be satisfied.
- *
- *  \param p     a pointer to the generator object
- *  \param a     parameter a
- *  \param c     parameter c
- *  \param m     parameter m
- *
- *  \retval 0    a success
- *  \retval -1   a failure
+ *  ranlcg_param_set
  *
  *****************************************************************************/
 
 int ranlcg_param_set(ranlcg_t * p, long int a, long int c, long int m) {
 
   dbg_return_if(p == NULL, -1);
+
   err_return_ifm(a < 1, -1, "invalid a %ld < 1\n", a);
   err_return_ifm(c < 0, -1, "invalid c %ld < 0\n", c);
   err_return_ifm(m < 0, -1, "invalid m %ld < 0\n", m);
@@ -240,18 +226,15 @@ int ranlcg_param_set(ranlcg_t * p, long int a, long int c, long int m) {
 
 /*****************************************************************************
  *
- *  \brief ranlcg_multiply computes (a*s + c) % m for big numbers
+ *  ranlcg_multiply
+ *
+ *  Computes (a*s + c) % m for big numbers
  *
  *  For 0 < a < m and 0 < s < m this recipe returns (a*s + c) % m
  *  without overflow. Again, this is taken from the Testu01
  *  implementation of L'Ecuyer and Simard.
  *
- *  \param a
- *  \param s
- *  \param c
- *  \param m
- *
- *  \retval (a*s + c) % m
+ *  Returns (a*s + c) % m
  *
  *****************************************************************************/
 

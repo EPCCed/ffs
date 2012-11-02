@@ -1,7 +1,8 @@
 #!/bin/sh
 #
-#  Currently running as makl-conf --u-path=...
+#  FFS configure script
 #
+
 . $MAKL_DIR/cf/makl.init
 makl_args_init "$@"
 
@@ -60,7 +61,7 @@ makl_pkg_name "FFS"
 makl_pkg_version
 
 #
-#  Compilers
+#  Options
 #  MPI is 'optional' in the sense that the library may
 #  be replaced by the stubs for serial execution
 #
@@ -104,14 +105,18 @@ lammps=`makl_get_var_mk "HAVE_LAMMPS"`
 if [ $lammps ]
 then
     lmpdir=`makl_get_var_mk "LAMMPSDIR"`
+    libs=`makl_get_var_mk "LDFLAGS"`
     ${ECHO} "Looking for LAMMPS library in ${lmpdir}..."
     makl_compile "build/lammps.c" "-I${lmpdir}/include" \
-	"-L${lmpdir}/lib -llmp -lstdc++ -L${fftwdir}/lib -lfftw -lm"
+	"-L${lmpdir}/lib -llmp -lstdc++ ${libs}"
     [ $? == 0 ] || makl_err 1 "could not compile LAMMPS test"
     makl_append_var_mk "CFLAGS" "-I${lmpdir}/include"
-    makl_append_var_mk "LDFLAGS" "-L${lmpdir}/lib -lfftw"
+    makl_append_var_mk "LDFLAGS" "-L${lmpdir}/lib -llmp -lstdc++"
 else
     ${ECHO} "No LAMMPS (ok)"
 fi
+
+makl_append_var_mk "LDFLAGS" "-lm"
+
 
 . $MAKL_DIR/cf/makl.term
