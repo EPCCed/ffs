@@ -67,7 +67,7 @@ makl_pkg_version
 #
 
 makl_checkheader   0    "mpi"     "<mpi.h>"
-makl_optional      1    "lib"     "mpi"
+makl_optional      0    "lib"     "mpi"
 
 makl_args_handle "$@"
 
