@@ -1,7 +1,7 @@
 ffs
 {
 	ffs_instances	1
-	ffs_seed	1
+	ffs_seed	53
 
 	ffs_inst
 	{
@@ -11,11 +11,12 @@ ffs
 		sim_nsim_inst		1
 		sim_argv		inputs/dmc_switch1_comp.dat inputs/dmc_switch1_react.dat
 
-		init_method		serial
+		init_independent	no
 		init_teq		100.0
 		init_nskip		10
-		init_nstepmax		100000
+		init_nstepmax		10000000
 		init_nsteplambda	1
+		init_prob_accept        1.0
 	}
 
 	interfaces
@@ -28,7 +29,7 @@ ffs
 		{
 			lambda -24.0
 			ntrial 3
-			nstate 10
+			nstate 16
 			pprune 1.0
 		}
 		interface2
