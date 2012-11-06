@@ -1,0 +1,23 @@
+#
+#  Use the makl darwin.tc with some alterations
+#  to the compilers
+#
+
+CC = mpicc
+CXX = mpicxx
+CFLAGS = -Wall
+CXXFLAGS = -Wall
+
+# ar, ranlib, strip and ld, are Apple's cctools-498
+STRIP_FLAGS = -X
+# install is Apple's file_cmds-82
+# mkdep is NetBSD's mkdep.gcc.sh 1.14
+# mkinstalldirs is mkdir -p
+MKINSTALLDIRS = /bin/mkdir -p
+
+# no --{start,end}-group (NOTE: leave a blank after '=')
+PRE_LDADD = __UNSET__
+POST_LDADD = __UNSET__
+
+# darwin 9.0.0: avoid bash3 echo builtin
+ECHO = /bin/echo

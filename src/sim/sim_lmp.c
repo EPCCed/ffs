@@ -616,7 +616,10 @@ int lmp_execute(sim_lmp_t * obj) {
 
   lammps_command(obj->lmp, obj->run_command);
   
-  step = *((int *) lammps_extract_global(obj->lmp, "ntimestep")); /*this is not in the standard library.cpp!!!*/
+  /* We have added ntimestep to library.cpp in LAMMPS; note
+   * that ntimestep is a 64-bit int in LAMMPS */
+
+  step = *((int *) lammps_extract_global(obj->lmp, "ntimestep"));
   dt = *((double *) lammps_extract_global(obj->lmp, "dt"));
 
   obj->time = dt*step;
