@@ -20,6 +20,7 @@
 
 #include "ffs_init.h"
 #include "ffs_private.h"
+#include "ffs_result.h"
 #include "ffs_branched.h"
 #include "ffs_inst.h"
 
@@ -456,8 +457,11 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   int rank, sz;            /* MPI rank, size */
   int perproxy;            /* MPI tasks per proxy */
   int proxy_id;            /* Computed proxy id */
+  int nlambda;
+  int ntrial;
   ffs_t * ffs = NULL;
   proxy_t * proxy = NULL;
+  ffs_result_t * result = NULL; /* To be supplied by caller in future */
 
   dbg_return_if(obj == NULL, -1);
 
@@ -476,6 +480,13 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
 
   ffs_param_log_to_mpilog(obj->param, obj->log);
   ffs_init_log_to_mpilog(obj->init, obj->log);  
+
+  /* Results object */
+
+  ffs_param_nlambda(obj->param, &nlambda);
+  ffs_param_nstate(obj->param, 1, &ntrial);
+  ntrial = ntrial / obj->sim_nsim_inst;
+  ffs_result_create(nlambda, ntrial, &result);
 
   /* Start proxy */
 
@@ -501,12 +512,43 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
 
   ffs_branched_run(obj->init, obj->param, proxy,
 		   obj->inst_id, obj->sim_nsim_inst,
-		   obj->seed, obj->log);
+		   obj->seed, obj->log, result);
 
   mpilog(obj->log, "Closing down the simulation proxy\n");
 
   err_err_if(proxy_delegate_free(proxy));
   proxy_free(proxy);
+
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "Instance results\n");
+
+
+  int n;
+  double tmax, tsum, wt, lambda;
+
+  /* Total trials this instance */
+  ffs_param_nstate(obj->param, 1, &ntrial);
+
+  ffs_result_reduce(result, obj->comm, 0);
+
+  for (n = 1; n <= nlambda; n++) {
+    ffs_param_lambda(obj->param, n, &lambda);
+    ffs_result_weight(result, n, &wt);
+    mpilog(obj->log, "%3d %11.4e %11.4e\n", n, lambda, wt/ntrial);
+  }
+  ffs_result_tmax(result, &tmax);
+  ffs_result_tsum(result, &tsum);
+  ffs_result_ncross(result, &n);
+
+  mpilog(obj->log, "Initial Tmax:  result   %12.6e\n", tmax);
+  mpilog(obj->log, "Initial Tsum:  result   %12.6e\n", tsum);
+  mpilog(obj->log, "Number of crossings A:  %d\n", n);
+  mpilog(obj->log, "Flux at lambda_A:       %12.6e\n", n/tsum);
+  mpilog(obj->log, "Probability P(B|A):     %12.6e\n", wt/ntrial);
+  mpilog(obj->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*wt/ntrial);
+
+
+  ffs_result_free(result);
 
   return 0;
 

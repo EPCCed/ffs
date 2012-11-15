@@ -15,6 +15,7 @@
 #include "ut_ffs_init.h"
 #include "ut_ffs_inst.h"
 #include "ut_ffs_param.h"
+#include "ut_ffs_result.h"
 
 /*
  * Register the tests for ffs objects
@@ -39,6 +40,7 @@ int u_test_suite_ffs_register(u_test_t * t) {
   u_test_case_register(UT_CONTROL_NAME, ut_control, ts);
 
   u_test_case_register(UT_INIT_NAME, ut_init, ts);
+  u_test_case_register(UT_RESULT_SERIAL_NAME, ut_result_serial, ts);
 
   return u_test_suite_add(ts, t);
 }

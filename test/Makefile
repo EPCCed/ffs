@@ -11,17 +11,20 @@ PROG = main
 
 ifndef HAVE_MPI
 CFLAGS += -I../src/missing
+else
+CFLAGS += -DHAVE_MPI
 endif
 
-SRCS += util/ranlcg.c
+SRCS += util/ut_ranlcg.c
 SRCS += util/ut_util.c
-SRCS += util/u_test_suite.c
+SRCS += util/ut_suite.c
 SRCS += ffs/ut_ffs.c
 SRCS += ffs/ut_ffs_control.c
 SRCS += ffs/ut_ffs_param.c
 SRCS += ffs/ut_ffs_state.c
 SRCS += ffs/ut_ffs_init.c
 SRCS += ffs/ut_ffs_inst.c
+SRCS += ffs/ut_ffs_result.c
 SRCS += ffs/ut_suite.c
 SRCS += missing/mpi.c
 SRCS += missing/u_test_suite.c
@@ -40,12 +43,6 @@ CFLAGS += -I../src/util
 LDFLAGS += -L../src -lffs -lm
 
 LDADD += ../src/libffs.a
-
-# if the real MPI library is present, the following com into effect
-ifdef HAVE_MPI
-CFLAGS += -DHAVE_MPI
-#LDFLAGS += -lmpi
-endif
 
 include prog.mk
 
