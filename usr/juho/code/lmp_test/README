@@ -1,0 +1,1 @@
+mpirun -np #np ./a.out -in dimer.rs.in -sc none -log none

@@ -286,13 +286,13 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
 
   sim_name = u_config_get_subkey_value(config, FFS_CONFIG_SIM_NAME);
   if (sim_name == NULL) sim_name = "test";
-
+  
   sim_argv = u_config_get_subkey_value(config, FFS_CONFIG_SIM_ARGV);
   if (sim_argv == NULL) sim_argv = "";
 
   err_err_if(u_string_create(sim_name, strlen(sim_name), &obj->sim_name));
   err_err_if(u_string_create(sim_argv, strlen(sim_argv), &obj->sim_argv));
-
+  
   /* Initialisation section */
 
   err_err_if(ffs_inst_read_init(obj, config));
@@ -494,7 +494,7 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   err_err_if(proxy_delegate_create(proxy, u_string_c(obj->sim_name)));
   err_err_if(proxy_ffs(proxy, &ffs));
   err_err_if(ffs_command_line_set(ffs, u_string_c(obj->sim_argv)));
-
+  
   mpilog(obj->log, "The simulation is %s\n", u_string_c(obj->sim_name));
 
   /* Do the run */

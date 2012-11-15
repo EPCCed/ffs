@@ -23,11 +23,10 @@ int main(int argc, char ** argv) {
   else {
 
     ffs_control_create(MPI_COMM_WORLD, &ffs);
-
+    
     ffs_control_start(ffs, "run.log", "w+");
     ffs_control_execute(ffs, argv[1]);
     ffs_control_stop(ffs);
-
     ffs_control_free(ffs);
   }
 

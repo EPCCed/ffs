@@ -13,6 +13,10 @@
 
 typedef struct factory_s factory_t;
 
+/* A placeholder to terminate the registry list. */
+
+#define LAST_NAME "To identify the end of the list"
+
 /* Always have the test (fake) simulation */
 
 #include "sim_test.h"
@@ -25,18 +29,30 @@ typedef struct factory_s factory_t;
 #define SIM_DMC_NAME          "dmc"
 #define SIM_DMC_VTABLE_ADDR   &sim_dmc_table
 
-/* A placeholder to terminate the registry list. */
+/* LAMMPS is optional */
 
-#define LAST_NAME "To identify the end of the list"
+#ifdef HAVE_LAMMPS
+
+#include "sim_lmp.h"
+#define SIM_LMP_NAME          "lmp"
+#define SIM_LMP_VTABLE_ADDR   &sim_lmp_table
+
+#else
+
+#define SIM_LMP_NAME           LAST_NAME
+#define SIM_LMP_VTABLE_ADDR    NULL
+
+#endif
 
 struct factory_s {
   char * name;
   interface_table_ft ftable;
 };
 
-static factory_t registry[3] = {
+static factory_t registry[4] = {
   {SIM_TEST_NAME, SIM_TEST_VTABLE_ADDR},
   {SIM_DMC_NAME, SIM_DMC_VTABLE_ADDR},
+  {SIM_LMP_NAME, SIM_LMP_VTABLE_ADDR},
   {LAST_NAME, NULL}
 };
 
