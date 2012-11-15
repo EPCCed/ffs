@@ -59,7 +59,9 @@
      $ makl-conf --u-path=/install/path/to/libu
      $ makl
 
-   This will automatically build the library and run the tests.
+   This will automatically build the library. To run the tests
+
+     $ makl -C test
 
 5. FFS with LAMMPS
 

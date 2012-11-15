@@ -1,0 +1,201 @@
+/**
+ *
+ *  \page build Building the Library
+
+\tableofcontents
+
+This page discusses how to build the parallel FFS library.
+
+\section one Requirements
+
+### Mandatory
+
+The following are necessary to build the FFS library (in addition
+to a C compiler):
+
+- Koanlogic's makl. See https://github.com/koanlogic/makl
+
+- Koanlogic's libu. See https://github.com/koanlogic/libu
+
+Both these pieces of software are freely available under a BSD-like
+license.
+
+### Optional
+
+Optional are the following:
+
+- The message passing interface. This is optional to the extent that
+a 'stub' library replacement is provided for serial execution on machines
+where a true MPI is not available. Most machines now come with MPI, so
+it is becoming less likely that the stub library is required.
+
+-  LAMMPS. The molecular dynamics package LAMMPS http://lammps.sandia.gov/
+may be used. This may also require FTTW (Version 2) http://www.fftw.org/
+to compile and link.
+
+If you want to add a new simulation type, you will also need to
+read the page on ADDING NEW SIMULATION TYPE!
+
+______________________________________________________________________________
+
+\section one-half Configuration
+
+The build process is based on `makl` from Koanlogic. Documentation
+on makl is available from the
+[makl wiki](http://github.com/koanlogic/makl/wiki).
+
+The basic process of configuration proceeds as follows. All this
+happens from the top-level FFS directory:
+\code
+$ makl-conf <options>
+...
+\endcode
+This runs the `configure` script in the top level FFS directory.
+On success, `makl-conf` will generate a `Makefile.conf`,
+the content of which will be used at the compile and link stage by `makl`.
+`makl-conf` will try to use the default options (for compilers, compiler
+flags, etc) for the current platform. If you need to use a specific compiler,
+or other options, you should use the toolchain approach (below). 
+
+### Configuration options
+
+The following option to `makl-conf` will be required:
+\code
+$ makl-conf --u-path=/path/to/libu
+\endcode
+specifies the location of the libu library.
+
+The following paths may be specified if required:
+- `--fftw-path=/path/to/fftw` will attempt to link against FFTW (v2) via
+`-I/path/to/fftw/include` and `-L/path/to/fftw/lib -lfftw`.
+
+- `--lammps-path=/path/to/lammps` will attempt to link against the
+LAMMPS library interface. 
+
+
+The following flags are not switched on by default, but may be useful:
+
+- `--debug` switches on `-DDEBUG` at the compilation stage which causes
+more information to be produced by, for example, failing tests.
+
+- `--docs` attempts to build the documentation if `doxygen` is available.
+
+
+### Problems?
+
+Insight into what is going on at the configure stage can be gained via
+\code
+$ makl-conf --verbose
+\endcode
+
+Configuration options revolving around MPI may require explicit changes
+to the toolchain. See below.
+
+______________________________________________________________________________
+
+\section two Build and Tests
+
+### Compilation
+
+Compilation proceeds via
+\code
+$ makl
+\endcode
+
+### Tests
+
+The tests may be run from the top-level directory `$FFS_DIR` via
+\code
+$ makl -C test
+\endcode
+The `-C` option causes `makl` to move to the `test` directory before
+doing anything. Test results are summarised in the file
+`test/unitest-report.out`. Details of errors can be found in
+`test/logs/error-0000.log`.
+
+### Tests in parallel
+
+By default, the tests are run on one MPI task (suitable for the MPI
+stub library). If a real MPI library is available, the tests can be
+run on more than one MPI task by explicitly invoking the executable
+\code
+$ cd test
+$ mpirun -np 2 ./main -s
+\endcode
+The `-s` flag is necessary for correct execution of the `main` test
+program.
+
+### Problems?
+
+Further information on test failures can be obtained by specifying
+the `--debug` flag at the configure stage, in which case it appears
+in the error log file.
+
+If you are doing development, it is also useful to
+\code
+$ makl depend
+\endcode
+which will set the dependencies and prevent the need for complete
+recompilation.
+
+______________________________________________________________________________
+
+\section three Toolchains
+
+If additional configuration information is required, makl provides a
+toolchain mechanism to provide it. This is useful for platforms with
+different compilers, platforms where cross compilation is required,
+and so on.
+
+By default, makl tries to make a best guess about the compilers etc
+available on a given system. These are set out in a toolchain file
+`$MAKL_DIR/tc/default.tc`
+
+We often want to change these defaults (MPI can be  a particular
+source of failure!). So we have included a `$FFS_DIR/toolchain`
+directory which has a number of toolchain files for various
+systems, including a number of HPC systems. The commands set out in
+these files override those of the default.
+
+Consider the UK HPC service Hector. This has front and back ends
+which require potentially different options. We have created two
+toolchain files `hector-fe.tc` and `hector-be.tc` for frontend and
+backend, respectively.
+
+For example, the two toolchains specify different compilers. In
+`hector-fe.tc` we use
+\code
+CC = gcc
+CXX = g++
+CFLAGS = -Wall
+CXXFLAGS = -Wall
+\endcode
+
+while for the backend `hector-be.tc` specifies
+\code
+CC = cc
+CXX = CC
+CFLAGS = -O
+CXXFLAGS = -O
+\endcode
+
+
+
+If we want to use the frontend options, we must use `makl-tc` to generate
+an appropriate set of toolchain files. From `$FFS_DIR`
+\code
+$ makl-tc --makl-etc=`pwd`/makl-etc/hector-fe --makl-tc-file=toolchain/hector-fe.tc --makl-shlib=null
+\endcode
+
+This will create a directory `$FFS_DIR/makl-etc/hector-fe` with 3
+configuration files (`shlib.sh.mk`, `toolchain.cf`, and `toolchain.mk`).
+We can now use
+\code
+$ export MAKL_ETC=`pwd`/makl-etc/hector-fe
+\endcode
+
+and if we now run `makl-conf` again, the new toolchain settings will be
+used.
+
+
+ */

@@ -60,14 +60,6 @@ __makl_lammps ()
 makl_pkg_name "FFS"
 makl_pkg_version
 
-#
-#  Options
-#  MPI is 'optional' in the sense that the library may
-#  be replaced by the stubs for serial execution
-#
-
-makl_checkheader   0    "mpi"     "<mpi.h>"
-makl_optional      0    "lib"     "mpi"
 
 makl_args_handle "$@"
 
@@ -80,9 +72,42 @@ makl_compile "build/libu.c" "-I${udir}/include" "-L${udir}/lib -lu"
 makl_append_var_mk "CFLAGS" "-I${udir}/include"
 makl_append_var_mk "LDFLAGS" "-L${udir}/lib -lu"
 
+##############################################################################
+#
+# See if the compiler can compile and link build/libmpi.c
+# and set HAVE_MPI if both compile and link ok.
+#
+# If HAVE_MPI is not set, we can still get by with the stub
+# replacement MPI
+#
+##############################################################################
+
+${ECHO} "checking ${CC} compiles and links an MPI program"
+makl_compile "build/libmpi.c"
+
+if [ $? == 0 ]
+then
+    makl_set_var_mk "HAVE_MPI" "1"
+else
+    # Try again with -lmpi
+    ${ECHO} "...checking if -lmpi helps"
+    makl_compile "build/libmpi.c" "" "-lmpi"
+    if [ $? == 0 ]
+    then
+	makl_set_var_mk "HAVE_MPI" "1"
+	makl_append_var_mk "LDFLAGS" "-lmpi"
+    else
+	${ECHO} "... use MPI stub library"
+    fi
+fi
+
+##############################################################################
+#
 # Check FFTW (this is FFTW 2 for LAMMPS)
 # We require an include directory  $fftwdir/include
 # and a lib directory              $fftwdir/lib -lfftw
+#
+##############################################################################
 
 fftw=`makl_get_var_mk "HAVE_FFTW"`
 if [ $fftw ]
@@ -96,10 +121,14 @@ else
     echo "No FFTW (ok)"
 fi
 
+##############################################################################
+#
 # Check LAMMPS
 # We require LAMMPS include directory  $lmpdir/include
 # and a statically linked library      $lmpdir/lib -llmp
 # The link is via CC -lstdc++
+#
+##############################################################################
 
 lammps=`makl_get_var_mk "HAVE_LAMMPS"`
 if [ $lammps ]

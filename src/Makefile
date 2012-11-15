@@ -23,12 +23,14 @@ ifdef HAVE_LAMMPS
 SRCS += sim/sim_lmp.c
 endif
 
-CFLAGS += -I. -I./ffs -I./util
-
-ifndef HAVE_MPI
+ifdef HAVE_MPI
+CFLAGS += -DHAVE_MPI
+else
 CFLAGS += -I./missing
 SRCS += missing/mpi.c
 endif
+
+CFLAGS += -I. -I./ffs -I./util
 
 include lib.mk
 

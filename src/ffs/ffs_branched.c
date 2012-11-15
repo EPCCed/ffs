@@ -16,17 +16,10 @@
 enum {FFS_TRIAL_SUCCEEDED = 0, FFS_TRIAL_TIMED_OUT, FFS_TRIAL_WENT_BACKWARDS,
       FFS_TRIAL_WAS_PRUNED, FFS_TRIAL_IN_PROGRESS};
 
-typedef struct result_s result_t;
-struct result_s {
-  int ncross;
-  double t0[10000];
-  double tsum;
-  double tmax;
-};
-
 int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
 		      ffs_state_t * sinit,
-		      ranlcg_t * ran, int seed, result_t * res, int * status);
+		      ranlcg_t * ran, int nlocal, int seed,
+		      ffs_result_t * result, int * status);
 
 static int ffs_branched_run_to_time(proxy_t * proxy, double teq,
 				    int nstepmax, int * status);
@@ -34,7 +27,7 @@ static int ffs_branched_run_to_time(proxy_t * proxy, double teq,
 int ffs_branched_recursive(int interface, int inst_id, int id, double wt,
 			   int nstepmax, int nsteplambda,
 			   ffs_param_t * param, proxy_t * proxy,
-			   ranlcg_t * ran);
+			   ranlcg_t * ran, ffs_result_t * result);
 
 int ffs_branched_run_to_lambda(proxy_t * proxy, double lambda_min,
 			       double lambda_max, int nstepmax,
@@ -52,39 +45,30 @@ int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
 
 int ffs_branched_run(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
 		     int inst_id,
-		     int inst_nsim, int seed, mpilog_t * log) {
-
-  int nlambda;
-  double lambda;
-
+		     int inst_nsim, int seed, mpilog_t * log,
+		     ffs_result_t * result) {
   int pid;
   int ntrial;
   int n, nstart;
   int status;
   int nstepmax;
   int nsteplambda;
+  int sseed;
   long int lseed;
   double wt;
   ffs_t * ffs = NULL;
   ffs_state_t * sinit = NULL;
   ranlcg_t * ran = NULL;
 
-  result_t * stats = NULL;
-
   dbg_return_if(init == NULL, -1);
   dbg_return_if(param == NULL, -1);
   dbg_return_if(proxy == NULL, -1);
   dbg_return_if(log == NULL, -1);
+  dbg_return_if(result == NULL, -1);
 
   /* trial limits */
   nstepmax = 10000000;
   nsteplambda = 1;
-
-  /* Results object */
-
-  stats = u_calloc(1, sizeof(result_t));
-  err_err_if(stats == NULL);
-
 
   /* Set up the initial simulation state and save it immediately */
 
@@ -104,6 +88,7 @@ int ffs_branched_run(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
   ranlcg_create(lseed, &ran);
 
   /* Distribute the trials evenly among the simulation instances */
+  /* We have a local trial index n, and a global seed (1 + n + nstart) */
 
   ffs_param_nstate(param, 1, &ntrial);
 
@@ -113,44 +98,20 @@ int ffs_branched_run(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
   mpilog(log, "\n");
   mpilog(log, "Starting %d trials each on %d tasks\n", ntrial, inst_nsim);
 
-  for (n = nstart; n < nstart + ntrial; n++) {
-    ffs_branched_init(init, param, proxy, sinit, ran, 1 + n, stats, &status);
+  for (n = 0; n < ntrial; n++) {
+    lseed = seed + n + nstart;
+    sseed = 1 + n + nstart;
+    ranlcg_state_set(ran, lseed);
+    ffs_branched_init(init, param, proxy, sinit, ran, n, sseed,
+		      result, &status);
     wt = 1.0;
     ffs_branched_recursive(1, inst_id, 1, wt, nstepmax, nsteplambda,
-			   param, proxy, ran);
+			   param, proxy, ran, result);
   }
 
   err_err_if(proxy_state(proxy, SIM_STATE_WRITE, ffs_state_stub(sinit)));
   proxy_state(proxy, SIM_STATE_DELETE, ffs_state_stub(sinit));
   proxy_execute(proxy, SIM_EXECUTE_FINISH);
-
-  /* Result */
-  ffs_param_nlambda(param, &nlambda);
-  ffs_param_nstate(param, 1, &ntrial);
-
-  mpilog(log, "Interface probabilities\n");
-
-  for (n = 1; n <= nlambda; n++) {
-    ffs_param_lambda(param, n, &lambda);
-    ffs_param_weight(param, n, &wt);
-    mpilog(log, "%3d %11.4e %11.4e\n", n, lambda, wt/ntrial);
-  }
-
-
-  for (n = 1; n <= ntrial; n++) {
-    stats->tsum += stats->t0[n];
-    if (stats->t0[n] > stats->tmax) stats->tmax = stats->t0[n];
-  }
-
-  mpilog(log, "Total number of trials: %d\n", ntrial);
-  mpilog(log, "Initial Tmax:           %12.6e\n", stats->tmax);
-  mpilog(log, "Initial Tsum:           %12.6e\n", stats->tsum);
-  mpilog(log, "Number of crossings A:  %d\n", stats->ncross);
-  mpilog(log, "Flux at lambda_A:       %12.6e\n", stats->ncross/stats->tsum);
-  mpilog(log, "Probability P(B|A):     %12.6e\n", wt/ntrial);
-  mpilog(log, "Flux * P(B|A):          %12.6e\n",
-	 (stats->ncross/stats->tsum)*wt/ntrial);
-  u_free(stats);
 
   ranlcg_free(ran);
   ffs_state_free(sinit);
@@ -172,13 +133,14 @@ int ffs_branched_run(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
  *****************************************************************************/
 
 int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
-		      ffs_state_t * sinit, ranlcg_t * ran, int seed,
-		      result_t * res, int * status) {
+		      ffs_state_t * sinit, ranlcg_t * ran, int nlocal,
+		      int seed,
+		      ffs_result_t * result, int * status) {
 
   ffs_t * ffs = NULL;
   MPI_Comm comm;
 
-  int n;
+  int n, ncross;
   int iovershot;
   int icrossed;
   int mpi_errnol = 0;
@@ -196,6 +158,7 @@ int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
   dbg_return_if(init == NULL, -1);
   dbg_return_if(param == NULL, -1);
   dbg_return_if(proxy == NULL, -1);
+  dbg_return_if(result == NULL, -1);
 
   ffs_init_independent(init, &init_independent);
   ffs_init_nstepmax(init, &init_nstepmax);
@@ -264,12 +227,13 @@ int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
     MPI_Bcast(&icrossed, 1, MPI_INT, 0, comm);
 
     if (icrossed) {
-      res->ncross += 1;
+      ffs_result_ncross_accum(result, 1);
+      ffs_result_ncross(result, &ncross);
       ffs_time(ffs, &t1);
       t_elapsed += (t1 - t0);
       t0 = t1;
-      if (res->ncross % init_nskip == 0) {
-	res->t0[seed] = t_elapsed;
+      if (ncross % init_nskip == 0) {
+	ffs_result_time_set(result, nlocal, t_elapsed);
 	random = -1.0;
 	if (init_independent) ranlcg_reep(ran, &random);
 	if (random < init_prob_accept) break;
@@ -299,7 +263,7 @@ int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
 int ffs_branched_recursive(int interface, int inst_id, int id, double wt,
 			   int nstepmax, int nsteplambda,
 			   ffs_param_t * param, proxy_t * proxy,
-			   ranlcg_t * ran) {
+			   ranlcg_t * ran, ffs_result_t * result) {
 
   int nlambda;
   int ntrial, itrial;
@@ -312,6 +276,7 @@ int ffs_branched_recursive(int interface, int inst_id, int id, double wt,
 
   ffs_param_nlambda(param, &nlambda);
   ffs_param_weight_accum(param, interface, wt);
+  ffs_result_weight_accum(result, interface, wt);
 
   /* If we have reached the final state then end the recursion */
 
@@ -344,7 +309,7 @@ int ffs_branched_recursive(int interface, int inst_id, int id, double wt,
     if (status == FFS_TRIAL_SUCCEEDED) {
       ffs_branched_recursive(interface + 1, inst_id, ++id, wtnow,
 			     nstepmax, nsteplambda, param,
-			     proxy, ran);
+			     proxy, ran, result);
     }
 
     /* Reset and next trial, or end of trials*/
