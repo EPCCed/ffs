@@ -5,7 +5,8 @@ include ../../Makefile.conf
 ifdef HAVE_DOXYGEN
 
 all:
-	$(PATH_DOXYGEN) ffs.doxy
+	(cat ffs.doxy; echo "PROJECT_NUMBER=v$(FFS_VERSION)") \
+	| $(PATH_DOXYGEN) -
 
 install: all
 	echo "install docs command!"

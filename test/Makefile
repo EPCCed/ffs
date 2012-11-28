@@ -15,6 +15,11 @@ else
 CFLAGS += -DHAVE_MPI
 endif
 
+ifdef HAVE_LAMMPS
+SRCS += sim/ut_sim_lmp.c
+CFLAGS += -DHAVE_LAMMPS
+endif
+
 SRCS += util/ut_ranlcg.c
 SRCS += util/ut_util.c
 SRCS += util/ut_suite.c

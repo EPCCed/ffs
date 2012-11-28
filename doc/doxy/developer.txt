@@ -6,11 +6,11 @@
 
 
 
-\section one Parallelisation
+\section develop_one Parallelisation
 
 ______________________________________________________________________________
 
-\section two Error Handling
+\section develop_two Error Handling
 
 
  */

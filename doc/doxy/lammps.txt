@@ -1,0 +1,137 @@
+/**
+ *  \page lammps Additional Notes for LAMMPS
+ *
+
+\tableofcontents
+
+This page discusses use of LAMMPS as the simulation for FFS problems.
+
+\section lammps_library The LAMMPS Library
+
+In order to run FFS with LAMMPS, you must build LAMMPS as a static
+library.
+The instructions to do this can be found in the LAMMPS documentation
+http://lammps.sandia.gov/doc/Section_start.html.
+
+
+### Addition to the LAMMPS source code
+
+At the moment, we require one addition to the LAMMPS library code to
+be able to run the FFS library. We use the latest version of the
+source from the LAMMPS repository. In the LAMMPS source file
+`src/library.cpp` we have
+added to the function `lammps_extract_global()` the following line:
+
+\code
+  if (strcmp(name,"ntimestep") == 0) return (void *) &lmp->update->ntimestep;
+\endcode
+
+to be able to extract the current time step. We hope this line can be added
+to the LAMMPS repository in future to prevent the need for manual update.
+
+Having built the LAMMPS library with this modification, one can proceed
+to build the FFS library.
+
+___
+
+\section lammps_interface The FFS LAMMPS Interface
+
+The scope and flexibility of the LAMMPS code make it quite difficult
+to cover all possibilities when implementing an interface to allow
+FFS calculations. The existing interface source `src/sim/sim_lmp.c`
+drives LAMMPS via the C LAMMPS library interface functions. 
+
+### Initialisation
+
+Initialisation is performed via `lammps_open()` with an MPI communicator
+supplied by FFS. A corresponding call to `lammps_close()` is made at the
+end of execution.
+
+Standard LAMMPS command line arguments can be used via
+the FFS input file. In particular, the LAMMPS input file should be
+specified with the `-in` option.
+The input file is a standard LAMMPS input file, the correctness of
+which can be checked by running with the LAMMPS executable independently
+of FFS. However, a number of special comments are used in the input to
+direct information to FFS (see below).
+
+The `-silent` option can also be useful
+to prevent excess verbosity from LAMMPS itself in production FFS runs. 
+
+### Saving and re-reading LAMMPS state information
+
+To allow FFS to make multiple trials from the same position in
+state space, atomic (or particle) positions etc are saved by
+means using the same mechanism as "write_restart" in the LAMMPS
+input file.
+
+### Order parameter
+
+The user must supply appropriate code to compute the order parameter
+for the problem at hand. The FFS interface demands that the value
+of the order order be made available only on the root MPI task in
+the simulation communicator. The code should probably use
+`MPI_Reduce()` to rank zero to acheive this.
+
+Computation of the order parameter itself may not be trivial.
+
+___
+
+\section lammps_input Additional LAMMPS input for FFS
+
+FFS will recognise commonly used fixes which are used to set
+the random number generator seed.
+Assuming we have defined "group all", a Langevin
+theostat would be introduced as, e.g., 
+\code
+#$FFS_FIX
+fix 1 all langevin 1.0 1.1 100.0 48279
+\endcode
+
+In general, the syntax for the Langevin fix is
+\code
+#$FFS_FIX
+fix ID group-ID langevin Tstart Tstop damp seed keyword values ... 
+\endcode
+
+More generally:
+
+\code
+#$FFS_FIX format-string
+fix ID group-ID style args 
+\endcode
+
+E.g., to specify the fix for SRD, we would use
+
+\code
+#$FFS_FIX "fix 1 srd srd 10 big 1.0 0.25 %d"
+fix 1 srd srd 10 big 1.0 0.25 482984
+\endcode
+
+Most generally, we could hope ...
+\code
+#$FFS_FIX "fix ID group-ID srd N groupbig-ID Tsrd hgrid seed keyword value ..."
+fix 1 srd srd 10 big 1.0 0.25 482984
+\endcode
+
+
+Runs:
+
+\code
+#$FFS_RUN
+run N keyword values ... 
+\endcode
+
+Restart:
+
+\code
+#$FFS_READ_RESTART
+read_restart file
+\endcode
+
+___
+
+\section lammps_example Example
+
+
+*/

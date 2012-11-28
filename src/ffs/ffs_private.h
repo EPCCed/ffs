@@ -16,6 +16,10 @@
  *  \{
  */
 
+/**
+ *  \brief Dummy executable name for simulation command line arguments
+ */
+
 #define FFS_SIM_EXECUTABLE_NAME "./a.out"
 
 /**

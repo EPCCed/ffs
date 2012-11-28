@@ -1,0 +1,25 @@
+body {
+     margin: 20px 8px;
+}
+
+h1, h2 {
+     font-size: 120%;
+}
+
+h3, h4, h5 {
+     font-size: 110%;
+}
+
+.title {
+     font-size: 120%;
+}
+
+#projectname {
+      font: 180% sans-serif;
+      font-weight: bold;
+}
+
+#projectnumber {
+      font: 80% sans-serif;
+}
+

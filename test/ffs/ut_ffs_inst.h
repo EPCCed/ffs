@@ -13,19 +13,8 @@
 
 #include "u/libu.h"
 
-/**
- *  \ingroup unit
- *  \{
- *
- *  \test Instance creation
- */
-
 #define UT_INST_NAME "ffs inst test"
 
 int ut_inst(u_test_case_t * tc);
-
-/**
- * \}
- */
 
 #endif /* UT_FFS_INST_H */

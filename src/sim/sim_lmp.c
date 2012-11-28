@@ -350,6 +350,15 @@ int lmp_parse_action(sim_lmp_t * obj, const char * line){
   return ifail;
 }
 
+/*****************************************************************************
+ *
+ *  lmp_find_inputfile
+ *
+ *  Scan arg for "-in filename" or "-i filename" and if found,
+ *  remove it. The filename is stored in the local lmp object.
+ *
+ *****************************************************************************/
+
 int lmp_find_inputfile(int *narg, char **arg, char * infile){
    
   int iarg = 0;
@@ -363,9 +372,6 @@ int lmp_find_inputfile(int *narg, char **arg, char * infile){
     }
     if (ifilefound == 1 && iarg < *narg - 2){
       arg[iarg] = arg[iarg + 2];
-    }
-    else if (iarg > 0 && iarg < *narg - 2){
-      arg[iarg] = arg[iarg];
     }
   }
   
@@ -654,11 +660,11 @@ int dimer_evaluate_lambda(sim_lmp_t * obj, ffs_t * ffs, double * lambda){
   double *coords = (double *) malloc(3*natoms*sizeof(double));
   int *id = (int *) malloc(natoms*sizeof(int));
   int *type = (int *) malloc(natoms*sizeof(int));
-  
+
   lammps_gather_atoms(obj->lmp, "x", 1, 3, coords);
   lammps_gather_atoms(obj->lmp, "id", 0, 1, id);
   lammps_gather_atoms(obj->lmp, "type", 0, 1, type);
-  
+
   if(get_coord_with_type(coords, type, natoms, 2, dimer_coords, &nc) != 0){
     free(coords);
     free(id);
