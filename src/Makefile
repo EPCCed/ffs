@@ -21,6 +21,7 @@ SRCS += util/ranlcg.c
 
 ifdef HAVE_LAMMPS
 SRCS += sim/sim_lmp.c
+CFLAGS += -DHAVE_LAMMPS
 endif
 
 ifdef HAVE_MPI
