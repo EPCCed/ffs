@@ -26,6 +26,9 @@ __makl_docs ()
     makl_optional      1    "featx"   "doxygen" "DOXYGEN"
 }
 
+# NOTE:
+# Using a dash --u-path gives a macro "__makl_u" and $1 = "path",
+# and $2 being the intended argument!
 
 #
 # --u-path=...

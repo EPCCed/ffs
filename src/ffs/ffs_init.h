@@ -16,6 +16,10 @@
  *    Description of initialisation parameters here.
  */
 
+/**
+ *  \brief Opaque structure
+ */
+
 typedef struct ffs_init_s ffs_init_t;
 
 /**

@@ -6,7 +6,7 @@
 
 This page discusses how to build the parallel FFS library.
 
-\section one Requirements
+\section build_one Requirements
 
 ### Mandatory
 
@@ -38,7 +38,7 @@ read the page on ADDING NEW SIMULATION TYPE!
 
 ______________________________________________________________________________
 
-\section one-half Configuration
+\section build_one-half Configuration
 
 The build process is based on `makl` from Koanlogic. Documentation
 on makl is available from the
@@ -93,7 +93,7 @@ to the toolchain. See below.
 
 ______________________________________________________________________________
 
-\section two Build and Tests
+\section build_two Build and Tests
 
 ### Compilation
 
@@ -140,7 +140,7 @@ recompilation.
 
 ______________________________________________________________________________
 
-\section three Toolchains
+\section build_three Toolchains
 
 If additional configuration information is required, makl provides a
 toolchain mechanism to provide it. This is useful for platforms with

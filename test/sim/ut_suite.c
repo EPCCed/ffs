@@ -14,6 +14,11 @@
 #include "ut_proxy.h"
 #include "ut_sim_dmc.h"
 #include "ut_sim_test.h"
+
+#ifdef HAVE_LAMMPS
+#include "ut_sim_lmp.h"
+#endif
+
 #include "ut_suite.h"
 
 /*
@@ -34,6 +39,10 @@ int uts_sim_register(u_test_t * t) {
   u_test_case_register(UT_SIM_DMC_TEST_NAME, ut_sim_dmc, ts);
   u_test_case_register(UT_SIM_DMC_PROXY_TEST_NAME, ut_sim_dmc_proxy, ts);
   u_test_case_register(UT_SIM_DMC_INFO_TEST_NAME, ut_sim_dmc_info, ts);
+
+#ifdef HAVE_LAMMPS
+  u_test_case_register(UT_SIM_LMP_NAME, ut_sim_lmp, ts);
+#endif
 
   return u_test_suite_add(ts, t);
 }

@@ -153,7 +153,7 @@ int ffs_result_time(ffs_result_t * obj, int n, double * t);
  *
  *  \param  obj      the ffs_result_t object
  *  \param  comm     MPI communicator for reduction
- *  \param  rooot    root for MPI_Reduce()
+ *  \param  root     root MPI rank for MPI_Reduce()
  *
  *  \retval 0        a success
  *  \retval -1       a failure
@@ -192,7 +192,7 @@ int ffs_result_tmax(ffs_result_t * obj, double * tmax);
 int ffs_result_tsum(ffs_result_t * obj, double * tsum);
 
 /**
- * /}
+ * \}
  */
 
 #endif
