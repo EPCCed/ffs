@@ -183,7 +183,7 @@ int ffs_command_line_set(ffs_t * obj, const char * argstring) {
 int ffs_info_int(ffs_t * obj, ffs_info_enum_t param, int ndata, int * data) {
 
   dbg_return_if(obj == NULL, -1);
-  dbg_return_if(ndata < 1, -1);
+  dbg_return_if(ndata != 1, -1);   /* 1 item only at the moment! */
   dbg_return_if(data == NULL, -1);
 
   switch (param) {

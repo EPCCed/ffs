@@ -14,14 +14,12 @@
 
 #include "library.h"
 
-/*#include "sim_dimer.h"*/
-
 struct sim_lmp_s {
   void * lmp;
-  char input_file[1024];
-  char restart_file[1024];
-  char fix_command[1024];
-  char run_command[1024];
+  char input_file[BUFSIZ];
+  char restart_file[BUFSIZ];
+  char fix_command[BUFSIZ];
+  char run_command[BUFSIZ];
   int seed;
   double time;
   /* and anything else relating to lammps */
@@ -36,7 +34,7 @@ static int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub);
 static int lmp_execute(sim_lmp_t * obj);
 static int lmp_unfix(sim_lmp_t * obj);
 static int lmp_state_delete(sim_lmp_t * obj, ffs_t * ffs, const char * stub);
-static int lmp_set_seed(sim_lmp_t * obj, const int seed);
+
 /*dimer problem specific*/
 static int dimer_evaluate_lambda(sim_lmp_t * obj, ffs_t * ffs, double * lambda);
 static int get_coord_with_type(double * coords, int * types, int natoms, int desired_type, double * dc, int * nc);
@@ -235,7 +233,7 @@ int sim_lmp_info (sim_lmp_t * obj, ffs_t * ffs, ffs_info_enum_t param) {
   int ifail = 0;
   double time;
   int seed;
-  char command[1024];
+  char command[BUFSIZ];
   
   /* Examine param, and put or get the appropriate information. */
   switch(param) {
@@ -275,7 +273,7 @@ int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs){
 
   int n, me;
   int ifail = 0;
-  char line[1024];
+  char line[BUFSIZ];
   MPI_Comm comm = MPI_COMM_NULL;
   FILE *fp = NULL;
 
@@ -294,7 +292,7 @@ int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs){
 
   while(1){
     if(me == 0) {
-      if(fgets(line, 1024, fp) == NULL){
+      if(fgets(line, BUFSIZ, fp) == NULL){
 	n = 0;
       }
       else {
@@ -319,12 +317,12 @@ int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs){
 int lmp_parse_action(sim_lmp_t * obj, const char * line){
 
   int ifail = 0;
-  char a[1024],b[1024];
+  char a[BUFSIZ],b[BUFSIZ];
   char *c = NULL;
 
   if(strncmp(line, "#$read_restart", 14) == 0) {
     sscanf(line, "%s %s",a,b);
-    sprintf(obj->restart_file, b);
+    sprintf(obj->restart_file, "%s", b);
   }
   else if(strncmp(line, "#$fix", 5) == 0){
     c = strstr(line, "fix");
@@ -390,8 +388,8 @@ int lmp_find_inputfile(int *narg, char **arg, char * infile){
 int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs) {
   
   int me, n;
-  char line[1024];
-  char command[1024];
+  char line[BUFSIZ];
+  char command[BUFSIZ];
   MPI_Comm comm = MPI_COMM_NULL;
   FILE * fp = NULL;
   
@@ -410,7 +408,7 @@ int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs) {
 
   while (1) {
     if(me == 0) {
-      if (fgets(line,1024,fp) == NULL) n = 0;
+      if (fgets(line,BUFSIZ,fp) == NULL) n = 0;
       else n = strlen(line) + 1;
     }
     
@@ -437,9 +435,9 @@ int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs) {
 
 int lmp_write_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
   
-  char filename[1024];
-  char line[1024];
-  char command[1024];
+  char filename[BUFSIZ];
+  char line[BUFSIZ];
+  char command[BUFSIZ];
   FILE * fp = NULL;
   int ifail = 0;
   int me;
@@ -489,8 +487,8 @@ int lmp_write_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
 
 int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
   
-  char filename[1024];
-  char line[1024];
+  char filename[BUFSIZ];
+  char line[BUFSIZ];
   FILE * fp = NULL;
   int ifail = 0;
   int me;
@@ -519,7 +517,7 @@ int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
 
   n = 0;
   if(me == 0){
-    if(fgets(line, 1024, fp ) == NULL)ifail += 1;
+    if(fgets(line, BUFSIZ, fp ) == NULL)ifail += 1;
     else n = strlen(line) + 1;
   }
   MPI_Bcast(&n,1,MPI_INT,0,comm);
@@ -531,7 +529,7 @@ int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
   
   n = 0;
   if(me == 0){
-    if(fgets(line, 1024, fp) == NULL)ifail += 1;
+    if(fgets(line, BUFSIZ, fp) == NULL)ifail += 1;
     else n = strlen(line) + 1;
   }
   MPI_Bcast(&n,1,MPI_INT,0,comm);
@@ -543,7 +541,7 @@ int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
   
   n = 0;
   if(me == 0){
-    if(fgets(line, 1024, fp) == NULL)ifail += 1;
+    if(fgets(line, BUFSIZ, fp) == NULL)ifail += 1;
     else n = strlen(line) + 1;
   }
   MPI_Bcast(&n,1,MPI_INT,0,comm);
@@ -555,7 +553,7 @@ int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
   
   n = 0;
   if(me == 0){
-    if(fgets(line, 1024, fp) == NULL)ifail += 1;
+    if(fgets(line, BUFSIZ, fp) == NULL)ifail += 1;
     else n = strlen(line) + 1;
   }
   MPI_Bcast(&n,1,MPI_INT,0,comm);
@@ -567,7 +565,7 @@ int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
 
   n = 0;
   if(me == 0){
-    if(fgets(line, 1024, fp) == NULL)ifail += 1;
+    if(fgets(line, BUFSIZ, fp) == NULL)ifail += 1;
     else n = strlen(line) + 1;
   }
   MPI_Bcast(&n,1,MPI_INT,0,comm);
@@ -604,8 +602,8 @@ int lmp_execute(sim_lmp_t * obj) {
  
 int lmp_unfix(sim_lmp_t * obj){
   
-  char a[1024],b[1024];
-  char command[1024];
+  char a[BUFSIZ],b[BUFSIZ];
+  char command[BUFSIZ];
   
   sscanf(obj->fix_command, "%s %s", a, b);/*second item is the fix_id*/
   sprintf(command, "unfix %s", b);
@@ -619,7 +617,7 @@ int lmp_unfix(sim_lmp_t * obj){
  
 int lmp_state_delete(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
   /*here we delete the state */
-  char filename[1024];
+  char filename[BUFSIZ];
   int ifail = 0;
   MPI_Comm comm = MPI_COMM_NULL;
   int me;
@@ -636,12 +634,6 @@ int lmp_state_delete(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
     ifail += remove(filename);
   }
   return ifail;
-}
-   
-int lmp_set_seed(sim_lmp_t * obj, const int seed) {
-  
-  obj->seed = seed;
-  return 0;
 }
 
 /*dimer stuff follows*/

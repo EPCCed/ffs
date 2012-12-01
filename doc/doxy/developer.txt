@@ -8,6 +8,61 @@
 
 \section develop_one Parallelisation
 
+---
+
+\section develop_random_seeds Random Number Generator Seeds
+
+The FFS input file takes a single random number generator "master"
+seed which determines completely the random number generation within
+the FFS library. These number numbers are used for two purposes:
+
+1. As (integer) seeds for input into the simulation random number
+   generation. A new seed is generated for every trial attempt or
+   simulation run to ensure the simulation randon number generator
+   is initialisated appropriately at the start of every trial. This
+   avoids assumptions about the behaviour of the simulation internel
+   random number generator (particularly at restarts). 
+2. Internal use of (uniform) random deviates to control probabalistic
+   events including initial state selection and pruning.
+
+The series of seeds are determined as follows, and should generate
+exactly the same result independently of parallelisation.
+
+### Master seed
+
+The master seed (a positive integer) is specified in the top level
+section of the input file, e.g.,
+\code
+ffs 
+{
+  ffs_seed      13
+}
+\endcode
+If no value is supplied, a default specified in \ref ffs_control is used.
+
+### Instance seed
+
+The ::ffs_control_t object uses ::ranlcg_t (32-bit version)
+initialised with the master seed and the default state parameters
+to generate the same list of 32-bit integers on every
+MPI task. The zeroth entry (i.e., the master seed) in the list is
+used for as the seed for instance zero, the first entry for instance
+one, and so on. See ffs_control_execute().
+
+### Branched FFS trajectory seeds
+
+The instance seed is used to generate an integer (seed_inst + n)
+where n is initial trajectory id. This can be computed independently
+of the decomposition of trajectories. The trajectory seed is then
+used to initialise a new instance of ::ranlcg_t (64-bit version with
+default state parameters). For
+a given trajectory this instance is used to generate both integer
+seeds, via ranlcg_reep_int32(), and floating point variates. This ensures
+each trajectory produces the same series of integer seeds to be passed
+to the simulation. See ffs_branched_run().
+
+
+
 ______________________________________________________________________________
 
 \section develop_two Error Handling

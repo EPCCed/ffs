@@ -156,6 +156,36 @@ int proxy_ffs(proxy_t * obj, ffs_t ** ref);
 int proxy_id(proxy_t * obj, int * proxy_id);
 
 /**
+ *  \brief Return the proxy communicator
+ *
+ *  \param obj        the proxy_t structure
+ *  \param comm       pointer to the MPI_Comm to be returned
+ *
+ *  \retval 0         a success
+ *  \retval -1        a NULL pointer was received
+ */
+
+int proxy_comm(proxy_t * obj, MPI_Comm * comm);
+
+/**
+ *  \brief Cache integer information
+ *
+ *  This is really just a separate interface to ffs_info_int() using
+ *  the proxy ffs_t object.
+ *
+ *  \param  obj        the proxy_t structure
+ *  \param  action     one of ffs_info_enum_t
+ *  \param  count      number of data items
+ *  \param  data       pointer to the (integer) data
+ *
+ *  \retval 0          a success
+ *  \retval -1         a NULL pointer was received or problem caching data
+ */
+
+int proxy_cache_info_int(proxy_t * obj, ffs_info_enum_t action, int n,
+			 int * data);
+
+/**
  *  \}
  */
 

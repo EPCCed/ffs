@@ -10,14 +10,17 @@
 #include <mpi.h>
 
 /**
- *  \defgroup ffs_mediator FFS mediator object
+ *  \defgroup ffs_object FFS object
  *  \ingroup ffs_library
  *  \{
  *
+ *  This is the interface through which the simulation (or to be exact,
+ *  the simulation interface) exchanges information with the FFS library.
+ *  
  */
 
 /**
- *  \brief The opaque mediator object
+ *  \brief An opaque structure
  */
 
 typedef struct ffs_s ffs_t;
@@ -47,12 +50,28 @@ typedef enum {
 
 /**
  *  \brief Obtain simulation communicator
+ *
+ *  \param obj      the ffs_t structure
+ *  \param comm     a pointer to the MPI communicator to be returned
+ *
+ *  \retval 0       a success
+ *  \retval -1      a NULL pointer was received
  */
 
 int ffs_comm(ffs_t * obj, MPI_Comm * comm);
 
 /**
  *  \brief Obtain command line arguments
+ *
+ *  This returns C-like argc and argv taken from the user input.
+ *  argv[0] contains a (dummy) executable name.
+ *
+ *  \param  obj    the ffs_t structure
+ *  \param  argc   pointer to the nu,ber of arguments to be returned
+ *  \param  argv   pointer to list of arguments to be returned
+ *
+ *  \retval 0      a success
+ *  \retval -1     a NULL pointer was received
  */
 
 int  ffs_command_line(ffs_t * obj, int * argc, char *** argv);
@@ -67,6 +86,13 @@ int ffs_info_double(ffs_t * obj, ffs_info_enum_t type, int n, double * data);
 /**
  *  \brief Exchange data (int)
  *
+ *  \param  obj        the ffs struxture
+ *  \param  type       action to be performed
+ *  \param  n          the number of data items
+ *  \param  data       a pointer to the integer data
+ *
+ *  \retval 0          a success
+ *  \retval -1         a NULL pointer was received (or incorrect data)
  */
 
 int ffs_info_int(ffs_t * obj, ffs_info_enum_t type, int n, int * data);

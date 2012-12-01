@@ -217,3 +217,37 @@ int proxy_id(proxy_t * obj, int * proxy_id) {
 
   return 0;
 }
+
+/*****************************************************************************
+ *
+ *  proxy_comm
+ *
+ *****************************************************************************/
+
+int proxy_comm(proxy_t * obj, MPI_Comm * comm) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(comm == NULL, -1);
+
+  *comm = obj->comm;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  proxy_cache_info_int
+ *
+ *****************************************************************************/
+
+int proxy_cache_info_int(proxy_t * obj, ffs_info_enum_t action, int n,
+			 int * data) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n != 1, -1);          /* one item only at moment */
+  dbg_return_if(data == NULL, -1);
+
+  dbg_return_if(ffs_info_int(obj->ffs, action, n, data), -1);
+
+  return 0;
+}
