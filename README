@@ -63,6 +63,17 @@
 
      $ makl -C test
 
+   If you want to use a pre-defined tool chain, a selection of
+   which can be found in the $FSS/makl-etc directory, set the
+   MAKL_ETC environment variable before building, e.g.,
+
+     $ export MAKL_ETC=`pwd`/makl-etc/linux-mpi
+     $ makl
+
+   If you do not set MAKL_ETC, makl will use its defaults for your system,
+   which may or may not work.
+
+
 5. FFS with LAMMPS
 
    If there is a LAMMPS library available in directory /install/path/to/lammps
