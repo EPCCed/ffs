@@ -1,0 +1,42 @@
+#input for FFS test run using WCA melt
+
+#$FFS_READ_RESTART
+read_restart LJmelt.restart
+
+group           dimer id <= 2 #first two atoms
+
+set             group dimer type 2
+
+set		type 1 mass 1
+set		type 2 mass 1
+
+group all type 1 2
+
+# multi neighbor and comm for efficiency
+
+neighbor	1 multi
+neigh_modify	delay 0
+communicate	multi
+
+# WCA potential
+
+#  1.12246 = 2^(1/6) is the minimum of the potential
+
+pair_style      lj/cut 1.12246152962189
+pair_modify shift yes
+pair_coeff      * * 1.0 1.0 1.12246152962189
+
+
+fix		1 all nve
+#$FFS_FIX langevin
+fix             2 all langevin   1.0 1.0   2.0   273636   ###Langevin integrator Tstart Tstop 1/friction rndseed     
+
+#dump   1   all   custom   10000   dump.LJmelt.*  id type x y z  ix iy iz
+thermo_style	custom step temp epair etotal press vol
+thermo		1000
+
+timestep	0.005
+
+#$FFS_RUN
+run 10
+
