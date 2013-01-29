@@ -1,0 +1,26 @@
+command line: -in dimer.FFS.in -sc none -log none 
+command line arguments set
+succesful init
+restart: dimer.start
+run: run 10
+succesfull state init
+succesfull state write
+succesfull state read
+succesfull state write
+initial state - time and separation: 0.000000 -1.552933
+now try to execute 10 times
+iteration 1 - time and separation: 0.001000 -1.558754
+iteration 2 - time and separation: 0.002000 -1.564625
+iteration 3 - time and separation: 0.003000 -1.570593
+iteration 4 - time and separation: 0.004000 -1.576610
+iteration 5 - time and separation: 0.005000 -1.582697
+iteration 6 - time and separation: 0.006000 -1.588848
+iteration 7 - time and separation: 0.007000 -1.594996
+iteration 8 - time and separation: 0.008000 -1.601163
+iteration 9 - time and separation: 0.009000 -1.607412
+iteration 10 - time and separation: 0.010000 -1.613756
+succesfull run test
+trying restart from id: 6
+iteration 7 - time and separation: 0.007000 -1.594996
+succesfull restart
+succesfull remove
