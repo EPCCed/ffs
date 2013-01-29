@@ -1,0 +1,10 @@
+This directory contains an example to run WCA melt
+
+To create the restart file (binary) for the FFS test:
+
+(1) $path_to_lammps/lmp_openmpi < LJ.in
+
+This produces LJmelt.restar (a binary restart file).
+
+To test:
+(1) mpirun -np #np ../a.out -in LJ_FFS.in -sc none 

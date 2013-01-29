@@ -1,0 +1,26 @@
+command line: -in LJ_FFS.in -sc none 
+command line arguments set
+succesful init
+restart: LJmelt.restart
+run: run 10
+succesfull state init
+succesfull state write
+succesfull state read
+succesfull state write
+initial state - time and separation: 0.000000 -18.535256
+now try to execute 10 times
+iteration 1 - time and separation: 0.050000 -18.588647
+iteration 2 - time and separation: 0.100000 -18.628691
+iteration 3 - time and separation: 0.150000 -18.643528
+iteration 4 - time and separation: 0.200000 -18.641679
+iteration 5 - time and separation: 0.250000 -18.634290
+iteration 6 - time and separation: 0.300000 -18.609418
+iteration 7 - time and separation: 0.350000 -18.579294
+iteration 8 - time and separation: 0.400000 -18.567270
+iteration 9 - time and separation: 0.450000 -18.564754
+iteration 10 - time and separation: 0.500000 -18.537337
+succesfull run test
+trying restart from id: 6
+iteration 7 - time and separation: 0.350000 -18.579294
+succesfull restart
+succesfull remove

@@ -1,0 +1,16 @@
+This directory contains an example to run a dimer (bonded with double well
+potential) problem using FFS library.
+
+To compile lammps with the double well bond please see instructions in 
+../../lmp_example/README
+
+To create the restart file (binary) for the FFS test:
+
+(1) $path_to_lammps/lmp_openmpi < dimer.in
+
+This produces dimer.start (a binary restart file).
+
+To test:
+(1) mpirun -np #np ../a.out -in dimer.FFS.in -sc none -log none
+
+

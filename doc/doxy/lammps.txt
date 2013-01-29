@@ -11,7 +11,7 @@ This page discusses use of LAMMPS as the simulation for FFS problems.
 In order to run FFS with LAMMPS, you must build LAMMPS as a static
 library.
 The instructions to do this can be found in the LAMMPS documentation
-http://lammps.sandia.gov/doc/Section_start.html.
+http://lammps.sandia.gov/doc/Section_start.html .
 
 
 ### Addition to the LAMMPS source code
@@ -55,7 +55,7 @@ which can be checked by running with the LAMMPS executable independently
 of FFS. However, a number of special comments are used in the input to
 direct information to FFS (see below).
 
-The `-silent` option can also be useful
+The `-screen none` and `-log none` options can also be useful
 to prevent excess verbosity from LAMMPS itself in production FFS runs. 
 
 ### Saving and re-reading LAMMPS state information
@@ -82,15 +82,15 @@ ___
 FFS will recognise commonly used fixes which are used to set
 the random number generator seed.
 Assuming we have defined "group all", a Langevin
-theostat would be introduced as, e.g., 
+thermostat would be introduced as, e.g., 
 \code
-#$FFS_FIX
+#$FFS_FIX langevin
 fix 1 all langevin 1.0 1.1 100.0 48279
 \endcode
 
 In general, the syntax for the Langevin fix is
 \code
-#$FFS_FIX
+#$FFS_FIX langevin
 fix ID group-ID langevin Tstart Tstop damp seed keyword values ... 
 \endcode
 
@@ -104,13 +104,16 @@ fix ID group-ID style args
 E.g., to specify the fix for SRD, we would use
 
 \code
-#$FFS_FIX "fix 1 srd srd 10 big 1.0 0.25 %d"
+#$FFS_FIX fix 1 srd srd 10 big 1.0 0.25 FFS_SEED
 fix 1 srd srd 10 big 1.0 0.25 482984
 \endcode
 
+Where the keyword "FFS_SEED" implies where the random number generator seed 
+should be placed.
+
 Most generally, we could hope ...
 \code
-#$FFS_FIX "fix ID group-ID srd N groupbig-ID Tsrd hgrid seed keyword value ..."
+#$FFS_FIX fix ID group-ID srd N groupbig-ID Tsrd hgrid FFS_SEED keyword value ...
 fix 1 srd srd 10 big 1.0 0.25 482984
 \endcode
 
@@ -133,5 +136,43 @@ ___
 
 \section lammps_example Example
 
+An example input script for a dimer simulation using FFS.
+
+\code
+#$FFS_READ_RESTART
+read_restart dimer.start
+
+neighbor 1.9 bin
+neigh_modify every 1 delay 1 check yes 
+
+group all type 1 2
+
+#  1.12246 = 2^(1/6) is the minimum of the potential
+
+pair_style      lj/cut 1.12246152962189
+pair_modify shift yes
+pair_coeff      * * 1.0 1.0 
+
+bond_style double_well
+bond_coeff   *   3.0 0.25 1.12246152962189 
+
+##Langeving dynamics requires NVE and langevin fixes:
+
+fix 1 all   nve   ###NVE ensemble
+
+#$FFS_FIX langevin
+fix 2 all   langevin   1.0 1.0   2.0   7364   ###Langevin integrator Tstart Tstop 1/friction rndseed
+
+###
+# set timestep of integrator
+###
+timestep 0.0001 
+
+# run integration for a number of steps
+###
+#$FFS_RUN
+run 10
+
+\endcode
 
 */

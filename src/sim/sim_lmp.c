@@ -31,6 +31,7 @@ static int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs);
 static int lmp_parse_action(sim_lmp_t * obj, const char * line);
 static int lmp_find_inputfile(int *narg, char **arg, char * infile);
 static int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs);
+static int lmp_parse_input_line(sim_lmp_t * obj, char * ffs_line, char * lmp_line);
 static int lmp_write_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub);
 static int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub);
 static int lmp_execute(sim_lmp_t * obj);
@@ -276,6 +277,8 @@ int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs){
   int n, me;
   int ifail = 0;
   char line[1024];
+  char ffs_line[1024];
+  int ffs_command_found = 0;
   MPI_Comm comm = MPI_COMM_NULL;
   FILE *fp = NULL;
 
@@ -307,9 +310,17 @@ int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs){
     if (n == 0) break;
     MPI_Bcast(line,n,MPI_CHAR,0,comm);
     if(line[n-2] == '\n')line[n-2] = '\0';
-    if(strncmp(line, "#$", 2) == 0){
-      ifail = lmp_parse_action(obj, line);
-      if(ifail > 0)return 1;
+
+    if (ffs_command_found == 1) {
+      ifail += lmp_parse_input_line(obj,ffs_line, line);
+      ffs_command_found = 0;
+    }
+    
+    if(strncmp(line, "#$FFS", 5) == 0){
+      ffs_command_found = 1;
+      sprintf(ffs_line, line);
+      /*ifail = lmp_parse_action(obj, line);
+	if(ifail > 0)return 1;*/
     }
   }
   
@@ -394,6 +405,7 @@ int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs) {
   char command[1024];
   MPI_Comm comm = MPI_COMM_NULL;
   FILE * fp = NULL;
+  int ffs_command_found = 0;
   
   
   ffs_comm(ffs, &comm);
@@ -419,21 +431,116 @@ int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs) {
     
     MPI_Bcast(line,n,MPI_CHAR,0,comm);
 
-    if (strncmp(line, "#$read_restart", 14) == 0) {
+    if (strncmp(line, "#$FFS_READ_RESTART", 18) == 0) {
       sprintf(command, "read_restart %s", obj->restart_file);
+      ffs_command_found = 1;
     }
-    else if(strncmp(line, "#$fix", 5) == 0) {
+    else if(strncmp(line, "#$FFS_FIX", 9) == 0) {
       sprintf(command, obj->fix_command,obj->seed);
+      ffs_command_found = 1;
+    }
+    else if(strncmp(line, "#$FFS_RUN", 9) == 0) {
+      sprintf(command, " "); /*We don't want to execute the run command here */
+      ffs_command_found = 1;
     }
     else {
-      strcpy(command, line);
+      if(ffs_command_found == 0)strcpy(command, line);
+      /* printf("command: %s %d\n",command, obj->seed);*/
+      lammps_command(obj->lmp, command);
+      ffs_command_found = 0;
     }
-    lammps_command(obj->lmp, command);
   }
 
   if(me == 0)fclose(fp);
   return 0;
 }
+
+int lmp_parse_input_line(sim_lmp_t * obj, char * ffs_line, char * lmp_line){
+  int ifail = 0;
+  char *tokens_ffs = NULL;
+  char *tokens_lmp = NULL;
+  int number_tok_lmp = 0;
+  char ffs_tmp_line[1024];
+    char tmpline[1024];
+  char a[1024],b[1024];
+  
+  if((strncmp(ffs_line, "#$FFS_READ_RESTART", 18) == 0)) {
+    sscanf(lmp_line, "%s %s",a,b);
+    sprintf(obj->restart_file, b);
+    printf("restart: %s\n",obj->restart_file);
+  }
+  else if((strncmp(ffs_line, "#$FFS_RUN", 9) == 0)) {
+    sprintf(obj->run_command,lmp_line);
+    printf("run: %s\n",lmp_line);
+  }
+  else if((strncmp(ffs_line, "#$FFS_FIX", 9) == 0)) {
+    
+    /*copy the ffs_line to ffs_tmp_line to be tokenised */
+    strcpy(ffs_tmp_line, ffs_line);
+    tokens_ffs = strtok(ffs_tmp_line, " ");
+    tokens_ffs = strtok(NULL, " ");
+    
+    /* if the second word is keyword we know,
+     * then we do the parsing here
+     */
+    if(strncmp(tokens_ffs, "langevin", 8) == 0 ){
+      /*langevin thermostat desired*/
+      
+      tokens_lmp = strtok(lmp_line, " ");
+      while(tokens_lmp != NULL) {
+	number_tok_lmp += 1;
+	
+	/*printf("line: %s\n",tmpline);*/
+	if(number_tok_lmp == 1){
+	  strcpy(tmpline,tokens_lmp);
+	  strcat(tmpline, " ");
+	}  
+	else if(number_tok_lmp != 8) {
+	  strcat(tmpline, tokens_lmp);
+	  strcat(tmpline, " ");
+	}
+	else {
+	  /*this is where seed goes*/
+	  strcat(tmpline, "%%d ");
+	}
+	tokens_lmp = strtok(NULL, " ");
+      }
+      sprintf(obj->fix_command, tmpline);
+      /*printf("fix command: %s\n",obj->fix_command);*/
+    }
+    else { 
+      /* we dont recognise this case
+	 expect the format being:
+	 #$FFS_FIX fix ID group-ID fix_name N groupbig-ID Tsrd hgrid FFS_SEED keyword value ...
+      */
+      if(strncmp(tokens_ffs, "fix", 3) != 0 ){ 
+	/*minimal sanity check*/
+	printf("Illegal FFS_FIX command: %s\n", ffs_line);
+	ifail += 1;
+      }
+      else {
+	strcpy(tmpline, tokens_ffs);
+	strcat(tmpline, " ");
+	
+	tokens_ffs = strtok(NULL, " ");
+	while (tokens_ffs != NULL) {
+	  if (strncmp(tokens_ffs, "FFS_SEED", 8) == 0) {
+	    strcat(tmpline, "%%d "); /*seed goes here */
+	  }
+	  else {
+	    strcat(tmpline, tokens_ffs);
+	    strcat(tmpline, " ");
+	  }
+	  tokens_ffs = strtok(NULL, " ");
+	}
+	sprintf(obj->fix_command, tmpline);
+      }
+	
+    }
+  }
+  return ifail;
+}
+
 
 int lmp_write_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
   
