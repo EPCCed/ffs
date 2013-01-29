@@ -60,22 +60,10 @@ int main(int argc, char ** argv) {
   else {
     if(me == 0)printf("succesfull state write\n");
   }
-  /*close lammps and free the sim*/
-  /* sim_lmp_execute(sim, ffs, SIM_EXECUTE_FINISH);
-   * sim_lmp_free(sim);
-   */
+
+  /* End of first test */
  
-  /*re-create sim and invoke lammps*/
-  /*
-  sim_lmp_create(&sim);
-  ffs_command_line_set(ffs, commandline);
-  if(sim_lmp_execute(sim, ffs, SIM_EXECUTE_INIT) != 0){
-    if(me == 0)printf("error in init\n");
-  }
-  else{
-    if(me == 0)printf("succesfull init\n");
-  }
-  */
+  /* read in what was just written */
   
   if(sim_lmp_state(sim, ffs, SIM_STATE_READ, stub) != 0){
     if(me == 0)printf("error in state read\n");
@@ -84,7 +72,7 @@ int main(int argc, char ** argv) {
     if(me == 0)printf("succesfull state read\n");
   }
   
-  /* now write again to check that its the same state */
+  /* now write again to separate file to inspect that its the same state */
   sprintf(filename,"%s.%d",stub,2);
   if(sim_lmp_state(sim, ffs, SIM_STATE_WRITE, filename) != 0){
     if(me == 0)printf("error in state write\n");
@@ -92,16 +80,11 @@ int main(int argc, char ** argv) {
   else {
     if(me == 0)printf("succesfull state write\n");
   }
-  
+
   /*try running lammps*/
   int masterseed = 82738;
   srand(masterseed);
   int seed;
-  /*
-   * seed = rand()%1000000 + 1;
-   *ffs_info_int(ffs, FFS_INFO_RNG_SEED_PUT, 1, &seed); 
-   *sim_lmp_info(sim, ffs, FFS_INFO_RNG_SEED_FETCH);
-   */
   
   int nrepeat = 10;
   int ifail = 0;
@@ -177,7 +160,7 @@ int main(int argc, char ** argv) {
   
   sim_lmp_execute(sim, ffs, SIM_EXECUTE_FINISH);
   ffs_free(ffs);
-  
+
   /* now try to repeat the run test previously but this time
    * write the state after every iteration and subsequently read it 
    * in to start the next iteration

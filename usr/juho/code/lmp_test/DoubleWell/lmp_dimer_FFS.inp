@@ -1,0 +1,30 @@
+ffs
+{
+	ffs_instances	1
+	ffs_seed	53
+
+	ffs_inst
+	{
+		method			branched
+		sim_name		lmp
+		sim_nsim_inst		1
+		sim_argv		-sc none -in dimer.FFS.in
+
+ 		init_independent	 yes
+		init_teq  0.001
+		init_nskip  1
+		init_nstepmax  100000
+		init_nsteplambda 1
+		init_prob_accept        1.0
+
+	}
+	
+	interfaces
+	{
+		nlambda 3
+		lambda_a -1.55
+		lambda_b -1.15
+	 	ntrial_default          2
+		nstate_default          10
+	}
+}

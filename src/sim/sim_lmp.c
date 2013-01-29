@@ -26,7 +26,6 @@ struct sim_lmp_s {
 };
 
 static int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs);
-static int lmp_parse_action(sim_lmp_t * obj, const char * line);
 static int lmp_find_inputfile(int *narg, char **arg, char * infile);
 static int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs);
 static int lmp_parse_input_line(sim_lmp_t * obj, char * ffs_line, char * lmp_line);
@@ -51,6 +50,11 @@ const interface_t sim_lmp_interface = {
   (interface_lambda_ft)  &sim_lmp_lambda,
   (interface_info_ft)    &sim_lmp_info
 };
+
+/* The Marsaglia generator in LAMMPS has a maximum allowed seed
+ * which is LAMMPS_MAX_SEED, so we better not exceed it. */
+
+#define LAMMPS_MAX_SEED 900000000
 
 /*****************************************************************************
  *
@@ -251,6 +255,9 @@ int sim_lmp_info (sim_lmp_t * obj, ffs_t * ffs, ffs_info_enum_t param) {
     break;
   case FFS_INFO_RNG_SEED_FETCH:
     ifail += ffs_info_int(ffs, param, 1, &seed);
+    if (seed > LAMMPS_MAX_SEED)seed = seed % LAMMPS_MAX_SEED;
+    if (seed == 0) seed = 1;
+    
     obj->seed = seed;
     ifail += lmp_unfix(obj);
     sprintf(command, obj->fix_command, obj->seed);
@@ -321,40 +328,6 @@ int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs){
     }
   }
   
-  return ifail;
-}
-  
-int lmp_parse_action(sim_lmp_t * obj, const char * line){
-
-  int ifail = 0;
-  char a[BUFSIZ],b[BUFSIZ];
-  char *c = NULL;
-
-  if(strncmp(line, "#$read_restart", 14) == 0) {
-    sscanf(line, "%s %s",a,b);
-    sprintf(obj->restart_file, "%s", b);
-  }
-  else if(strncmp(line, "#$fix", 5) == 0){
-    c = strstr(line, "fix");
-    if (c == NULL){
-      printf("error parsing string: %s\n",line);
-      return 1;
-    }
-    strcpy(obj->fix_command, c);
-  }
-  else if(strncmp(line, "#$run", 5) == 0){
-    c = strstr(line, "run");
-    if (c == NULL){
-      printf("error parsing string: %s\n",line);
-      return 1;
-    }
-    strcpy(obj->run_command, c);
-  }
-  else {
-    /* this case not known/implemented
-     * treated as comment so do nothing
-     */
-  }
   return ifail;
 }
 
@@ -467,7 +440,7 @@ int lmp_parse_input_line(sim_lmp_t * obj, char * ffs_line, char * lmp_line){
     printf("restart: %s\n",obj->restart_file);
   }
   else if((strncmp(ffs_line, "#$FFS_RUN", 9) == 0)) {
-    sprintf(obj->run_command,lmp_line);
+    sprintf(obj->run_command, lmp_line);
     printf("run: %s\n",lmp_line);
   }
   else if((strncmp(ffs_line, "#$FFS_FIX", 9) == 0)) {
