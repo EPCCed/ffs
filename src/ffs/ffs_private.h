@@ -58,6 +58,20 @@ void ffs_free(ffs_t * obj);
 int ffs_command_line_set(ffs_t * obj, const char * argstring);
 
 /**
+ *  \brief Reset the command line arguments
+ *
+ *  \param obj          the ffs_t object
+ *  \param argstring    a string containing the new command line
+ *
+ *  \retval 0           a success
+ *  \retval -1          a NULL pointer was provided, or the new
+ *                      command line could not be created
+ *
+ */
+
+int ffs_command_line_reset(ffs_t * obj, const char * argstring);
+
+/**
  *  \brief Examine type information
  */
 

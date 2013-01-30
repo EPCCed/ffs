@@ -88,6 +88,43 @@ int ut_ffs_command_line(u_test_case_t * tc) {
 
 /*****************************************************************************
  *
+ *  ut_ffs_command_build
+ *
+ *****************************************************************************/
+
+int ut_ffs_command_build(u_test_case_t * tc) {
+
+
+  ffs_t * ffs = NULL;
+  char argstring[BUFSIZ];
+  int argc;
+  char ** argv = NULL;
+
+  u_dbg("Start");
+  u_test_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
+
+  strcat(argstring, "help");
+  strcat(argstring, " ");
+  strcat(argstring, "to debug ");
+  strcat(argstring, "Juho's ");
+  strcat(argstring, "problem");
+
+  u_test_err_if(ffs_command_line_set(ffs, argstring));
+
+  ffs_free(ffs);
+
+  u_dbg("Success\n");
+  return U_TEST_SUCCESS;
+
+ err:
+  if (ffs) ffs_free(ffs);
+
+  u_dbg("Failure\n");
+  return U_TEST_FAILURE;
+}
+
+/*****************************************************************************
+ *
  *  ffs_exch
  *
  *****************************************************************************/

@@ -42,6 +42,11 @@ int uts_sim_register(u_test_t * t) {
 
 #ifdef HAVE_LAMMPS
   u_test_case_register(UT_SIM_LMP_NAME, ut_sim_lmp, ts);
+  u_test_case_register(UT_SIM_LMP_INIT_NAME, ut_sim_lmp_init, ts);
+  u_test_case_register(UT_SIM_LMP_IO_NAME, ut_sim_lmp_io, ts);
+
+  u_test_case_depends_on(UT_SIM_LMP_INIT_NAME, UT_SIM_LMP_NAME, ts);
+  u_test_case_depends_on(UT_SIM_LMP_IO_NAME, UT_SIM_LMP_INIT_NAME, ts);
 #endif
 
   return u_test_suite_add(ts, t);

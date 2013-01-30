@@ -33,6 +33,8 @@ struct ffs_s {
   int seed;
 };
 
+static int ffs_free_command_line(ffs_t * ffs);
+
 /*****************************************************************************
  *
  *  ffs_create
@@ -79,15 +81,9 @@ int ffs_create(MPI_Comm comm, ffs_t ** pobj) {
 
 void ffs_free(ffs_t * obj) {
 
-  int n;
-
   dbg_return_if(obj == NULL, );
 
-  for (n = 0; n < obj->argc; n++) {
-    u_free(obj->argv[n]);
-  }
-
-  u_free(obj->argv);
+  if (obj->argv) ffs_free_command_line(obj);
   u_free(obj);
 
   return;
@@ -113,16 +109,28 @@ int ffs_comm(ffs_t * obj, MPI_Comm * comm) {
  *
  *  ffs_command_line
  *
+ *  REPLACE WITH SEPARATE ROUTINES for argc, argv. USER needs to
+ *  allocate argv.
+ *
  *****************************************************************************/
 
 int ffs_command_line(ffs_t * obj, int * argc, char *** argv) {
+
+  char ** tmp;
+  int n;
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(argc == NULL, -1);
   dbg_return_if(argv == NULL, -1);
 
   *argc = obj->argc;
-  *argv = obj->argv;
+
+  tmp = u_calloc(obj->argc + 1, sizeof(char *));
+  for (n = 0; n < obj->argc; n++) {
+    tmp[n] = obj->argv[n];
+  }
+
+  *argv = tmp;
 
   return 0;
 }
@@ -146,6 +154,7 @@ int ffs_command_line_set(ffs_t * obj, const char * argstring) {
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(argstring == NULL, -1);
+  dbg_return_ifm(obj->argc != 0, -1, "Use ffs_command_line_reset()\n");
 
   /* Use u_strtok() to parse the argstring */
 
@@ -170,6 +179,31 @@ int ffs_command_line_set(ffs_t * obj, const char * argstring) {
 
  err:
   u_strtok_cleanup(argv, argc);
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_command_line_reset
+ *
+ *  Dispose of previous command line arguments (if present) and set
+ *  new ones. The caller should avoid having references to
+ *  the previous set hanging around.
+ *
+ *****************************************************************************/
+
+int ffs_command_line_reset(ffs_t * obj, const char * argstring) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(argstring == NULL, -1);
+
+  if (obj->argv) err_err_if(ffs_free_command_line(obj));
+  err_err_if(ffs_command_line_set(obj, argstring));
+
+  return 0;
+
+ err:
 
   return -1;
 }
@@ -369,3 +403,25 @@ int ffs_time(ffs_t * obj, double * t) {
   return 0;
 }
 
+/*****************************************************************************
+ *
+ *  ffs_free_command_line
+ *
+ *****************************************************************************/
+
+static int ffs_free_command_line(ffs_t * obj) {
+
+  int n;
+
+  dbg_return_if(obj == NULL, 0);
+  dbg_return_if(obj->argv == NULL, 0);
+
+  for (n = 0; n < obj->argc; n++) {
+    u_free(obj->argv[n]);
+  }
+
+  u_free(obj->argv);
+  obj->argc = 0;
+
+  return 0;
+}
