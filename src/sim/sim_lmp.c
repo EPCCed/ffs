@@ -189,6 +189,8 @@ int sim_lmp_state(sim_lmp_t * obj, ffs_t * ffs, sim_state_enum_t action,
     ifail += sim_lmp_execute(obj, ffs, SIM_EXECUTE_FINISH);
     ifail += ffs_comm(ffs, &comm);
     ifail += ffs_command_line(ffs, &argc, &argv);
+    ifail += lmp_find_inputfile(&argc, argv, obj->input_file);
+    
     lammps_open(argc, argv, comm, &obj->lmp);
     ifail += lmp_read_restart(obj, ffs, stub);
     ifail += lmp_execute_input(obj, ffs);
