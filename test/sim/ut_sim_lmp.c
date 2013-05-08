@@ -116,10 +116,10 @@ int ut_sim_lmp_io(u_test_case_t * tc) {
   dbg_err_if(sim_lmp_execute(lammps, ffs, SIM_EXECUTE_INIT));
 
   dbg_err_if(sim_lmp_state(lammps, ffs, SIM_STATE_INIT, stub));
+
   dbg_err_if(sim_lmp_state(lammps, ffs, SIM_STATE_WRITE, stub));
   dbg_err_if(sim_lmp_state(lammps, ffs, SIM_STATE_READ, stub));
 
-  /* Barrier? */
   dbg_err_if(sim_lmp_state(lammps, ffs, SIM_STATE_DELETE, stub));
 
   dbg_err_if(sim_lmp_execute(lammps, ffs, SIM_EXECUTE_FINISH));

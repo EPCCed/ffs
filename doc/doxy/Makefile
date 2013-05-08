@@ -7,12 +7,14 @@ ifdef HAVE_DOXYGEN
 all:
 	(cat ffs.doxy; echo "PROJECT_NUMBER=v$(FFS_VERSION)") \
 	| $(PATH_DOXYGEN) -
-
 install: all
 	echo "install docs command!"
 
 uninstall:
 	rm -rf html latex
+
+all-hook-post:
+	cp ../../README html/README
 
 else
 

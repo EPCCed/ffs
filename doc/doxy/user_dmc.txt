@@ -1,0 +1,265 @@
+
+/**
+ * \page dmc Example: Gillespie Algorithm
+
+\tableofcontents
+
+\section dmc_background Background
+
+The Gillespie algorithm is a well-established method for "dynamic
+Monte Carlo" simulation and is particularly well suited to chemical
+reactions. It is "dynamic" in the sense that it introduces a time
+variable and moves forward in time by comparing the rate constants
+of the relevant reactions against random numbers (some people refer
+to this as "kinetic Monte Carlo"). The random element means that
+it is suitable for FFS. [D.T. Gillespie, J. Comp Phys. 17 10 (1975)]
+
+The example we will use here is the one of a simple genetic switch.
+
+
+See Allen et al, Phys. Rev. Lett. 94 018104 (2005) and references
+therein for details. 
+
+----------------------------------------------------------------------------
+
+\section dmc_preparation Preparation
+
+The FFS package provides an implementation of the Gillespie algorithm
+as standard. This is included by default when the library is built.
+The simulation itself is always run in serial.
+
+The simulation requires two input files: one to specify the components,
+and one to specify the reactions between the various components and
+their various rate constants.
+
+The components for the genetic switch problem are given in the
+file `test/inputs/dmc_switch1_comp.dat`. This should read
+\code
+8
+0               A
+25              B
+0               An
+0               Bm
+1               O
+0               OAn
+0               OBm
+0               OAnBm
+0.0             time
+\endcode
+stating that there are eight different species (`A`, `B`, etc),
+with 25 molecules of `B` and 1 molecule of `O` present only.
+This file represents the state of the system
+(here the initial state at time  `t = 0.0`).
+
+The reactions are specified in the file `test/inputs/dmc_switch1_react.dat`.
+The first few lines read
+\code
+18                              Number_of_reaction_channels
+5.000000        2       1       RateConstant_k_Nreactants_Nproducts
+X 0 + X 0 -> 1 X 2
+\endcode
+This describes a total of 18 reactions, each of which is set
+out in two consecutive lines. For each reaction, the first
+line gives the rate constant (per time), the number of reactants,
+and the number of products. The second line species the reaction
+in a simple notation using an index between 0 and 7 which
+corresponds to the order of the species in the component file.
+In the line shown above `X 0 + X 0 -> 1 X 2` should be interpreted
+as `A + A -> 1 An`, that is, the combination of two `A` monomers into
+a single `An` dimer.
+
+Copy these two files into the same directory as the FFS executable
+`src/bin`.
+
+In addition, copy the FFS input file `test/inputs/dmc_smoke1.inp`
+to the same location and rename it as, e.g., `dmc_input`.
+
+----------------------------------------------------------------------------
+
+\section dmc_run Setting the FFS input
+
+The input file specifies the parameters required to make a full
+FFS run. The parameters fall to two main sections: the specification
+of the method and how to generate the initial states at the first
+interface, and the details of the interfaces themselves.
+
+The file is structured in sections, which are delimited via `{` and `}`.
+These braces must match, or the file will not be read correctly.
+Otherwise, the file is made up of key value pairs which are read
+to determine the behaviour of the code.
+
+The first section specifies that we will use a single FFS instance
+and the random number seed:
+\code
+        ffs_instances   1
+        ffs_seed        53
+\endcode
+
+The instance section `ffs_inst` specifies that the method is `branched`,
+which we will keep, and that the simulation name is `dmc` for dynamic
+Monte Carlo, which we will also keep. The key `sim_nsim_inst` determines
+the number of parallel copies of the simulation to be run (here 1).
+The `sim_argv` specifies the command line argument to be passed to the
+simulation. As we have changed the location of the data files, edit
+this line to read
+\code
+       sim_argv             dmc_switch1_comp.dat dmc_switch1_react.dat
+\endcode
+
+The other parameters in the `ffs_inst` section determine how the
+initial states are generated, and the maximum duration of a single
+simulation trial.
+
+The interfaces are specified in the following section. There are
+a total of 13 interface, unevenly spaced. These correspond to
+values of the order parameter as CURRENTLY HARDWIRED.
+
+----------------------------------------------------------------------------
+
+\section dmc_run Running in serial
+
+If you have built the serial version of the library, you can
+run the FFS executable as
+\code
+$ ./run dmc_input
+\endcode
+
+If you have build the parallel version, you will need to use
+the appropriate launch command for 1 MPI task, e.g.,
+\code
+$ mpirun -np 1 ./run dmc_input
+\endcode
+
+This will produce two output files: `run.log` and `run.log-inst-0000.log`.
+The first contains general information, and the second contains information
+and results specific to (in this case) the single instance `0000`. (We will
+see below the use of more than one instance in parallel.)
+
+The `run.log-inst-000.0log` should contain details of the input parameters,
+and the results:
+\code
+Starting 16 trials each on 1 tasks
+Closing down the simulation proxy
+
+Instance results
+  1 -2.4000e+01  1.0000e+00
+  2 -2.2000e+01  2.9167e-01
+  3 -2.0000e+01  9.0278e-02
+  4 -1.8000e+01  5.0926e-02
+  5 -1.5000e+01  2.1605e-02
+  6 -1.2000e+01  1.3117e-02
+  7 -9.0000e+00  8.7449e-03
+  8 -5.0000e+00  6.1443e-03
+  9  0.0000e+00  3.8723e-03
+ 10  7.0000e+00  2.2862e-03
+ 11  1.5000e+01  2.0433e-03
+ 12  2.0000e+01  1.9862e-03
+ 13  2.5000e+01  1.9862e-03
+Initial Tmax:  result   2.115081e+03
+Initial Tsum:  result   1.031380e+04
+Number of crossings A:  160
+Flux at lambda_A:       1.551319e-02
+Probability P(B|A):     1.986168e-03
+Flux * P(B|A):          3.081181e-05
+\endcode
+
+This shows that 16 trials have been attempted from the first interface.
+The tabulated numbers show the probability that a trial reached a
+given interface (13 interfaces starting at A). The final probability
+is the flux at A multiplied by the conditional probability P(B|A) which
+gives here approximately 3.08e-05.
+
+Clearly, using only 16 trials is likely to give rather poor statistics.
+To increase the number of trials, edit the first interface block in the
+input file:
+\code
+  interface1
+  {
+           lambda -24.0
+           ntrial 3
+           nstate 16
+           pprune 1.0
+  }
+\endcode
+
+and change `nstate` (not `ntrial`) to be, say, 1000. If we run again,
+the code will take somewhat longer to complete (maybe a few
+minutes). Note that the original reuslt files `run.log` and
+`run.log-inst-0000.log` will be overwritten with the new results.
+
+The estimate of the final probability is now:
+\code
+Flux at lambda_A:       1.290527e-02
+Probability P(B|A):     3.001143e-03
+Flux * P(B|A):          3.873057e-05
+\endcode
+
+How accurate is this result? Some estimate can be gained by, for example,
+running a new FFS instance with a different random number seed.
+
+----------------------------------------------------------------------------
+
+\section dmc_run_parallel Single FFS instance in parallel
+
+Suppose we have built the parallel version of the library, and want
+to run a single instance of FFS, but use more than one MPI task.
+For the same set of interfaces as was used above one can set:
+\code
+        ffs_inst
+        {
+                method                  branched
+
+                sim_name                dmc
+                sim_nsim_inst           1
+                sim_argv                dmc_switch1_comp.dat dmc_switch1_react.dat
+
+                init_independent        yes
+                init_teq                1.0
+                init_nskip              1
+                init_nstepmax           10000000
+                init_nsteplambda        1
+                init_prob_accept        0.1
+        }
+\endcode
+
+where we have changed the initialisation method to be decomposition
+independent. This should be run on 1 MPI task. If we increase
+\code
+                sim_nsim_inst           2
+\endcode
+we can run on 2 MPI tasks. This
+will decompose the trials equally between the 2 available tasks,
+where the simulation itself is still serial (for the current implementation
+of the Gillespie algorithm, it must be). Note that the random number generator
+seeds are arranged so that the final result in decomposition independent.
+
+NOTE: It's a bit of a pain at the moment because you have to
+make sure `sim_nsin_inst` is the same as the number of MPI Tasks.
+I'm going to make this easier.
+
+---
+
+\section dmc_parallel_multi Multiple FFS instances in parallel
+
+Multiple independent instances of FFS can be run in a single
+job by specifying the number in the opening section of the
+input. This can be useful to generate statistics.
+\code
+ffs
+{
+        ffs_instances   2
+        ffs_seed        53
+        ...
+}
+\endcode
+This will run two independent instances of FFS initialised with
+different random number seeds based on the single `ffs_seed`.
+
+The total number of MPI tasks must now agree with the product
+of the number of FFS instances and the MPI tasks required per
+instance.
+
+The results are written to the separate log files `run.log-inst-0000.log`
+and `run.log-inst-0001.log`.
+
+*/

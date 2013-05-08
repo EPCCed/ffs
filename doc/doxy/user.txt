@@ -1,7 +1,49 @@
 /**
  * \page user Information for users
+ *
 
-Instructions
-------------
+\tableofcontents
+
+\section user_getting_started Getting Started
+
+If you have a successfully compiled version of the library, the
+best place to start is probably one of the worked examples,
+which provide details of input and output for some simple problems.
+
+There are a number of example simulations available:
+
+- \subpage dmc Simulation of a genetic switch via the Gillespie algorithm
+
+- A simple problem using LAMMPS PENDING
+
+If you want to use a different type of simulation, you should read
+the section on ADDING A SIMULATION TYPE.
+
+The order parameter required for a given FFS computation is almost
+certainly problem-specific. The library cannot, therefore, anticipate
+all possible forms of order parameter for all problems. So, you will
+need to understand how to compute
+the order parameter at run time using the data available within the
+simulation. If you cannot do this, you need to reconsider the problem.
+
+Further, the single-executable model used by the FFS library does not
+allow the order parameter to be computed as a separate process, for
+example, by saving data to file and then re-reading those data into a
+separate program to compute the order parameter. This inevitably
+means some additional code will be required to provide a an order
+parameter. This is not for the faint-hearted.
+
+If you wish to run the simulation itself in parallel, the
+order parameter must be computed in parallel using MPI. Details are
+set out in the following section.
+If you wish to compute the order parameter in serial, you can still
+use multiple independent instances of FFS to gather statistics on the
+serial problem.
+
+\section user_sim_and_lambda Simulation and Order Parameter
+
+\section user_input_file The FFS Input File
+
+\section user_results Results
 
  */

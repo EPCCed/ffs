@@ -63,23 +63,24 @@ int ut_ffs_command_line(u_test_case_t * tc) {
   char ** argv = NULL;
 
   u_dbg("Start");
-  u_test_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
+  dbg_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
+  dbg_err_if(ffs_command_line_set(ffs, argstring));
 
-  u_test_err_if(ffs_command_line_set(ffs, argstring));
-  u_test_err_if(ffs_command_line(ffs, &argc, &argv));
-  u_test_err_if(argc != 3);
+  dbg_err_if(ffs_command_line_create_copy(ffs, &argc, &argv));
+  dbg_err_if(argc != 3);
+  dbg_err_if(strcmp(argv[0], FFS_SIM_EXECUTABLE_NAME) != 0);
+  dbg_err_if(strcmp(argv[1], "-x") != 0);
+  dbg_err_if(strcmp(argv[2], "xarg") != 0);
+  dbg_err_if(argv[argc] != NULL);
 
-  u_test_err_if(strcmp(argv[0], FFS_SIM_EXECUTABLE_NAME) != 0);
-  u_test_err_if(strcmp(argv[1], "-x") != 0);
-  u_test_err_if(strcmp(argv[2], "xarg") != 0);
-  u_test_err_if(argv[argc] != NULL);
-
+  dbg_err_if(ffs_command_line_free_copy(ffs, argc, argv));
   ffs_free(ffs);
 
   u_dbg("Success\n");
   return U_TEST_SUCCESS;
 
  err:
+  if (ffs && argv) ffs_command_line_free_copy(ffs, argc, argv);
   if (ffs) ffs_free(ffs);
 
   u_dbg("Failure\n");
@@ -97,19 +98,14 @@ int ut_ffs_command_build(u_test_case_t * tc) {
 
   ffs_t * ffs = NULL;
   char argstring[BUFSIZ];
-  int argc;
-  char ** argv = NULL;
 
   u_dbg("Start");
-  u_test_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
+  dbg_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
 
-  strcat(argstring, "help");
-  strcat(argstring, " ");
-  strcat(argstring, "to debug ");
-  strcat(argstring, "Juho's ");
-  strcat(argstring, "problem");
+  strcat(argstring, "This test checks that the argstring");
+  strcat(argstring, " can be catenated with strcat()");
 
-  u_test_err_if(ffs_command_line_set(ffs, argstring));
+  dbg_err_if(ffs_command_line_set(ffs, argstring));
 
   ffs_free(ffs);
 
@@ -166,4 +162,36 @@ int ut_ffs_exch_int(u_test_case_t * tc) {
 
   u_dbg("Failure\n");
   return U_TEST_FAILURE;
+}
+
+/*****************************************************************************
+ *
+ *  ut_ffs_lambda_name
+ *
+ *****************************************************************************/
+
+int ut_ffs_lambda_name(u_test_case_t * tc) {
+
+  ffs_t * ffs = NULL;
+  const char * name_orig = "function";
+  char name[BUFSIZ];
+
+  u_dbg("Start");
+  dbg_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
+
+  dbg_err_if(ffs_lambda_name_set(ffs, name_orig));
+  dbg_err_if(ffs_lambda_name(ffs, name, BUFSIZ));
+  dbg_err_if(strcmp(name_orig, name) != 0);
+
+  ffs_free(ffs);
+
+  u_dbg("Success\n");
+  return U_TEST_SUCCESS;
+
+ err:
+  if (ffs) ffs_free(ffs);
+
+  u_dbg("Failure\n");
+  return U_TEST_FAILURE;
+
 }

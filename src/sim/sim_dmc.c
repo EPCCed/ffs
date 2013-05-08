@@ -151,15 +151,19 @@ int sim_dmc_execute(sim_dmc_t * dmc, ffs_t * ffs, sim_execute_enum_t action) {
     ifail += ffs_comm(ffs, &comm);
     MPI_Comm_size(comm, &sz);
     if (sz > 1) {
-      printf("DMC NOT PARALLEL!\n");
-      ifail += 1;
+      printf("The simulation cannot be run in parallel!\n");
+      return -1;
     }
 
-    ifail += ffs_command_line(ffs, &argc, &argv);
+    ifail += ffs_command_line_create_copy(ffs, &argc, &argv);
     ifail += dmc_init(&dyn, argc, argv);
 
     ifail += ffs_type_set(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_DOUBLE);
     ifail += ffs_type_set(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_INT);
+
+    ifail += ffs_command_line_free_copy(ffs, argc, argv);
+    argc = 0;
+    argv = NULL;
 
     break;
 

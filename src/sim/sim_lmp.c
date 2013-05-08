@@ -22,11 +22,12 @@ struct sim_lmp_s {
   char run_command[BUFSIZ];
   int seed;
   double time;
+  int argc;
+  char ** argv;
   /* and anything else relating to lammps */
 };
 
 static int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs);
-static int lmp_find_inputfile(int *narg, char **arg, char * infile);
 static int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs);
 static int lmp_parse_input_line(sim_lmp_t * obj, char * ffs_line, char * lmp_line);
 static int lmp_write_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub);
@@ -34,6 +35,7 @@ static int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub);
 static int lmp_execute(sim_lmp_t * obj);
 static int lmp_unfix(sim_lmp_t * obj);
 static int lmp_state_delete(sim_lmp_t * obj, ffs_t * ffs, const char * stub);
+static int lmp_arrange_input_argv(sim_lmp_t * obj);
 
 /*dimer problem specific*/
 static int dimer_evaluate_lambda(sim_lmp_t * obj, ffs_t * ffs, double * lambda);
@@ -113,8 +115,6 @@ int sim_lmp_execute(sim_lmp_t * obj, ffs_t * ffs,
 		     sim_execute_enum_t action) {
 
   int ifail = 0;
-  int argc = 0;
-  char ** argv = NULL;
   double time;
   MPI_Comm comm = MPI_COMM_NULL;
   
@@ -122,17 +122,15 @@ int sim_lmp_execute(sim_lmp_t * obj, ffs_t * ffs,
   case SIM_EXECUTE_INIT:
     /* execute initialisation phase */
     ffs_comm(ffs, &comm);
-    ffs_command_line(ffs, &argc, &argv);
-   
-    if(lmp_find_inputfile(&argc, argv, obj->input_file) != 0){
-      ifail = 1;
-    }
+
+    ifail += ffs_command_line_create_copy(ffs, &obj->argc, &obj->argv);
+    ifail += lmp_arrange_input_argv(obj);
+
+    lammps_open(obj->argc - 2, obj->argv, comm, &obj->lmp);
+    ifail += (obj->lmp == NULL);
     
-    lammps_open(argc, argv, comm, &obj->lmp);
-    if (obj->lmp == NULL) ifail += 1;
-    
-     ifail += ffs_type_set(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_DOUBLE);
-     ifail += ffs_type_set(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_DOUBLE);
+    ifail += ffs_type_set(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_DOUBLE);
+    ifail += ffs_type_set(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_DOUBLE);
      
     break;
 
@@ -170,8 +168,6 @@ int sim_lmp_state(sim_lmp_t * obj, ffs_t * ffs, sim_state_enum_t action,
 		   const char * stub) {
 
   int ifail = 0;
-  int argc = 0;
-  char ** argv = NULL;
   MPI_Comm comm = MPI_COMM_NULL;
   
   switch (action) {
@@ -188,10 +184,11 @@ int sim_lmp_state(sim_lmp_t * obj, ffs_t * ffs, sim_state_enum_t action,
     /* create a file name from the stub, and read the data */
     ifail += sim_lmp_execute(obj, ffs, SIM_EXECUTE_FINISH);
     ifail += ffs_comm(ffs, &comm);
-    ifail += ffs_command_line(ffs, &argc, &argv);
-    ifail += lmp_find_inputfile(&argc, argv, obj->input_file);
-    
-    lammps_open(argc, argv, comm, &obj->lmp);
+
+    /* Open LAMMPS (again) without the input file arguments */
+    lammps_open(obj->argc - 2, obj->argv, comm, &obj->lmp);
+    ifail += (obj->lmp == NULL);
+
     ifail += lmp_read_restart(obj, ffs, stub);
     ifail += lmp_execute_input(obj, ffs);
         
@@ -326,7 +323,7 @@ int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs){
     
     if(strncmp(line, "#$FFS", 5) == 0){
       ffs_command_found = 1;
-      sprintf(ffs_line, line);
+      sprintf(ffs_line, "%s", line);
     }
   }
   
@@ -335,41 +332,59 @@ int lmp_parse_input(sim_lmp_t * obj, ffs_t * ffs){
 
 /*****************************************************************************
  *
- *  lmp_find_inputfile
+ *  lmp_arrange_input_argv
  *
- *  Scan arg for "-in filename" or "-i filename" and if found,
- *  remove it. The filename is stored in the local lmp object.
+ *  Swap the input file arguments -in or -i to the last two positions,
+ *  so we can pass (argc - 2) arguments --- excluding the input
+ *  file argument pair --- into lammps.
+ *
+ *  The total number of argc must be odd. Note we don't actually
+ *  change the value of argc anywhere.
  *
  *****************************************************************************/
+ 
+static int lmp_arrange_input_argv(sim_lmp_t * obj) {
 
-int lmp_find_inputfile(int *narg, char **arg, char * infile){
-   
-  int iarg = 0;
-  int ifilefound=0;
   int ifail = 0;
-  
-  for (iarg = 0; iarg < *narg; iarg++) { /*ignore the executable name*/
-    if (strcmp(arg[iarg],"-i") == 0 || strcmp(arg[iarg],"-in") == 0) {
-      strcpy(infile,arg[iarg + 1]);
-      ifilefound = 1;
-    }
-    if (ifilefound == 1 && iarg < *narg - 2){
-      arg[iarg] = arg[iarg + 2];
+  int arg_input = -1;
+  int n;
+  char * tmp;
+
+  if (obj->argc % 2 == 0) {
+    printf("Number of LAMMPS command line arguments looks wrong\n");
+    return -1;
+  }
+
+  /* Look for the input flag (which should not be last) */
+
+  for (n = 0; n < obj->argc - 1; n++) {
+    if (strcmp(obj->argv[n], "-i") == 0 || strcmp(obj->argv[n], "-in") == 0) {
+      arg_input = n;
     }
   }
-  
-  if (ifilefound == 1){
-    *narg = *narg - 2;
+
+  /* If this looks ok, swap the "-in whatever" to the last two positions */
+
+  if (obj->argc < 3 || arg_input == -1) {
+    printf("Error no input file provided\n");
+    ifail = -1;
   }
   else {
-    /*no input file */
-    printf("error no input file provided\n");
-    ifail = 1;
+    tmp = obj->argv[arg_input];
+    obj->argv[arg_input] = obj->argv[obj->argc - 2];
+    obj->argv[obj->argc - 2] = tmp;
+    tmp = obj->argv[arg_input + 1];
+    obj->argv[arg_input + 1] = obj->argv[obj->argc - 1];
+    obj->argv[obj->argc - 1] = tmp;
+
+    /* Finally, record the input file name, which should now be last. */
+    strcpy(obj->input_file, obj->argv[obj->argc - 1]);
   }
 
   return ifail;
 }
- 
+
+
 int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs) {
   
   int me, n;
@@ -417,7 +432,6 @@ int lmp_execute_input(sim_lmp_t * obj, ffs_t * ffs) {
     }
     else {
       if(ffs_command_found == 0)strcpy(command, line);
-      /* printf("command: %s %d\n",command, obj->seed);*/
       lammps_command(obj->lmp, command);
       ffs_command_found = 0;
     }
@@ -438,12 +452,10 @@ int lmp_parse_input_line(sim_lmp_t * obj, char * ffs_line, char * lmp_line){
   
   if((strncmp(ffs_line, "#$FFS_READ_RESTART", 18) == 0)) {
     sscanf(lmp_line, "%s %s",a,b);
-    sprintf(obj->restart_file, b);
-    printf("restart: %s\n",obj->restart_file);
+    sprintf(obj->restart_file, "%s", b);
   }
   else if((strncmp(ffs_line, "#$FFS_RUN", 9) == 0)) {
-    sprintf(obj->run_command, lmp_line);
-    printf("run: %s\n",lmp_line);
+    sprintf(obj->run_command, "%s", lmp_line);
   }
   else if((strncmp(ffs_line, "#$FFS_FIX", 9) == 0)) {
     
@@ -462,7 +474,6 @@ int lmp_parse_input_line(sim_lmp_t * obj, char * ffs_line, char * lmp_line){
       while(tokens_lmp != NULL) {
 	number_tok_lmp += 1;
 	
-	/*printf("line: %s\n",tmpline);*/
 	if(number_tok_lmp == 1){
 	  strcpy(tmpline,tokens_lmp);
 	  strcat(tmpline, " ");
@@ -477,8 +488,9 @@ int lmp_parse_input_line(sim_lmp_t * obj, char * ffs_line, char * lmp_line){
 	}
 	tokens_lmp = strtok(NULL, " ");
       }
-      sprintf(obj->fix_command, tmpline);
-      /*printf("fix command: %s\n",obj->fix_command);*/
+
+      /* Careful with the %% ... put tmpfile as the fmt */
+      sprintf(obj->fix_command, tmpline, "");
     }
     else { 
       /* we dont recognise this case
@@ -505,7 +517,8 @@ int lmp_parse_input_line(sim_lmp_t * obj, char * ffs_line, char * lmp_line){
 	  }
 	  tokens_ffs = strtok(NULL, " ");
 	}
-	sprintf(obj->fix_command, tmpline);
+
+	sprintf(obj->fix_command, "%s", tmpline);
       }
 	
     }
@@ -825,6 +838,6 @@ int calculate_pair_separation(double * coord , double * BoxLength, double * sepa
   }
 
   *separation = sqrt(rsq);
-  /*printf("separation %lf\n",sqrt(rsq));*/
+
   return 0;
 }

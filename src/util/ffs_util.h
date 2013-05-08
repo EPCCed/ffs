@@ -104,6 +104,16 @@ int util_mpi_any(int expr, MPI_Comm comm);
   do { msg_ifb(err_, util_mpi_any((expr), comm)) {goto mpi_sync;} } while (0)
 
 /**
+ *  \brief Jump to label err: if any expr in comm is non-zero
+ *
+ *  Ultimately calls MPI_Allreduce() in comm to agree on synchronisation,
+ *  so use with discretion.
+ */
+
+#define mpi_err_if_any(expr, comm) \
+  do { msg_ifb(err_, util_mpi_any((expr), comm)) {goto err;} } while (0)
+
+/**
  *  \brief Return a double value associated with a configuration subkey
  *
  *  \param  c         the configuration object

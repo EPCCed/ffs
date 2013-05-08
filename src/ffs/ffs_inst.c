@@ -493,7 +493,13 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   MPI_Comm_size(obj->comm, &sz);
   MPI_Comm_rank(obj->comm, &rank);
   perproxy = sz / obj->sim_nsim_inst;
-  err_err_if(perproxy == 0); /* SHOULD HAVE BEEN CHECKED ! */
+
+  if (perproxy < 1) {
+    /* Can we catch this sooner? */
+    mpilog(obj->log, "Number of instances > number of MPI tasks\n");
+    err_err_ifm(perproxy == 0, "Incorrect number of tasks?");
+  }
+
   proxy_id = rank / perproxy;
 
   mpilog(obj->log, "\n");

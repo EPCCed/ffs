@@ -45,6 +45,19 @@ int ffs_create(MPI_Comm comm, ffs_t ** pobj);
 void ffs_free(ffs_t * obj);
 
 /**
+ *  ffs_lambda_name_set
+ *
+ *  \param  obj      the ffs_t object
+ *  \param  name     the name to identify lambda function in simulation
+ *
+ *  \retval 0        a success
+ *  \retval -1       a NULL pointer was received or failed to allocate
+ *                   new string correctly
+ */
+
+int ffs_lambda_name_set(ffs_t * obj, const char * name);
+
+/**
  *  \brief Set the simulation command line
  *
  *  \param obj          the ffs_t data type
