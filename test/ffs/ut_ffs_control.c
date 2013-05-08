@@ -24,7 +24,7 @@ int ut_control(u_test_case_t * tc) {
   u_dbg("Start");
 
   u_test_err_if(ffs_control_create(MPI_COMM_WORLD, &ffs));
-  u_test_err_if(ffs_control_start(ffs, "logs/ut_control.log", "w+"));
+  u_test_err_if(ffs_control_start(ffs, "unit-test"));
 
   u_dbg("Bad inputs");
   u_test_err_if(ffs_control_execute(ffs, "non_existant_file.inp") == 0);

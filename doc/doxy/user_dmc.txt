@@ -130,12 +130,13 @@ the appropriate launch command for 1 MPI task, e.g.,
 $ mpirun -np 1 ./run dmc_input
 \endcode
 
-This will produce two output files: `run.log` and `run.log-inst-0000.log`.
-The first contains general information, and the second contains information
-and results specific to (in this case) the single instance `0000`. (We will
+Some information will appear on the standard output (Particularly if
+there is a basic error.)
+The run will produce a separate output file `run-inst-0000.log`. This contains
+results specific to (in this case) the single instance `0000`. (We will
 see below the use of more than one instance in parallel.)
 
-The `run.log-inst-000.0log` should contain details of the input parameters,
+The `run-inst-0000.log` should contain details of the input parameters,
 and the results:
 \code
 Starting 16 trials each on 1 tasks
@@ -184,8 +185,8 @@ input file:
 
 and change `nstate` (not `ntrial`) to be, say, 1000. If we run again,
 the code will take somewhat longer to complete (maybe a few
-minutes). Note that the original reuslt files `run.log` and
-`run.log-inst-0000.log` will be overwritten with the new results.
+minutes). Note that the original result file
+`run-inst-0000.log` will be overwritten with the new results.
 
 The estimate of the final probability is now:
 \code
@@ -259,7 +260,7 @@ The total number of MPI tasks must now agree with the product
 of the number of FFS instances and the MPI tasks required per
 instance.
 
-The results are written to the separate log files `run.log-inst-0000.log`
-and `run.log-inst-0001.log`.
+The results are written to the separate log files `run-inst-0000.log`
+and `run-inst-0001.log`.
 
 */

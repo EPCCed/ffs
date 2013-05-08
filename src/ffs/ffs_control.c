@@ -30,8 +30,8 @@ struct ffs_control_type {
   MPI_Comm comm;               /* Control communicator */
   u_config_t * input;          /* config to be read from input */
   ffs_inst_t * instance;       /* The FFS instance */
-  u_string_t * logname;        /* Log file name */
-  mpilog_t * log;              /* Control log. */
+  u_string_t * name;           /* Run name string */
+  mpilog_t * log;              /* Control log (stdout). */
   int seed;                    /* Overall RNG seed */
 };
 
@@ -49,7 +49,7 @@ static int ffs_input_parse(ffs_control_t * obj);
 int ffs_control_create(MPI_Comm parent, ffs_control_t ** pobj) {
 
   ffs_control_t * obj = NULL;
-  int mpi_errnol = 0, mpi_errno = 0;
+  int mpi_errnol = 0;
   MPI_Comm newcomm = MPI_COMM_NULL;
 
   dbg_return_if(pobj == NULL, -1);
@@ -57,19 +57,15 @@ int ffs_control_create(MPI_Comm parent, ffs_control_t ** pobj) {
   MPI_Comm_dup(parent, &newcomm);
 
   mpi_errnol = ((obj = u_calloc(1, sizeof(ffs_control_t))) == NULL);
-  mpi_sync_sif(mpi_errnol);
+  mpi_err_if_any(mpi_errnol, parent);
 
   obj->parent = parent;
   obj->comm = newcomm;
 
   mpi_errnol = mpilog_create(obj->comm, &obj->log);
-  mpi_sync_if(mpi_errnol);
+  mpi_err_if_any(mpi_errnol, parent);
 
   *pobj = obj;
-
- mpi_sync:
-  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, parent);
-  nop_err_if(mpi_errno);
 
   return 0;
 
@@ -90,7 +86,7 @@ void ffs_control_free(ffs_control_t * obj) {
 
   dbg_return_if(obj == NULL, );
 
-  if (obj->logname) u_string_free(obj->logname);
+  if (obj->name) u_string_free(obj->name);
   if (obj->log) mpilog_free(obj->log);
   if (obj->instance) ffs_inst_free(obj->instance);
   if (obj->input) u_config_free(obj->input);
@@ -107,34 +103,28 @@ void ffs_control_free(ffs_control_t * obj) {
  *
  *****************************************************************************/
 
-int ffs_control_start(ffs_control_t * obj, const char * filename,
-		      const char * mode) {
+int ffs_control_start(ffs_control_t * obj, const char * name) {
+
   int sz;
-  int mpi_errno = 0, mpi_errnol = 0;
+  int mpi_errnol = 0;
 
   dbg_return_if(obj == NULL, -1);
-  dbg_return_if(filename == NULL, -1);
-  dbg_return_if(mode == NULL, -1);
-  dbg_return_if(obj->log == NULL, -1);
+  dbg_return_if(name == NULL, -1);
 
   MPI_Comm_size(obj->comm, &sz);
 
-  err_err_if(mpilog_fopen(obj->log, filename, mode));
   mpilog(obj->log, "\n");
-  mpilog(obj->log, "Welcome to FFS (%d MPI task%s)\n", sz,
-	 (sz > 1) ? "s" : "");
-  mpilog(obj->log, "Started FFS control log file: %s\n", filename);
+  mpilog(obj->log, "Starting FFS (%d MPI task%s)\n", sz, (sz > 1) ? "s" : "");
 
-  /* Remember the name, so we can construct a similar instance log name */
-  mpi_errnol = u_string_create(filename, strlen(filename), &obj->logname);
+  /* Remember the name */
 
-  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, obj->comm);
-  nop_err_if(mpi_errno);
+  mpi_errnol = u_string_create(name, strlen(name), &obj->name);
+  mpi_err_if_any(mpi_errnol, obj->comm);
 
   return 0;
 
  err:
-  mpilog(obj->log, "Problem openning requested log file: %s\n", filename);
+  mpilog(obj->log, "u_string_create() failed in ffs_control_start()\n");
 
   return -1;
 }
@@ -148,11 +138,9 @@ int ffs_control_start(ffs_control_t * obj, const char * filename,
 int ffs_control_stop(ffs_control_t * obj) {
 
   dbg_return_if(obj == NULL, -1);
-  dbg_return_if(obj->log == NULL, -1);
 
   mpilog(obj->log, "\n");
-  mpilog(obj->log, "Closing log file. Finished.\n");
-  mpilog_fclose(obj->log);
+  mpilog(obj->log, "Closing FFS. Finished.\n");
 
   return 0;
 }
@@ -227,9 +215,13 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
   err_err_if(ffs_inst_seed_set(obj->instance, seed));
 
   err_err_ifm(obj->ninstances > 9999, "Format botch (internal error)");
-  err_err_if(u_string_aprintf(obj->logname, "-inst-%4.4d.log", obj->inst_id));
 
-  err_err_if(ffs_inst_start(obj->instance, u_string_c(obj->logname), "w+"));
+  if (obj->name == NULL) {
+    err_err_if(u_string_create("default", strlen("default"), &obj->name));
+  }
+  err_err_if(u_string_aprintf(obj->name, "-inst-%4.4d.log", obj->inst_id));
+
+  err_err_if(ffs_inst_start(obj->instance, u_string_c(obj->name), "w+"));
   err_err_if(ffs_inst_execute(obj->instance, config));
   err_err_if(ffs_inst_stop(obj->instance));
 
