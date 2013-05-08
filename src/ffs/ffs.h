@@ -20,7 +20,7 @@
  */
 
 /**
- *  \brief An opaque structure
+ *  \brief The opaque forward flux sampling type
  */
 
 typedef struct ffs_s ffs_t;
@@ -61,6 +61,24 @@ typedef enum {
 int ffs_comm(ffs_t * obj, MPI_Comm * comm);
 
 /**
+ *  \brief Obtain the name of the lambda function requested
+ *
+ *  \param  obj      the ffs_t object
+ *  \param  name     a string to be returned
+ *  \param  len      the maximum length of the string
+ *
+ *   \retval 0       a success
+ *   \retval -1      no string could be returned
+ *
+ *   This provides a method to obtain a string containing the name of
+ *   the lambda function as specified in the FFS input. The simulation
+ *   interface can then arrange for the appropriate lambda function to
+ *   be used (assuming more than one is available).
+ */
+
+int ffs_lambda_name(ffs_t * obj, char * name, int len); 
+
+/**
  *  \brief Obtain command line arguments
  *
  *  This returns C-like argc and argv taken from the user input.
@@ -75,6 +93,41 @@ int ffs_comm(ffs_t * obj, MPI_Comm * comm);
  */
 
 int  ffs_command_line(ffs_t * obj, int * argc, char *** argv);
+
+/**
+ *  \brief Create a copy of the command line arguments for the simulation
+ *
+ *  \param  obj    the ffs_t structure
+ *  \param  argc   a pointer to the integer argc to be returned
+ *  \param  argv   a pointer to the command line arugments to be returned
+ *
+ *  \retval 0      a success
+ *  \retval -1     an error occured
+ *
+ *  On succesful exit, argv[argc] will hold a copy of the command line
+ *  arguments as provided to ffs in the input file.
+ *
+ *  The caller is responsible for releaseing the resources associated
+ *  with argv via a call to ffs_command_line_free_copy().
+ */
+
+int ffs_command_line_create_copy(ffs_t * obj, int * argc, char *** argv);
+
+/**
+ *  \brief Release resources allocated to hold a copy of argv
+ *
+ *  \param  obj      the ffs_t structure
+ *  \param  argc     the number of arguments
+ *  \param  argv     the argv allocated by ffs_command_line_create_opy()
+ *
+ *  \retval 0        a succcess
+ *  \retval -1       a failure
+ *
+ *  The routine will check that argc agrees with that returned by
+ *  ffs_command_line_create_copy().
+ */
+
+int ffs_command_line_free_copy(ffs_t * obj, int argc, char ** argv);
 
 /**
  *  \brief Exchange data (double)

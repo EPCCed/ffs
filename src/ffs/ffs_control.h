@@ -35,7 +35,7 @@
  *
  *      ffs_control_create(MPI_COMM_WORLD, &ffs);
  *
- *      ffs_control_start(ffs, "control.log", "w+");
+ *      ffs_control_start(ffs, "name");
  *      ffs_control_execute(ffs, "input.config");
  *      ffs_control_stop(ffs);
  *
@@ -43,8 +43,8 @@
  *      MPI_Finalize();
  *    \endcode
  *
- *    The start of logging is a separate operation as this needs to
- *    be initiated before any attempt to read and parse the input file.
+ *    The start operation is required to set a name for the instance
+ *    log files, or else a default ("default") will be used.
  *    The input file input.config is a configuration file following
  *    the format of the libu config object.
  *
@@ -140,15 +140,13 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename);
  *  \brief Start the log file using fopen-like arguments
  *
  *  \param  obj         the ffs_control_t object
- *  \param  logfile     the log file name
- *  \param  mode        an fopen()-like argument for initial file mode
+ *  \param  name        a name for the run (to be used in log file names)
  *
  *  \retval 0           a success
  *  \retval -1          a failure
  */
 
-int ffs_control_start(ffs_control_t * obj, const char * logfile,
-		      const char * mode);
+int ffs_control_start(ffs_control_t * obj, const char * name);
 
 /**
  *  \brief Stop the log at end of calculation
@@ -158,7 +156,7 @@ int ffs_control_start(ffs_control_t * obj, const char * logfile,
  *  \retval 0       a success
  *  \retval -1      a failure
  *
- *  Must be preceeded by a call to ffs_control_log_start().
+ *  Should be preceeded by a call to ffs_control_start().
  */
 
 int ffs_control_stop(ffs_control_t * obj);
@@ -167,7 +165,6 @@ int ffs_control_stop(ffs_control_t * obj);
  *  \brief Log details of config to log
  *
  *  \param obj         the ffs control object
- *  \param log         an MPI log object
  *
  *  \retval 0          a success
  *  \retval -1         a failure

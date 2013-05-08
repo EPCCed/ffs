@@ -34,7 +34,7 @@ int ffs_branched_run_to_lambda(proxy_t * proxy, double lambda_min,
 			       int nsteplambda, int * status);
 
 int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
-		       int interface, double * wt,
+		       int interface, double * wt, ffs_result_t * result,
 		       int nstepmax, int nsteplambda, int * status);
 int ffs_branched_eq(proxy_t * proxy, ffs_state_t * state, int seed,
 		    int nstepmax, double teq);
@@ -108,6 +108,8 @@ int ffs_branched_run(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
 
     ffs_branched_init(init, param, proxy, sinit, ran, n, itraj,
 		      result, &status);
+
+    /* We reached the first interface; start the trials! */
     wt = 1.0;
     ffs_branched_recursive(1, inst_id, 1, wt, nstepmax, nsteplambda,
 			   param, proxy, ran, result);
@@ -278,6 +280,7 @@ int ffs_branched_recursive(int interface, int inst_id, int id, double wt,
   ffs_param_nlambda(param, &nlambda);
   ffs_param_weight_accum(param, interface, wt);
   ffs_result_weight_accum(result, interface, wt);
+  ffs_result_trial_success_add(result, interface);
 
   /* If we have reached the final state then end the recursion */
 
@@ -303,8 +306,8 @@ int ffs_branched_recursive(int interface, int inst_id, int id, double wt,
 			       nsteplambda, &status);
 
     if (status == FFS_TRIAL_WENT_BACKWARDS || status == FFS_TRIAL_TIMED_OUT) {
-      ffs_branched_prune(param, proxy, ran, interface, &wtnow, nstepmax,
-			 nsteplambda, &status);
+      ffs_branched_prune(param, proxy, ran, interface, &wtnow, result,
+			 nstepmax, nsteplambda, &status);
     }
 
     if (status == FFS_TRIAL_SUCCEEDED) {
@@ -420,7 +423,7 @@ int ffs_branched_run_to_lambda(proxy_t * proxy, double lambda_min,
  *****************************************************************************/
 
 int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
-		       int interface, double * wt,
+		       int interface, double * wt, ffs_result_t * result,
 		       int nstepmax, int nsteplambda, int * status) {
 
   int n;
@@ -432,6 +435,7 @@ int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
   dbg_return_if(proxy == NULL, -1);
   dbg_return_if(ran == NULL, -1);
   dbg_return_if(wt == NULL, -1);
+  dbg_return_if(result == NULL, -1);
   dbg_return_if(status == NULL, -1);
 
   /* If interface <= 2, we get the chop automatically */
@@ -456,6 +460,13 @@ int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
 			       nsteplambda, status);
 
     if (*status == FFS_TRIAL_SUCCEEDED) break;
+  }
+
+  /* We may have exited from the final interation going backwards */
+  if (*status == FFS_TRIAL_WENT_BACKWARDS) *status = FFS_TRIAL_WAS_PRUNED;
+
+  if (*status == FFS_TRIAL_WAS_PRUNED) {
+    ffs_result_prune_add(result, n);
   }
 
   return 0;

@@ -15,7 +15,7 @@ int st_gil_create(u_test_case_t * tc) {
 
   u_dbg("Start\n");
   u_test_err_if(ffs_control_create(MPI_COMM_WORLD, &ffs));
-  u_test_err_if(ffs_control_start(ffs, "logs/smoke_dmc_control.log", "w+"));
+  u_test_err_if(ffs_control_start(ffs, "logs/smoke-test-dmc"));
   u_test_err_if(ffs_control_execute(ffs, "inputs/dmc_smoke1.inp"));
 
   u_test_err_if(ffs_control_stop(ffs));

@@ -31,6 +31,7 @@ struct ffs_s {
   var_t t;
   var_t lambda;
   int seed;
+  char * lambda_name;
 };
 
 static int ffs_free_command_line(ffs_t * ffs);
@@ -84,6 +85,8 @@ void ffs_free(ffs_t * obj) {
   dbg_return_if(obj == NULL, );
 
   if (obj->argv) ffs_free_command_line(obj);
+  if (obj->lambda_name) u_free(obj->lambda_name);
+
   u_free(obj);
 
   return;
@@ -107,6 +110,47 @@ int ffs_comm(ffs_t * obj, MPI_Comm * comm) {
 
 /*****************************************************************************
  *
+ *  ffs_lambda_name_set
+ *
+ *  We assume the allocation in u_strdup() will succeed.
+ *
+ *****************************************************************************/
+
+int ffs_lambda_name_set(ffs_t * obj, const char * name) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(name == NULL, -1);
+
+  if (obj->lambda_name) u_free(obj->lambda_name);
+  obj->lambda_name = u_strdup(name);
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_lamnda_name
+ *
+ *  We assume all ranks have the same arguments, so failure is collective.
+ *
+ *****************************************************************************/
+
+int ffs_lambda_name(ffs_t * obj, char * name, int len) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(name == NULL, -1);
+
+  err_err_if(u_strlcpy(name, obj->lambda_name, len));
+
+  return 0;
+
+ err:
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
  *  ffs_command_line
  *
  *  REPLACE WITH SEPARATE ROUTINES for argc, argv. USER needs to
@@ -116,7 +160,7 @@ int ffs_comm(ffs_t * obj, MPI_Comm * comm) {
 
 int ffs_command_line(ffs_t * obj, int * argc, char *** argv) {
 
-  char ** tmp;
+  char ** tmp = NULL;
   int n;
 
   dbg_return_if(obj == NULL, -1);
@@ -124,13 +168,88 @@ int ffs_command_line(ffs_t * obj, int * argc, char *** argv) {
   dbg_return_if(argv == NULL, -1);
 
   *argc = obj->argc;
-
   tmp = u_calloc(obj->argc + 1, sizeof(char *));
+  mpi_err_if_any((tmp == NULL), obj->comm);
+
   for (n = 0; n < obj->argc; n++) {
     tmp[n] = obj->argv[n];
   }
 
   *argv = tmp;
+
+  return 0;
+
+ err:
+
+  if (tmp) u_free(tmp);
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_command_line_create_copy
+ *
+ *  Allocate space for, and copy the command line arguments.
+ *  The caller is responisble for releasing resources with a
+ *  call to ffs_command_line_free_copy().
+ *
+ *****************************************************************************/
+
+int ffs_command_line_create_copy(ffs_t * obj, int * argc, char *** argv) {
+
+  int n;
+  char ** args = NULL;
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(argc == NULL, -1);
+  dbg_return_if(argv == NULL, -1);
+
+  *argc = obj->argc;
+  args = u_calloc(obj->argc + 1, sizeof(char *));
+  mpi_err_if_any((args == NULL), obj->comm);
+
+  for (n = 0; n < obj->argc; n++) {
+    /* Assume u_strdup() will succeed */
+    args[n] = u_strdup(obj->argv[n]);
+  }
+  args[obj->argc] = NULL; /* As required by C standard. */
+
+  *argv = args;
+
+  return 0;
+
+ err:
+
+  if (args) {
+    for (n = 0; n < obj->argc; n++) {
+      if (args[n]) u_free(args[n]);
+    }
+    u_free(args);
+  }
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_command_line_free_copy
+ *
+ *****************************************************************************/
+
+int ffs_command_line_free_copy(ffs_t * obj, int argc, char ** argv) {
+
+  int n;
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(argv == NULL, -1);
+  err_ifm(argc != obj->argc, "argc has changed since create_copy()\n");
+
+  if (argv) {
+    for (n = 0; n < argc; n++) {
+      if (argv[n]) u_free(argv[n]);
+    }
+    u_free(argv);
+  }
 
   return 0;
 }

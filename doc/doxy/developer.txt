@@ -4,7 +4,27 @@
 
 \tableofcontents
 
+\section develop_overview Overview
 
+The strategy we have taken in the library is to try to construct
+a framework for conducting FFS computations based on an arbitrary
+underlying simulation in the context of a single executable. We
+allow a hierarchy of parallelism (within the simulation, within FFS,
+and multiple FFS instances), all via a single executable. Other
+frameworks (e.g. X) use a more loosely coupled approach in which
+simulations are typically run as separate jobs.
+
+The single executable framework has some advantage when it comes
+to simulations that themselves are parallel. The current approach
+means that the overhead of starting different MPI jobs for each
+simulation stage is avoided.
+
+We define a standard interface which a given simulation type is
+required to implement in order to allow the FFS library to run.
+The interface is written in the C programming language, as is the
+rest of the library.
+
+---
 
 \section develop_one Parallelisation
 
@@ -18,11 +38,11 @@ the FFS library. These number numbers are used for two purposes:
 
 1. As (integer) seeds for input into the simulation random number
    generation. A new seed is generated for every trial attempt or
-   simulation run to ensure the simulation randon number generator
-   is initialisated appropriately at the start of every trial. This
-   avoids assumptions about the behaviour of the simulation internel
+   simulation run to ensure the simulation random number generator
+   is initialised appropriately at the start of every trial. This
+   avoids assumptions about the behaviour of the simulation internal
    random number generator (particularly at restarts). 
-2. Internal use of (uniform) random deviates to control probabalistic
+2. Internal use of (uniform) random deviates to control probabilistic
    events including initial state selection and pruning.
 
 The series of seeds are determined as follows, and should generate

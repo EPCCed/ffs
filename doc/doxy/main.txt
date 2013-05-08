@@ -8,7 +8,7 @@ Forward Flux Sampling is a method to compute the probability of
 rare events based on computer simulation. It works by running
 many simulation trials and, based on the result of these trials,
 biasing its attempts to those which make progress toward a target.
-A more detailed overview is given HERE.
+A more detailed overview is given in the \ref ffs_explained section.
 The aim of this library is to provide a framework for undertaking
 Forward Flux Sampling calculations.
 
@@ -26,14 +26,15 @@ What type of simulation can I run?
 Forward Flux Sampling does nothing by itself. It must be used in
 conjunction with a simulation which has a random component. Such
 simulations include Monte Carlo, Brownian dynamics, molecular
-dynamics with a stocastic thermostat, and others. We provide
-examples including dynamic Monte Carlo via the Gillespie algotithm,
+dynamics with a stochastic thermostat, and others. We provide
+examples including dynamic Monte Carlo via the Gillespie algorithm,
 and via coupling to the molecular dynamics package LAMMPS.
 
 What do I need to use this library?
 -----------------------------------
 
-We use BLAH. To see the installation instructions, see the README.
+We use BLAH. To see the installation instructions, see the
+[README](./README "README").
 Further information for users is available on the \ref user page.
 Further information for
 developers is available in the \ref develop section.
@@ -45,7 +46,7 @@ The work was initiated by Rosalind Allen (who developed the method of
 Forward Flux Sampling), Juho Lintuvuori, and Kevin Stratford at
 [The School of Physics and Astronomy](http://www.ph.ed.ac.uk/) and
 [Edinburgh Parallel Computing Centre](http://www.epcc.ed.ac.uk).
-It funded by the United Kingdom [EPSRC](http://www.epsrc.ac.uk/)
+It is funded by the United Kingdom [EPSRC](http://www.epsrc.ac.uk/)
 under grant EP/I030298/1.
 
 
