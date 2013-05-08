@@ -763,7 +763,7 @@ int dimer_evaluate_lambda(sim_lmp_t * obj, ffs_t * ffs, double * lambda){
   free(type);
 
   /* Want an increasing lambda */
-  *lambda = -rsep;
+  *lambda = rsep;
 
   return 0;
 }
