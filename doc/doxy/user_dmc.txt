@@ -76,7 +76,7 @@ to the same location and rename it as, e.g., `dmc_input`.
 
 ----------------------------------------------------------------------------
 
-\section dmc_run Setting the FFS input
+\section dmc_input Setting the FFS input
 
 The input file specifies the parameters required to make a full
 FFS run. The parameters fall to two main sections: the specification
@@ -143,28 +143,39 @@ Starting 16 trials each on 1 tasks
 Closing down the simulation proxy
 
 Instance results
-  1 -2.4000e+01  1.0000e+00
-  2 -2.2000e+01  2.9167e-01
-  3 -2.0000e+01  9.0278e-02
-  4 -1.8000e+01  5.0926e-02
-  5 -1.5000e+01  2.1605e-02
-  6 -1.2000e+01  1.3117e-02
-  7 -9.0000e+00  8.7449e-03
-  8 -5.0000e+00  6.1443e-03
-  9  0.0000e+00  3.8723e-03
- 10  7.0000e+00  2.2862e-03
- 11  1.5000e+01  2.0433e-03
- 12  2.0000e+01  1.9862e-03
- 13  2.5000e+01  1.9862e-03
+index      lambda    trials   states   pruned   wt/ntrial
+---------------------------------------------------------
+    1 -2.4000e+01        48       16       34  1.0000e+00
+    2 -2.2000e+01        42       14       40  2.9167e-01
+    3 -2.0000e+01        39       13       30  9.0278e-02
+    4 -1.8000e+01        60       20       32  5.0926e-02
+    5 -1.5000e+01        60       20       34  2.1605e-02
+    6 -1.2000e+01        93       31       50  1.3117e-02
+    7 -9.0000e+00       156       52       67  8.7449e-03
+    8 -5.0000e+00       210      105       76  6.1443e-03
+    9  0.0000e+00       121      121       30  3.8723e-03
+   10  7.0000e+00        72       72        0  2.2862e-03
+   11  1.5000e+01        63       63        0  2.0433e-03
+   12  2.0000e+01        61       61        0  1.9862e-03
+   13  2.5000e+01         0       60        0  1.9862e-03
+----------------------------------------------------------
+(sum/success/fail)     1025      632      393
+
 Initial Tmax:  result   2.115081e+03
 Initial Tsum:  result   1.031380e+04
 Number of crossings A:  160
 Flux at lambda_A:       1.551319e-02
+
 Probability P(B|A):     1.986168e-03
 Flux * P(B|A):          3.081181e-05
+
 \endcode
 
-This shows that 16 trials have been attempted from the first interface.
+This shows that 16 states have been used at the first interface.
+As there are three trials for each state, there are a total of
+48 trials from the first interface. The success rate is measured
+by the number of states at the next interface. (The number of
+pruned trajectories at each interface is also shown.)
 The tabulated numbers show the probability that a trial reached a
 given interface (13 interfaces starting at A). The final probability
 is the flux at A multiplied by the conditional probability P(B|A) which
@@ -183,16 +194,18 @@ input file:
   }
 \endcode
 
-and change `nstate` (not `ntrial`) to be, say, 1000. If we run again,
+and change `nstate` (not `ntrial`) to be, say, 1024. If we run again,
 the code will take somewhat longer to complete (maybe a few
 minutes). Note that the original result file
 `run-inst-0000.log` will be overwritten with the new results.
 
 The estimate of the final probability is now:
 \code
-Flux at lambda_A:       1.290527e-02
-Probability P(B|A):     3.001143e-03
-Flux * P(B|A):          3.873057e-05
+Flux at lambda_A:       1.292987e-02
+
+Probability P(B|A):     3.008723e-03
+Flux * P(B|A):          3.890240e-05
+
 \endcode
 
 How accurate is this result? Some estimate can be gained by, for example,
@@ -201,6 +214,8 @@ running a new FFS instance with a different random number seed.
 ----------------------------------------------------------------------------
 
 \section dmc_run_parallel Single FFS instance in parallel
+
+THIS SECTION SHOULD BE MOVED AS NOT RELEVANT TO DMC
 
 Suppose we have built the parallel version of the library, and want
 to run a single instance of FFS, but use more than one MPI task.

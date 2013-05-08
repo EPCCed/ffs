@@ -529,7 +529,8 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   mpilog(obj->log, "Instance results\n");
 
 
-  int n;
+  int n, nstates, ntry, nprune;
+  int nsum_trial = 0, nsum_prune = 0, nsum_success = 0;
   double tmax, tsum, wt, lambda;
 
   /* Total trials this instance */
@@ -537,19 +538,41 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
 
   ffs_result_reduce(result, obj->comm, 0);
 
+  mpilog(obj->log,
+	 "index      lambda    trials   states   pruned   wt/ntrial\n");
+  mpilog(obj->log,
+	 "---------------------------------------------------------\n");
+
   for (n = 1; n <= nlambda; n++) {
     ffs_param_lambda(obj->param, n, &lambda);
     ffs_result_weight(result, n, &wt);
-    mpilog(obj->log, "%3d %11.4e %11.4e\n", n, lambda, wt/ntrial);
+
+    ffs_result_trial_success(result, n, &nstates);
+
+    ffs_result_prune(result, n, &nprune);
+    ffs_param_ntrial(obj->param, n, &ntry);
+    mpilog(obj->log, "  %3d %11.4e  %8d %8d %8d %11.4e\n", n, lambda,
+	   nstates*ntry, nstates, nprune, wt/ntrial);
+    nsum_trial += nstates*ntry;
+    if (n > 1) nsum_success += nstates;
+    nsum_prune += nprune;
   }
+
+  mpilog(obj->log,
+	 "----------------------------------------------------------\n");
+  mpilog(obj->log, "(sum/success/fail) %8d %8d %8d\n", nsum_trial,
+	 nsum_success, nsum_prune);
+
   ffs_result_tmax(result, &tmax);
   ffs_result_tsum(result, &tsum);
   ffs_result_ncross(result, &n);
 
+  mpilog(obj->log, "\n");
   mpilog(obj->log, "Initial Tmax:  result   %12.6e\n", tmax);
   mpilog(obj->log, "Initial Tsum:  result   %12.6e\n", tsum);
   mpilog(obj->log, "Number of crossings A:  %d\n", n);
   mpilog(obj->log, "Flux at lambda_A:       %12.6e\n", n/tsum);
+  mpilog(obj->log, "\n");
   mpilog(obj->log, "Probability P(B|A):     %12.6e\n", wt/ntrial);
   mpilog(obj->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*wt/ntrial);
 

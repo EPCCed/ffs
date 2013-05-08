@@ -192,6 +192,63 @@ int ffs_result_tmax(ffs_result_t * obj, double * tmax);
 int ffs_result_tsum(ffs_result_t * obj, double * tsum);
 
 /**
+ *  \brief Regsister a successful trial which has reached interface
+ *
+ *  \param  obj         the ffs_result_t structure
+ *  \param  interface   the index of the interface reached
+ *
+ *  \retval 0           a succcess
+ *  \retval -1          a NULL pointer was received or interface was
+ *                      not between 1 and nlambda
+ */
+
+int ffs_result_trial_success_add(ffs_result_t * obj, int interface);
+
+/**
+ *  \brief Return the number of successes recorded at an interface
+ *
+ *  \param   obj        the ffs_result_t structure
+ *  \param   interface  the index of the interface
+ *  \param   ns         pointer ot the number of successes to be returned
+ *
+ *  \retval 0           a success
+ *  \retval -1          a NULL pointer was received or interface was
+ *                      not between 1 and nlambda
+ */
+
+int ffs_result_trial_success(ffs_result_t * obj, int interface, int * ns);
+
+/**
+ *  \brief Register a 'pruned' trial at interface
+ *
+ *  \param    obj        the ffs_result_t structure
+ *  \param    interface  the index of the interface
+ *
+ *  \retval   0          a success
+ *  \retval  -1          a NULL pointer was received or interface was
+ *                       not between 1 and nlambda
+ */
+
+int ffs_result_prune_add(ffs_result_t * obj, int interface);
+
+
+/**
+ *  \brief Return the number of pruned trials at interface
+ *
+ *  \param    obj        the ffs_result_t structure
+ *  \param    interface  the index of the interface
+ *  \param    np         pointer to the number to be returned
+ *
+ *  \retval   0          a success
+ *  \retval  -1          a NULL pointer was received or interface was
+ *                       not between 1 and nlambda
+ */
+
+int ffs_result_prune(ffs_result_t * obj, int interface, int * np);
+
+
+
+/**
  * \}
  */
 

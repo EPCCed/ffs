@@ -27,6 +27,8 @@ struct ffs_result_s {
   int nlambda;       /* Number of interfaces (total) */
   double * wt;       /* Accumulated weight at interface */
   double * probs;    /* Probabilities at interfaces */
+  int * nstates;     /* Number of states at this interface recorded */
+  int * nprune;      /* Number of trials pruned at this interface */
 };
 
 
@@ -64,6 +66,12 @@ int ffs_result_create(int nlambda, int ntrial, ffs_result_t ** pobj) {
   obj->probs = u_calloc(nlambda + 1, sizeof(double));
   err_err_sif(obj->probs == NULL);
 
+  obj->nstates = u_calloc(nlambda + 1, sizeof(int));
+  err_err_sif(obj->nstates == NULL);
+
+  obj->nprune = u_calloc(nlambda + 1, sizeof(int));
+  err_err_sif(obj->nprune == NULL);
+
   *pobj = obj;
 
   return 0;
@@ -89,6 +97,8 @@ void ffs_result_free(ffs_result_t * obj) {
   if (obj->t0) u_free(obj->t0);
   if (obj->wt) u_free(obj->wt);
   if (obj->probs) u_free(obj->probs);
+  if (obj->nstates) u_free(obj->nstates);
+  if (obj->nprune) u_free(obj->nprune);
 
   u_free(obj);
 
@@ -242,6 +252,7 @@ int ffs_result_time(ffs_result_t * obj, int n, double * t) {
  *     tmax   = maximum trajectory time
  *
  *     wt     = sum of weights for each interface
+ *     states = number of successful trials reaching this interface
  *
  *  Note that the results overwrite the existing numbers on root,
  *  so this is only to be called at teh end of execution.
@@ -257,6 +268,7 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
   double tsum_local = 0.0;
   double tmax_local = 0.0;
   double * wt_local = NULL;
+  int * st_local = NULL;
 
   dbg_return_if(obj == NULL, -1);
 
@@ -286,10 +298,36 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
 
   u_free(wt_local);
 
+  /* States at each interface */
+
+  st_local = u_calloc(obj->nlambda + 1, sizeof(int));
+  mpi_errnol = (st_local == NULL);
+  mpi_sync_if_any(mpi_errnol, comm);
+
+  for (n = 0; n <= obj->nlambda; n++) {
+    st_local[n] = obj->nstates[n];
+  }
+
+  MPI_Reduce(st_local, obj->nstates, obj->nlambda + 1, MPI_INT, MPI_SUM, root,
+	     comm);
+
+  /* Also use st_local for the number of pruning events */
+
+  for (n = 0; n <= obj->nlambda; n++) {
+    st_local[n] = obj->nprune[n];
+  }
+
+  MPI_Reduce(st_local, obj->nprune, obj->nlambda + 1, MPI_INT, MPI_SUM, root,
+	     comm);
+
+  u_free(st_local);
+
+
   return 0;
 
  mpi_sync:
   if (wt_local) u_free(wt_local);
+  if (st_local) u_free(st_local);
 
   return -1;
 }
@@ -325,3 +363,72 @@ int ffs_result_tsum(ffs_result_t * obj, double * tsum) {
 
   return 0;
 }
+
+/*****************************************************************************
+ *
+ *  ffs_result_trial_success_add
+ *
+ *****************************************************************************/
+
+int ffs_result_trial_success_add(ffs_result_t * obj, int interface) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(interface < 0, -1);
+  dbg_return_if(interface > obj->nlambda + 1, -1);
+
+  obj->nstates[interface] += 1;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_trial_success
+ *
+ *****************************************************************************/
+
+int ffs_result_trial_success(ffs_result_t * obj, int interface, int * ns) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(interface < 0, -1);
+  dbg_return_if(interface > obj->nlambda, -1);
+
+  *ns = obj->nstates[interface];
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_prune_add
+ *
+ *****************************************************************************/
+
+int ffs_result_prune_add(ffs_result_t * obj, int interface) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(interface < 0, -1);
+  dbg_return_if(interface > obj->nlambda, -1);
+
+  obj->nprune[interface] += 1;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_prune
+ *
+ *****************************************************************************/
+
+int ffs_result_prune(ffs_result_t * obj, int interface, int * np) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(interface < 0, -1);
+  dbg_return_if(interface > obj->nlambda, -1);
+
+  *np = obj->nprune[interface];
+
+  return 0;
+}
+
