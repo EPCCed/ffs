@@ -10,12 +10,18 @@
 #include <mpi.h>
 
 #include "ffs_control.h"
+#include "u/libu.h"
+#include "ffs_util.h"
 
 int main(int argc, char ** argv) {
 
   ffs_control_t * ffs = NULL;
 
   MPI_Init(&argc, &argv);
+
+  u_log_set_hook(util_ulog, NULL, NULL, NULL);
+  u_dbg("FFS u_dbg() messages are appearing here.");
+  u_err("FFS u_err() messages are appearing here.");
 
   if (argc != 2) {
     printf("Usage: %s <input file>\n", argv[0]);

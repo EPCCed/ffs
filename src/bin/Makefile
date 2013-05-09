@@ -15,7 +15,7 @@ endif
 
 SRCS += run.c
 
-CFLAGS += -I../ffs
+CFLAGS += -I../ffs -I../util
 LDADD += ../libffs.a
 
 include prog.mk
