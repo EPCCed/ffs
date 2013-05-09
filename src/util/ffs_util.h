@@ -114,6 +114,15 @@ int util_mpi_any(int expr, MPI_Comm comm);
   do { msg_ifb(err_, util_mpi_any((expr), comm)) {goto err;} } while (0)
 
 /**
+ *  \brief Connect u_log message machinery to stdout
+ *
+ *  This function has signature u_log_hook_t
+ *
+ */
+
+int util_ulog(void * arg, int level, const char * str);
+
+/**
  *  \brief Return a double value associated with a configuration subkey
  *
  *  \param  c         the configuration object

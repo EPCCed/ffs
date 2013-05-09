@@ -26,9 +26,13 @@ int ut_init(u_test_case_t * tc) {
   int ival;
   double dval;
 
+  mpilog_t * log = NULL;
   ffs_init_t * init = NULL;
 
   u_dbg("Start");
+
+  dbg_err_if(mpilog_create(MPI_COMM_WORLD, &log));
+  dbg_err_if(mpilog_fopen(log, "logs/unit-test-ffs-init.log", "w"));
 
   dbg_err_if(ffs_init_create(&init));
 
@@ -56,7 +60,12 @@ int ut_init(u_test_case_t * tc) {
   dbg_err_if(ffs_init_teq(init, &dval));
   dbg_err_if(util_compare_double(2.0, dval, DBL_EPSILON));
 
+  dbg_err_if(ffs_init_log_to_mpilog(init, log));
+
   ffs_init_free(init);
+
+  mpilog_fclose(log);
+  mpilog_free(log);
 
   u_dbg("Success\n");
   return U_TEST_SUCCESS;

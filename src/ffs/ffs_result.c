@@ -181,7 +181,7 @@ int ffs_result_weight(ffs_result_t * obj, int n, double * wt) {
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(n < 0, -1);
-  dbg_return_if(n >= obj->nlambda, -1);
+  dbg_return_if(n > obj->nlambda, -1);
   dbg_return_if(wt == NULL, -1);
 
   *wt = obj->wt[n];
@@ -199,7 +199,7 @@ int ffs_result_weight_accum(ffs_result_t * obj, int n, double wt) {
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(n < 0, -1);
-  dbg_return_if(n >= obj->nlambda, -1);
+  dbg_return_if(n > obj->nlambda, -1);
 
   obj->wt[n] += wt;
 

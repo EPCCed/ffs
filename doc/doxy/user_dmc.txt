@@ -157,7 +157,7 @@ index      lambda    trials   states   pruned   wt/ntrial
    10  7.0000e+00        72       72        0  2.2862e-03
    11  1.5000e+01        63       63        0  2.0433e-03
    12  2.0000e+01        61       61        0  1.9862e-03
-   13  2.5000e+01         0       60        0  1.9862e-03
+   13  2.5000e+01         0       60        0  1.9719e-03
 ----------------------------------------------------------
 (sum/success/fail)     1025      632      393
 
@@ -166,9 +166,8 @@ Initial Tsum:  result   1.031380e+04
 Number of crossings A:  160
 Flux at lambda_A:       1.551319e-02
 
-Probability P(B|A):     1.986168e-03
-Flux * P(B|A):          3.081181e-05
-
+Probability P(B|A):     1.971879e-03
+Flux * P(B|A):          3.059014e-05
 \endcode
 
 This shows that 16 states have been used at the first interface.
@@ -203,8 +202,8 @@ The estimate of the final probability is now:
 \code
 Flux at lambda_A:       1.292987e-02
 
-Probability P(B|A):     3.008723e-03
-Flux * P(B|A):          3.890240e-05
+Probability P(B|A):     2.994658e-03
+Flux * P(B|A):          3.872053e-05
 
 \endcode
 
