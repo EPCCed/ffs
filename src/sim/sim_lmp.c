@@ -546,17 +546,17 @@ int lmp_write_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
     printf("error no lammps\n");
     return 1;
   }
+
+  sprintf(filename, "%s.in", stub);
+  sprintf(obj->restart_file, "%s.restart", stub);
   
   if (me == 0 ) {
-    sprintf(filename, "%s.in",stub);
     fp = fopen(filename, "w");
-    if ( fp == NULL){
+    if (fp == NULL) {
       printf("error could not open file %s\n",filename);
       return 1;
     }
   
-    sprintf(obj->restart_file, "%s.restart", stub);
-    
     sprintf(line, "%s\n", obj->input_file);
     fputs(line, fp);
     sprintf(line, "%s\n", obj->restart_file);
@@ -565,14 +565,16 @@ int lmp_write_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
     fputs(line, fp);
     sprintf(line, "%s\n", obj->run_command);
     fputs(line, fp);
-    sprintf(line, "%d\n",obj->seed);
+    sprintf(line, "%d\n", obj->seed);
     fputs(line, fp);
     
     fclose(fp);
   }
 
-  /*now write lammps restart file using all procs */
+  /* Now write lammps restart file */
+
   sprintf(command, "write_restart %s", obj->restart_file);
+
   lammps_command(obj->lmp, command);
   lammps_command(obj->lmp, "run 0");
 
