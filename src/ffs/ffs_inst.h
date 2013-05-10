@@ -59,7 +59,7 @@
  *  {
  *    method           string      # "branched" or "direct" or "test"
  *
- *    sim_nsim_inst    int         # number of simulation instances to use
+ *    sim_mpi_tasks    int         # mpi tasks for one simulation
  *    sim_name         string      # used to identify simulation
  *    sim_argv         string      # command line to be passed to simulation
  *
@@ -107,8 +107,8 @@
 #define FFS_CONFIG_TRIAL_TMAX         "trial_tmax"
 
 /**
- *  \def FFS_CONFIG_SIM_NSIM
- *  Key for number of simulation instances per FFS instance
+ *  \def FFS_CONFIG_SIM_MPI_TASKS
+ *  Key for number of MPI tasks per simulation
  *
  *  \def FFS_CONFIG_SIM_NAME
  *  Key for simulation name (to identify proxy)
@@ -116,14 +116,14 @@
  *  \def FFS_CONFIG_SIM_ARGV
  *  Key for simulation 'command line argument' string
  *
- *  \def FFS_DEFAULT_SIM_NSIM
- *  Default number of simulation instances per FFS instance
+ *  \def FFS_DEFAULT_SIM_MPI_TASKS
+ *  Default number of MPI tasks per simulation
  */
 
-#define FFS_CONFIG_SIM_NSIM           "sim_nsim_inst"
+#define FFS_CONFIG_SIM_MPI_TASKS      "sim_mpi_tasks"
 #define FFS_CONFIG_SIM_NAME           "sim_name"
 #define FFS_CONFIG_SIM_ARGV           "sim_argv"
-#define FFS_DEFAULT_SIM_NSIM          1
+#define FFS_DEFAULT_SIM_MPI_TASKS     1
 
 /**
  * \def FFS_CONFIG_INIT_INDEPENDENT

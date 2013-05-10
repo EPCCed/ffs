@@ -14,9 +14,46 @@
  *  \ingroup ffs_library
  *  \{
  *
- *  This is the interface through which the simulation (or to be exact,
+ *  This is the entity via which the simulation (or to be exact,
  *  the simulation interface) exchanges information with the FFS library.
- *  
+ *  This information includes the command line arguments to be used by
+ *  the simulation, which are read from the FFS input, and other data
+ *  which need to be exchanged.
+ *
+ *  The simulation interface would obtain the command line arguments
+ *  via code such as
+ *
+ *  \code
+ *
+ *    #include "ffs.h"
+ *
+ *    int sim_execute(sim_t * sim, ffs_t * ffs, sim_execute_enum_t action) {
+ *
+ *      int argc = 0;
+ *      char ** argv = NULL;
+ *
+ *      ffs_command_line_create_copy(ffs, &argc, &argv);
+ *
+ *      // Pass these arguments to the simulation proper
+ *      // in the appropriate way and remember to free
+ *      // the copy at the end
+ *
+ *      ffs_command_line_free_copy(ffs, argc, argv);
+ *      ...
+ *
+ *  \endcode
+ *
+ *  Other data which need to be exchanged include the time and the
+ *  progress coordinate lambda. The simulation interface should inform
+ *  the FFS library of the data type associated with these quantties.
+ *
+ *  For example, in the sim_dmc.c Monte Carlo simulation, time is a
+ *  continuous quantity, so is declared to be double via
+ *
+ *  \code
+ *    ffs_type_set(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_DOUBLE);
+ *  \endcode
+ *    
  */
 
 /**
@@ -79,22 +116,6 @@ int ffs_comm(ffs_t * obj, MPI_Comm * comm);
 int ffs_lambda_name(ffs_t * obj, char * name, int len); 
 
 /**
- *  \brief Obtain command line arguments
- *
- *  This returns C-like argc and argv taken from the user input.
- *  argv[0] contains a (dummy) executable name.
- *
- *  \param  obj    the ffs_t structure
- *  \param  argc   pointer to the nu,ber of arguments to be returned
- *  \param  argv   pointer to list of arguments to be returned
- *
- *  \retval 0      a success
- *  \retval -1     a NULL pointer was received
- */
-
-int  ffs_command_line(ffs_t * obj, int * argc, char *** argv);
-
-/**
  *  \brief Create a copy of the command line arguments for the simulation
  *
  *  \param  obj    the ffs_t structure
@@ -118,7 +139,7 @@ int ffs_command_line_create_copy(ffs_t * obj, int * argc, char *** argv);
  *
  *  \param  obj      the ffs_t structure
  *  \param  argc     the number of arguments
- *  \param  argv     the argv allocated by ffs_command_line_create_opy()
+ *  \param  argv     the argv allocated by ffs_command_line_create_copy()
  *
  *  \retval 0        a succcess
  *  \retval -1       a failure

@@ -250,7 +250,7 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
 static int ffs_input(ffs_control_t * obj, const char * filename,
 			    size_t * len) {
   int rank;
-  int mpi_errnol = 0, mpi_errno = 0;
+  int mpi_errnol = 0;
   char * buf = NULL;
   FILE * fp = NULL;
 
@@ -274,8 +274,7 @@ static int ffs_input(ffs_control_t * obj, const char * filename,
 
  mpi_sync:
 
-  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, obj->comm);
-  nop_err_if(mpi_errno);
+  mpi_err_if_any(mpi_errnol, obj->comm);
 
   return 0;
 
@@ -299,7 +298,7 @@ static int ffs_input(ffs_control_t * obj, const char * filename,
 static int ffs_broadcast_config(ffs_control_t * obj, size_t len) {
 
   int rank;
-  int mpi_errnol = 0, mpi_errno = 0;
+  int mpi_errnol = 0;
   char * buf = NULL;
 
   MPI_Comm_rank(obj->comm, &rank);
@@ -313,8 +312,8 @@ static int ffs_broadcast_config(ffs_control_t * obj, size_t len) {
   }
 
  mpi_sync:
-  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, obj->comm);
-  nop_err_if(mpi_errno);
+
+  mpi_err_if_any(mpi_errnol, obj->comm);
 
   MPI_Bcast(buf, len, MPI_CHAR, 0, obj->comm);
 
@@ -323,8 +322,7 @@ static int ffs_broadcast_config(ffs_control_t * obj, size_t len) {
     err_ifm(mpi_errnol, "u_config_load_from_buf() failed");
   }
 
-  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, obj->comm);
-  nop_err_if(mpi_errno);
+  mpi_err_if_any(mpi_errnol, obj->comm);
 
   U_FREE(buf);
 
@@ -405,7 +403,7 @@ static int ffs_input_parse(ffs_control_t * obj) {
 
  err:
 
-  mpilog(obj->log, "Please check and try again\n");
+  mpilog(obj->log, "Please check input file and try again\n");
 
   return -1;
 }

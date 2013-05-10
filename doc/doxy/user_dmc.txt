@@ -214,9 +214,7 @@ running a new FFS instance with a different random number seed.
 
 \section dmc_run_parallel Single FFS instance in parallel
 
-THIS SECTION SHOULD BE MOVED AS NOT RELEVANT TO DMC
-
-Suppose we have built the parallel version of the library, and want
+Now suppose we have built the parallel version of the library, and want
 to run a single instance of FFS, but use more than one MPI task.
 For the same set of interfaces as was used above one can set:
 \code
@@ -224,8 +222,8 @@ For the same set of interfaces as was used above one can set:
         {
                 method                  branched
 
+                sim_mpi_tasks           1
                 sim_name                dmc
-                sim_nsim_inst           1
                 sim_argv                dmc_switch1_comp.dat dmc_switch1_react.dat
 
                 init_independent        yes
@@ -238,19 +236,19 @@ For the same set of interfaces as was used above one can set:
 \endcode
 
 where we have changed the initialisation method to be decomposition
-independent. This should be run on 1 MPI task. If we increase
+independent. We have also specified that the simulation should be
+run on 1 MPI task via the key value pair:
 \code
-                sim_nsim_inst           2
+                sim_mpi_tasks           1
 \endcode
-we can run on 2 MPI tasks. This
-will decompose the trials equally between the 2 available tasks,
-where the simulation itself is still serial (for the current implementation
-of the Gillespie algorithm, it must be). Note that the random number generator
-seeds are arranged so that the final result in decomposition independent.
 
-NOTE: It's a bit of a pain at the moment because you have to
-make sure `sim_nsin_inst` is the same as the number of MPI Tasks.
-I'm going to make this easier.
+If we now increase the number of MPI tasks available to the job
+(usually done via mpirun), the instance will decompose the trials
+equally between the available tasks,
+where the simulation itself is still uses 1 MPI task (for the current
+implementation of the Gillespie algorithm, it must be). Note that the
+random number generator seeds are arranged so that the final result
+in decomposition independent.
 
 ---
 
