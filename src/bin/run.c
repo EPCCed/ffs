@@ -15,13 +15,16 @@
 
 int main(int argc, char ** argv) {
 
+  int rank;
   ffs_control_t * ffs = NULL;
 
   MPI_Init(&argc, &argv);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   u_log_set_hook(util_ulog, NULL, NULL, NULL);
-  u_dbg("FFS u_dbg() messages are appearing here.");
-  u_err("FFS u_err() messages are appearing here.");
+
+  if (rank == 0) u_dbg("FFS u_dbg() messages are appearing here.");
+  if (rank == 0) u_err("FFS u_err() messages are appearing here.");
 
   if (argc != 2) {
     printf("Usage: %s <input file>\n", argv[0]);

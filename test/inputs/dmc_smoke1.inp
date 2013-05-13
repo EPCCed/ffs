@@ -7,8 +7,8 @@ ffs
 	{
 		method			branched
 
+		sim_mpi_tasks           1
 		sim_name		dmc
-		sim_nsim_inst		1
 		sim_argv		inputs/dmc_switch1_comp.dat inputs/dmc_switch1_react.dat
 
 		init_independent	no

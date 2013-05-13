@@ -46,17 +46,12 @@ static int ffs_free_command_line(ffs_t * ffs);
 
 int ffs_create(MPI_Comm comm, ffs_t ** pobj) {
 
-  int mpi_errnol = 0, mpi_errno = 0;
   ffs_t * obj = NULL;
 
   dbg_return_if(pobj == NULL, -1);
 
-  mpi_errnol = ((obj = u_calloc(1, sizeof(ffs_t))) == NULL);
-  mpi_sync_sif(mpi_errnol);
-
- mpi_sync:
-  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, comm);
-  nop_err_if(mpi_errno);
+  obj = u_calloc(1, sizeof(ffs_t));
+  mpi_err_if_any((obj == NULL), comm);
 
   obj->comm = comm;
   obj->t.type = -1;
@@ -151,46 +146,10 @@ int ffs_lambda_name(ffs_t * obj, char * name, int len) {
 
 /*****************************************************************************
  *
- *  ffs_command_line
- *
- *  REPLACE WITH SEPARATE ROUTINES for argc, argv. USER needs to
- *  allocate argv.
- *
- *****************************************************************************/
-
-int ffs_command_line(ffs_t * obj, int * argc, char *** argv) {
-
-  char ** tmp = NULL;
-  int n;
-
-  dbg_return_if(obj == NULL, -1);
-  dbg_return_if(argc == NULL, -1);
-  dbg_return_if(argv == NULL, -1);
-
-  *argc = obj->argc;
-  tmp = u_calloc(obj->argc + 1, sizeof(char *));
-  mpi_err_if_any((tmp == NULL), obj->comm);
-
-  for (n = 0; n < obj->argc; n++) {
-    tmp[n] = obj->argv[n];
-  }
-
-  *argv = tmp;
-
-  return 0;
-
- err:
-
-  if (tmp) u_free(tmp);
-  return -1;
-}
-
-/*****************************************************************************
- *
  *  ffs_command_line_create_copy
  *
  *  Allocate space for, and copy the command line arguments.
- *  The caller is responisble for releasing resources with a
+ *  The caller is responsible for releasing resources with a
  *  call to ffs_command_line_free_copy().
  *
  *****************************************************************************/
@@ -209,7 +168,6 @@ int ffs_command_line_create_copy(ffs_t * obj, int * argc, char *** argv) {
   mpi_err_if_any((args == NULL), obj->comm);
 
   for (n = 0; n < obj->argc; n++) {
-    /* Assume u_strdup() will succeed */
     args[n] = u_strdup(obj->argv[n]);
   }
   args[obj->argc] = NULL; /* As required by C standard. */
@@ -279,7 +237,7 @@ int ffs_command_line_set(ffs_t * obj, const char * argstring) {
 
   dbg_err_if(u_strtok(argstring, " ", &argv, &argc));
 
-  /* Add 1 for simulation executable name, and 1 to accomodate
+  /* Add 1 for simulation executable name, and 1 to accommodate
    * argv[argc] = NULL, required by the standard. */
 
   obj->argc = argc + 1;
@@ -442,7 +400,7 @@ int ffs_type_set(ffs_t * obj, ffs_info_enum_t param, int ndata,
     obj->lambda.ndata = ndata;
     break;
   default:
-    err_err("Inccorrent param argument");
+    err_err("Incorrect param argument");
   }
 
   return 0;
@@ -475,8 +433,7 @@ int ffs_type(ffs_t * obj, ffs_info_enum_t param, int * ndata,
     *ndata = obj->lambda.ndata;
     break;
   default:
-    err_err("Inccorrent param argument");
-
+    err_err("Incorrect param argument");
   }
 
   return 0;

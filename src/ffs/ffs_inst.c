@@ -34,19 +34,28 @@ struct ffs_inst_type {
   ffs_param_t * param;  /* Parameters (interfaces) */
   mpilog_t * log;       /* Instance log */
 
-  /* Simulation details */
-  int sim_nsim_inst;       /* Number of simulation instances */
+  /* Simulation (proxy) details */
+
   u_string_t * sim_name;   /* The name used to identify the proxy */
   u_string_t * sim_argv;   /* The command line */
+  proxy_t * proxy;         /* Simulation proxy object */
+  int mpi_request;         /* MPI tasks per simulation (user request) */
+  int nproxy;              /* Number of simulations for this instance */
+  int proxy_id;            /* id */
+  int ntask_per_proxy;     /* Number of MPI tasks per proxy (actual) */
 
-  /* Initialisation parameters */
+  /* Initialisation parameters, result object. */
   ffs_init_t * init;
+  ffs_result_t * result;
 };
 
 static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input);
 static int ffs_inst_read_init(ffs_inst_t * obj, u_config_t * config);
 static int ffs_inst_branched(ffs_inst_t * obj);
 static int ffs_inst_direct(ffs_inst_t * obj);
+static int ffs_inst_compute_proxy_size(ffs_inst_t * obj);
+static int ffs_inst_start_proxy(ffs_inst_t * obj);
+static int ffs_inst_results(ffs_inst_t * obj);
 
 /*****************************************************************************
  *
@@ -60,17 +69,14 @@ int ffs_inst_create(int id, MPI_Comm parent, ffs_inst_t ** pobj) {
 
   ffs_inst_t * obj = NULL;
   int rank;
-  int mpi_errnol = 0, mpi_errno = 0;
+  int mpi_errnol = 0;
 
+  dbg_return_if(id < 0, -1);
   dbg_return_if(parent == MPI_COMM_NULL, -1);
+  dbg_return_if(pobj == NULL, -1);
 
-  mpi_errnol = (id < 0);
-  mpi_sync_ifm(mpi_errnol, "id < 0");
-  mpi_errnol = (pobj == NULL);
-  mpi_sync_ifm(mpi_errnol, "pobj == NULL");
-
-  mpi_errnol = ((obj = u_calloc(1, sizeof(ffs_inst_t))) == NULL);
-  mpi_sync_sif(mpi_errnol);
+  obj = u_calloc(1, sizeof(ffs_inst_t));
+  mpi_sync_if(obj == NULL);
 
   obj->inst_id = id;
   obj->parent = parent;
@@ -79,20 +85,19 @@ int ffs_inst_create(int id, MPI_Comm parent, ffs_inst_t ** pobj) {
   MPI_Comm_split(obj->parent, obj->inst_id, rank, &obj->comm);
 
   mpi_errnol = mpilog_create(obj->comm, &obj->log);
-  mpi_sync_ifm(mpi_errnol, "mpilog_create() failed\n");
+  mpi_sync_if(mpi_errnol);
 
   mpi_errnol = ffs_init_create(&obj->init);
-  mpi_sync_ifm(mpi_errnol, "ffs_init_create_failed\n");
 
  mpi_sync:
-  MPI_Allreduce(&mpi_errnol, &mpi_errno, 1, MPI_INT, MPI_LOR, parent);
-  nop_err_if(mpi_errno);
+  mpi_err_if_any(mpi_errnol, parent);
 
   *pobj = obj;
 
   return 0;
 
  err:
+
   if (obj) ffs_inst_free(obj);
   obj = NULL;
 
@@ -240,7 +245,6 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
 
 static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
 
-  int ifail;
   u_config_t * config = NULL;
   const char * method;
   const char * sim_name;
@@ -251,17 +255,21 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
 
   /* Parse input */
 
-  ifail = ((config = u_config_get_child(input, FFS_CONFIG_INST)) == NULL);
-  mpilog_if(ifail, obj->log, "Config has no %s section\n", FFS_CONFIG_INST);
-  err_err_ifm(ifail, "No inst config");
+  config = u_config_get_child(input, FFS_CONFIG_INST);
+  mpilog_if(config == NULL, obj->log, "Config file has no %s section\n",
+	    FFS_CONFIG_INST);
+
+  dbg_err_ifm(config == NULL, "No inst config");
 
   /* Set method; default is the test method */
 
   obj->method = FFS_METHOD_TEST;
 
   method = u_config_get_subkey_value(config, FFS_CONFIG_INST_METHOD);
-  err_err_ifm(method == NULL, "Must have an %s key in the %s config\n",
-	      FFS_CONFIG_INST_METHOD, FFS_CONFIG_INST);
+
+  mpilog_if(method == NULL, obj->log, "Must have an %s key in the %s config\n",
+	    FFS_CONFIG_INST_METHOD, FFS_CONFIG_INST);
+  dbg_err_ifm(method == NULL, "No method");
 
   if (strcmp(method, FFS_CONFIG_METHOD_TEST) == 0) {
     obj->method = FFS_METHOD_TEST;
@@ -274,16 +282,16 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
   }
   else {
     /* The requested method was not recognised */
-    err_err("%s (%s) not recognised in %s\n", FFS_CONFIG_INST_METHOD, method,
+    dbg_err("%s (%s) not recognised in %s\n", FFS_CONFIG_INST_METHOD, method,
 	    FFS_CONFIG_INST);
   }
 
   /* Simulation name, number of instances, and command line */
 
-  err_err_if(u_config_get_subkey_value_i(config,
-					 FFS_CONFIG_SIM_NSIM,
-					 FFS_DEFAULT_SIM_NSIM,
-					 &obj->sim_nsim_inst));
+  u_config_get_subkey_value_i(config, FFS_CONFIG_SIM_MPI_TASKS,
+			      FFS_DEFAULT_SIM_MPI_TASKS,
+			      &obj->mpi_request);
+
 
   sim_name = u_config_get_subkey_value(config, FFS_CONFIG_SIM_NAME);
   if (sim_name == NULL) sim_name = "test";
@@ -291,20 +299,22 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
   sim_argv = u_config_get_subkey_value(config, FFS_CONFIG_SIM_ARGV);
   if (sim_argv == NULL) sim_argv = "";
 
-  err_err_if(u_string_create(sim_name, strlen(sim_name), &obj->sim_name));
-  err_err_if(u_string_create(sim_argv, strlen(sim_argv), &obj->sim_argv));
-  
+  u_string_create(sim_name, strlen(sim_name), &obj->sim_name);
+  u_string_create(sim_argv, strlen(sim_argv), &obj->sim_argv);
+
+  dbg_err_ifm(obj->sim_name == NULL, "u_string_create(sim_name)");
+  dbg_err_ifm(obj->sim_argv == NULL, "u_string_create(sim_argv)");
+
   /* Initialisation section */
 
-  err_err_if(ffs_inst_read_init(obj, config));
+  dbg_err_if( ffs_inst_read_init(obj, config) );
 
   /* Interface section */
 
-  ifail = ((config = u_config_get_child(input, FFS_CONFIG_INTERFACES)) == NULL);
-  mpilog_if(ifail, obj->log, "Config has no %s\n", FFS_CONFIG_INTERFACES);
-  err_err_ifm(ifail, "No inst interfaces");
+  config = u_config_get_child(input, FFS_CONFIG_INTERFACES);
+  mpilog_if(config == NULL, obj->log, "No %s\n", FFS_CONFIG_INTERFACES);
 
-  err_err_if(ffs_param_create(config, &obj->param));
+  ffs_param_create(config, &obj->param);
 
   /* Report */
 
@@ -424,7 +434,7 @@ int ffs_inst_config_log(ffs_inst_t * obj, mpilog_t * log) {
   mpilog(log, "%s\n", FFS_CONFIG_INST);
   mpilog(log, "{\n");
   mpilog(log, fmts, FFS_CONFIG_INST_METHOD, ffs_inst_method_name(obj));
-  mpilog(log, fmti, FFS_CONFIG_SIM_NSIM, obj->sim_nsim_inst);
+  mpilog(log, fmti, FFS_CONFIG_SIM_MPI_TASKS, obj->mpi_request);
   mpilog(log, fmts, FFS_CONFIG_SIM_NAME, u_string_c(obj->sim_name));
   mpilog(log, fmts, FFS_CONFIG_SIM_ARGV, u_string_c(obj->sim_argv));
   mpilog(log, "}\n");
@@ -454,14 +464,8 @@ int ffs_inst_config(ffs_inst_t * obj) {
 
 static int ffs_inst_branched(ffs_inst_t * obj) {
 
-  int rank, sz;            /* MPI rank, size */
-  int perproxy;            /* MPI tasks per proxy */
-  int proxy_id;            /* Computed proxy id */
-  int nlambda;
   int ntrial;
-  ffs_t * ffs = NULL;
-  proxy_t * proxy = NULL;
-  ffs_result_t * result = NULL; /* To be supplied by caller in future */
+  int nlambda;
 
   dbg_return_if(obj == NULL, -1);
 
@@ -470,8 +474,8 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   mpilog(obj->log, "Checking branched input\n");
   mpilog(obj->log, "Setting pruning probabilities to default values\n");
 
-  err_err_if(ffs_param_check(obj->param));
-  err_err_if(ffs_param_pprune_set_default(obj->param));
+  dbg_err_if( ffs_param_check(obj->param) );
+  dbg_err_if( ffs_param_pprune_set_default(obj->param) );
 
   /* Interface details to log */
 
@@ -481,62 +485,64 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   ffs_param_log_to_mpilog(obj->param, obj->log);
   ffs_init_log_to_mpilog(obj->init, obj->log);  
 
-  /* Results object */
+  /* Results object for local number of starting trials */
 
   ffs_param_nlambda(obj->param, &nlambda);
   ffs_param_nstate(obj->param, 1, &ntrial);
-  ntrial = ntrial / obj->sim_nsim_inst;
-  ffs_result_create(nlambda, ntrial, &result);
+
+  dbg_err_if( ffs_inst_compute_proxy_size(obj) );
+  dbg_err_if( ffs_result_create(nlambda, ntrial/obj->nproxy, &obj->result) );
 
   /* Start proxy */
 
-  MPI_Comm_size(obj->comm, &sz);
-  MPI_Comm_rank(obj->comm, &rank);
-  perproxy = sz / obj->sim_nsim_inst;
-
-  if (perproxy < 1) {
-    /* Can we catch this sooner? */
-    mpilog(obj->log, "Number of instances > number of MPI tasks\n");
-    err_err_ifm(perproxy == 0, "Incorrect number of tasks?");
-  }
-
-  proxy_id = rank / perproxy;
-
-  mpilog(obj->log, "\n");
-  mpilog(obj->log, "Starting the simulation proxy (%d instance%s)\n",
-	 obj->sim_nsim_inst, obj->sim_nsim_inst > 1 ? "s" : "");
-  mpilog(obj->log, "Tasks per (proxy) simulation: %d\n", perproxy);
-
-  err_err_if(proxy_create(proxy_id, obj->comm, &proxy));
-  err_err_if(proxy_delegate_create(proxy, u_string_c(obj->sim_name)));
-  err_err_if(proxy_ffs(proxy, &ffs));
-  err_err_if(ffs_command_line_set(ffs, u_string_c(obj->sim_argv)));
-  
-  mpilog(obj->log, "The simulation is %s\n", u_string_c(obj->sim_name));
-
-  /* Do the run */
-
-  ffs_branched_run(obj->init, obj->param, proxy,
-		   obj->inst_id, obj->sim_nsim_inst,
-		   obj->seed, obj->log, result);
+  dbg_err_if( ffs_inst_start_proxy(obj) );
+  dbg_err_if( ffs_branched_run(obj->init, obj->param, obj->proxy,
+			    obj->inst_id, obj->nproxy,
+			       obj->seed, obj->log, obj->result));
 
   mpilog(obj->log, "Closing down the simulation proxy\n");
 
-  err_err_if(proxy_delegate_free(proxy));
-  proxy_free(proxy);
+  proxy_delegate_free(obj->proxy);
+  proxy_free(obj->proxy);
 
-  mpilog(obj->log, "\n");
-  mpilog(obj->log, "Instance results\n");
+  ffs_result_reduce(obj->result, obj->comm, 0);
+  ffs_inst_results(obj);
 
+  ffs_result_free(obj->result);
 
+  return 0;
+
+ err:
+
+  if (obj->result) ffs_result_free(obj->result);
+  if (obj->proxy) proxy_delegate_free(obj->proxy);
+  if (obj->proxy) proxy_free(obj->proxy);
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_results
+ *
+ *  Display the results in a human-readable format
+ *
+ *****************************************************************************/
+
+static int ffs_inst_results(ffs_inst_t * obj) {
+
+  int ntrial, nlambda;
   int n, nstates, ntry, nprune;
   int nsum_trial = 0, nsum_prune = 0, nsum_success = 0;
   double tmax, tsum, wt, lambda;
 
-  /* Total trials this instance */
-  ffs_param_nstate(obj->param, 1, &ntrial);
+  dbg_return_if(obj == NULL, -1);
 
-  ffs_result_reduce(result, obj->comm, 0);
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "Instance results\n");
+
+  ffs_param_nstate(obj->param, 1, &ntrial);
+  ffs_param_nlambda(obj->param, &nlambda);
 
   mpilog(obj->log,
 	 "index      lambda    trials   states   pruned   wt/ntrial\n");
@@ -545,14 +551,14 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
 
   for (n = 1; n <= nlambda; n++) {
     ffs_param_lambda(obj->param, n, &lambda);
-    ffs_result_weight(result, n, &wt);
-
-    ffs_result_trial_success(result, n, &nstates);
-
-    ffs_result_prune(result, n, &nprune);
+    ffs_result_weight(obj->result, n, &wt);
+    ffs_result_trial_success(obj->result, n, &nstates);
+    ffs_result_prune(obj->result, n, &nprune);
     ffs_param_ntrial(obj->param, n, &ntry);
+
     mpilog(obj->log, "  %3d %11.4e  %8d %8d %8d %11.4e\n", n, lambda,
 	   nstates*ntry, nstates, nprune, wt/ntrial);
+
     nsum_trial += nstates*ntry;
     if (n > 1) nsum_success += nstates;
     nsum_prune += nprune;
@@ -563,9 +569,9 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   mpilog(obj->log, "(sum/success/fail) %8d %8d %8d\n", nsum_trial,
 	 nsum_success, nsum_prune);
 
-  ffs_result_tmax(result, &tmax);
-  ffs_result_tsum(result, &tsum);
-  ffs_result_ncross(result, &n);
+  ffs_result_tmax(obj->result, &tmax);
+  ffs_result_tsum(obj->result, &tsum);
+  ffs_result_ncross(obj->result, &n);
 
   mpilog(obj->log, "\n");
   mpilog(obj->log, "Initial Tmax:  result   %12.6e\n", tmax);
@@ -576,14 +582,76 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   mpilog(obj->log, "Probability P(B|A):     %12.6e\n", wt/ntrial);
   mpilog(obj->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*wt/ntrial);
 
+  return 0;
+}
 
-  ffs_result_free(result);
+/*****************************************************************************
+ *
+ *  ffs_inst_compute_proxy_size
+ *
+ *****************************************************************************/
+
+static int ffs_inst_compute_proxy_size(ffs_inst_t * obj) {
+
+  int sz;
+  int rank;
+
+  dbg_return_if(obj == NULL, -1);
+
+  MPI_Comm_size(obj->comm, &sz);
+  MPI_Comm_rank(obj->comm, &rank);
+
+  dbg_err_if(obj->mpi_request <= 0);
+  dbg_err_if(obj->mpi_request > sz);
+  dbg_err_if(sz % obj->mpi_request != 0); 
+
+  obj->nproxy = sz / obj->mpi_request;
+  obj->ntask_per_proxy = sz / obj->nproxy;
+  obj->proxy_id = rank / obj->ntask_per_proxy;
 
   return 0;
 
  err:
 
-  if (proxy) proxy_free(proxy);
+  mpilog(obj->log, "MPI task per simlation requested: %d\n", obj->mpi_request);
+  mpilog(obj->log, "MPI tasks available per instance:  %d\n", sz);
+  mpilog(obj->log, "Please check and try again\n");
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_start_proxy
+ *
+ *****************************************************************************/
+
+static int ffs_inst_start_proxy(ffs_inst_t * obj) {
+
+  ffs_t * ffs = NULL;
+
+  dbg_return_if(obj == NULL, -1);
+
+  /* Start proxy */
+
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "Starting the simulation proxy (%d instance%s)\n",
+	 obj->nproxy, obj->nproxy > 1 ? "s" : "");
+  mpilog(obj->log, "Tasks per (proxy) simulation: %d\n", obj->ntask_per_proxy);
+  mpilog(obj->log, "The simulation is %s\n", u_string_c(obj->sim_name));
+
+  dbg_err_if( proxy_create(obj->proxy_id, obj->comm, &obj->proxy) );
+  dbg_err_if( proxy_delegate_create(obj->proxy, u_string_c(obj->sim_name)) );
+
+  dbg_err_if( proxy_ffs(obj->proxy, &ffs) );
+  dbg_err_if( ffs_command_line_set(ffs, u_string_c(obj->sim_argv)) );
+
+  return 0;
+
+ err:
+
+  if (obj->proxy) proxy_free(obj->proxy);
+  mpilog(obj->log, "Failed to start simulation proxy");
 
   return -1;
 }
@@ -630,7 +698,7 @@ int ffs_inst_nsim(ffs_inst_t * obj, int * nsim) {
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(nsim == NULL, -1);
 
-  *nsim = obj->sim_nsim_inst;
+  *nsim = obj->nproxy;
 
   return 0;
 }
