@@ -175,6 +175,19 @@ int mpilog_fclose(mpilog_t * obj);
   do { if ((expr)) mpilog( __VA_ARGS__); } while (0)
 
 /**
+ *  \brief Log a message and jump to err label conditionally
+ *
+ *  \param expr        log and jump if true
+ *  \param ...         remaining arguments as for mpilog()
+ *
+ *  This is reserved for situations where the failure, and hence the
+ *  jump is expected on all MPI tasks.
+ */
+
+#define mpilog_err_if(expr, ...) \
+  do { if ((expr)) {mpilog(__VA_ARGS__); goto err;} } while (0)
+
+/**
  *  \brief Utility to pass messages to the libu logging machinery
  *
  *  \param arg       Opaque argument which is the mpilog_t log

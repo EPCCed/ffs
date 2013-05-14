@@ -12,6 +12,7 @@
 #include <mpi.h>
 
 #include "u/libu.h"
+#include "../../conf.h"
 #include "../util/ffs_util.h"
 #include "../util/ranlcg.h"
 #include "ffs_inst.h"
@@ -115,6 +116,7 @@ int ffs_control_start(ffs_control_t * obj, const char * name) {
 
   mpilog(obj->log, "\n");
   mpilog(obj->log, "Starting FFS (%d MPI task%s)\n", sz, (sz > 1) ? "s" : "");
+  mpilog(obj->log, "FFS library v%s\n", FFS_VERSION);
 
   /* Remember the name */
 

@@ -14,7 +14,7 @@ ${ECHO} "MAKL_ETC is ${MAKL_ETC}"
 makl_args_def "debug" "" "No -DDEBUG" "Add -DDEBUG to CFLAGS"
 __makl_debug ()
 {
-    makl_append_var_mk "CFLAGS" "-DDEBUG"
+    makl_append_var_mk "CFLAGS" "-g -DDEBUG"
 }
 
 #

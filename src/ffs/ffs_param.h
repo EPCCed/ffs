@@ -150,16 +150,29 @@ typedef struct ffs_param_type ffs_param_t;
 #define FFS_PPRUNE_DEFAULT        0.0
 
 /**
- *  \brief Create a new ffs_param_t object from the configuration details
+ *  \brief Create a new ffs_param_t object
  *
- *  \param  config      a valid configuration file of u_config_t
+ *  \param  log         a valid mpilog_t object for log messages
  *  \param  pobj        a pointer to the new object to be returned
  *
  *  \retval 0           a success
  *  \retval -1          a failure
  */
 
-int ffs_param_create(u_config_t * config, ffs_param_t ** pobj);
+int ffs_param_create(mpilog_t * log, ffs_param_t ** pobj);
+
+/**
+ *  \brief Initialise the interfaces from the relevant u_config_t
+ *         object.
+ *
+ *  \param  obj         a pointer to the ffs_param_t struct
+ *  \param  config      a valid configuration file of u_config_t
+ *
+ *  \retval 0           a success
+ *  \retval -1          a failure
+ */
+
+int ffs_param_from_config(ffs_param_t * obj, u_config_t * config);
 
 /**
  *  \brief Release an ffs_param_t object
@@ -264,18 +277,6 @@ int ffs_param_nskeep(ffs_param_t * obj, int n, int * nskeep);
 int ffs_param_check(ffs_param_t * obj);
 
 /**
- *  \brief  Print a tabulated summary of the interfaces
- *
- *  \param  obj     the ffs_param_t object
- *  \param  fp      stream for output
- *
- *  \retval 0       a success
- *  \retval -1      a failure (a NULL pointer was supplied)
- */
-
-int ffs_param_print_summary_fp(ffs_param_t * obj, FILE * fp);
-
-/**
  *  \brief Log human-readable summary
  *
  *  \param  obj     the ffs_param_t object
@@ -336,21 +337,6 @@ int ffs_param_weight_accum(ffs_param_t * obj, int n, double wt);
  */
 
 int ffs_param_weight(ffs_param_t * obj, int n, double * wt);
-
-/**
- *  \brief Set the pruning probabilities to \c 1 - 1/ntrial 
- *
- *  \param  obj       the ffs_param_t data type
- *
- *  \retval 0         a success
- *  \retval -1        a failure
- *
- *  This is the standard situation for branched FFS. For the first
- *  interface the pruning probability is 1, and for the last the
- *  probabiltity is 0, irrespective of ntrial.
- */   
-
-int ffs_param_pprune_set_default(ffs_param_t * obj);
 
 /**
  *  \}

@@ -226,6 +226,8 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
 
  err:
 
+  mpilog(obj->log, "Failed instance execution");
+
   return -1;
 }
 
@@ -256,10 +258,8 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
   /* Parse input */
 
   config = u_config_get_child(input, FFS_CONFIG_INST);
-  mpilog_if(config == NULL, obj->log, "Config file has no %s section\n",
-	    FFS_CONFIG_INST);
-
-  dbg_err_ifm(config == NULL, "No inst config");
+  mpilog_err_if(config == NULL, obj->log, "Config file has no %s section\n",
+		FFS_CONFIG_INST);
 
   /* Set method; default is the test method */
 
@@ -312,9 +312,10 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
   /* Interface section */
 
   config = u_config_get_child(input, FFS_CONFIG_INTERFACES);
-  mpilog_if(config == NULL, obj->log, "No %s\n", FFS_CONFIG_INTERFACES);
+  mpilog_err_if(config == NULL, obj->log, "No %s\n", FFS_CONFIG_INTERFACES);
 
-  ffs_param_create(config, &obj->param);
+  dbg_err_if( ffs_param_create(obj->log, &obj->param) );
+  dbg_err_if( ffs_param_from_config(obj->param, config) );
 
   /* Report */
 
@@ -472,10 +473,8 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   /* Check input for branched */
 
   mpilog(obj->log, "Checking branched input\n");
-  mpilog(obj->log, "Setting pruning probabilities to default values\n");
 
   dbg_err_if( ffs_param_check(obj->param) );
-  dbg_err_if( ffs_param_pprune_set_default(obj->param) );
 
   /* Interface details to log */
 
