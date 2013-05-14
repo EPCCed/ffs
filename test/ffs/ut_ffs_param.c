@@ -27,6 +27,8 @@ int ut_param_create(u_test_case_t * tc) {
   u_config_t * config = NULL;
   u_config_t * interf = NULL;
   ffs_param_t * param = NULL;
+  mpilog_t * log = NULL;
+
   int nlambda;
   int ntrial;
   int nstate;
@@ -62,7 +64,11 @@ int ut_param_create(u_test_case_t * tc) {
   /* Use this to create the ffs_param_t object, and check the two
    * are consistent */
 
-  dbg_err_if(ffs_param_create(config, &param));
+  dbg_err_if(mpilog_create(MPI_COMM_WORLD, &log));
+  dbg_err_if(mpilog_fopen(log, "logs/ut_param0.log", "w+"));
+
+  dbg_err_if(ffs_param_create(log, &param));
+  dbg_err_if(ffs_param_from_config(param, config));
 
   nlambda = -1;
   dbg_err_if(ffs_param_nlambda(param, &nlambda));
@@ -112,6 +118,8 @@ int ut_param_create(u_test_case_t * tc) {
 
   /* Finish */
 
+  mpilog_fclose(log);
+  mpilog_free(log);
   u_config_free(config);
   ffs_param_free(param);
 
@@ -148,11 +156,13 @@ int ut_param_from_file(u_test_case_t * tc) {
   /* The ffs_param_t could take a full interfaces{}, but ... */
   subconfig = u_config_get_child(config, FFS_CONFIG_INTERFACES);
 
-  dbg_err_if(ffs_param_create(subconfig, &param));
-  dbg_err_if(ffs_param_check(param));
-
   dbg_err_if(mpilog_create(MPI_COMM_WORLD, &log));
   dbg_err_if(mpilog_fopen(log, "logs/ut_param1.log", "w+"));
+
+  dbg_err_if(ffs_param_create(log, &param));
+  dbg_err_if(ffs_param_from_config(param, subconfig));
+
+  dbg_err_if(ffs_param_check(param));
   dbg_err_if(ffs_param_log_to_mpilog(param, log));
 
   /* We should have -24.0 -> +25.0 for lambda */
@@ -211,9 +221,13 @@ int ut_param_auto(u_test_case_t * tc) {
   dbg_err_if(key_a == NULL);
   dbg_err_if(key_b == NULL);
 
+  dbg_err_if(mpilog_create(MPI_COMM_WORLD, &log));
+  dbg_err_if(mpilog_fopen(log, "logs/ut_param2.log", "w+"));
+
   /* Now generate the parameter object */
 
-  dbg_err_if(ffs_param_create(subconfig, &param));
+  dbg_err_if(ffs_param_create(log, &param));
+  dbg_err_if(ffs_param_from_config(param, subconfig));
 
   /* Check "nstate" for the first interface */
 
@@ -221,9 +235,6 @@ int ut_param_auto(u_test_case_t * tc) {
   dbg_err_if(nstate != nstate_ref);
 
   /* log */
-
-  dbg_err_if(mpilog_create(MPI_COMM_WORLD, &log));
-  dbg_err_if(mpilog_fopen(log, "logs/ut_param2.log", "w+"));
   dbg_err_if(ffs_param_log_to_mpilog(param, log));
 
   /* Clean up */
