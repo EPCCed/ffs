@@ -12,7 +12,7 @@ ffs
 
  		init_independent	 yes
 		init_teq  0.001
-		init_nskip  1
+		init_nskip  10
 		init_nstepmax  100000
 		init_nsteplambda 1
 		init_prob_accept        1.0
@@ -21,10 +21,10 @@ ffs
 	
 	interfaces
 	{
-		nlambda 3
+		nlambda 4
 		lambda_a -1.55
 		lambda_b -1.15
 	 	ntrial_default          2
-		nstate_default          10
+		nstate_default          100
 	}
 }

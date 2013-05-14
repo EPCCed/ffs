@@ -27,6 +27,7 @@ BondDoubleWell::~BondDoubleWell()
     memory->destroy(setflag);
     memory->destroy(h);
     memory->destroy(w);
+    memory->destroy(rwca);
   }
 }
 
