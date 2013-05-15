@@ -527,7 +527,7 @@ static int ffs_param_interface_zero_set(ffs_param_t * obj) {
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(obj->interfaces == NULL, -1);
 
-  obj->interfaces[0].lambda = obj->interfaces[1].lambda;
+  if (obj->nlambda > 0) obj->interfaces[0].lambda = obj->interfaces[1].lambda;
   obj->interfaces[0].ntrials = 1;
   obj->interfaces[0].nstates = 1;
   obj->interfaces[0].pprune = 1.0;
