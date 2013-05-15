@@ -230,6 +230,7 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
   /* Compound statistics TODO (before finishing off instances) */
 
   ffs_inst_free(obj->instance);
+  ranlcg_free(ran);
   obj->instance = NULL;
 
   mpilog(obj->log, "Finished instances.\n");
@@ -238,6 +239,8 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
 
  err:
 
+  if (obj->instance) ffs_inst_free(obj->instance);
+  if (ran) ranlcg_free(ran);
   mpilog(obj->log, "Failed to execute correctly\n");
 
   return -1;
@@ -285,6 +288,7 @@ static int ffs_input(ffs_control_t * obj, const char * filename,
   U_FCLOSE(fp);
   if (buf) U_FREE(buf);
   if (obj->input) u_config_free(obj->input);
+  obj->input = NULL;
 
   mpilog(obj->log, "Please check and try again\n");
 

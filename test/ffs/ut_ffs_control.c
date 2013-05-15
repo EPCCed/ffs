@@ -19,7 +19,7 @@
 
 int ut_control(u_test_case_t * tc) {
 
-  ffs_control_t * ffs;
+  ffs_control_t * ffs = NULL;
 
   u_dbg("Start");
 

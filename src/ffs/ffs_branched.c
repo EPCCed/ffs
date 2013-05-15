@@ -427,6 +427,7 @@ int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
 		       int nstepmax, int nsteplambda, int * status) {
 
   int n;
+  int iprune;
   double lambda_min, lambda_max;
   double random;
   double prob_prune;
@@ -466,7 +467,9 @@ int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
   if (*status == FFS_TRIAL_WENT_BACKWARDS) *status = FFS_TRIAL_WAS_PRUNED;
 
   if (*status == FFS_TRIAL_WAS_PRUNED) {
-    ffs_result_prune_add(result, n);
+    iprune = n - 1;                /* Trial was pruned at this interface.. */
+    if (iprune < 1) iprune = 1;    /* ...but not before first interface. */
+    ffs_result_prune_add(result, iprune);
   }
 
   return 0;

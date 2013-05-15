@@ -29,7 +29,7 @@ int ut_inst(u_test_case_t * tc) {
   dbg_err_if(ffs_inst_id(inst, &id));
   dbg_err_if(id != 0);
 
-  dbg_err_if(ffs_inst_start(inst, "logs/ut_inst_create-0000.log", "w+"));
+  dbg_err_if(ffs_inst_start(inst, "logs/unit-test-inst.log", "w+"));
   dbg_err_if(ffs_inst_execute(inst, config));
   dbg_err_if(ffs_inst_config(inst));
   dbg_err_if(ffs_inst_stop(inst));
