@@ -109,6 +109,11 @@ int ffs_branched_run(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
     ffs_branched_init(init, param, proxy, sinit, ran, n, itraj,
 		      result, &status);
 
+    if (status != FFS_TRIAL_SUCCEEDED) {
+      mpilog(log, "FFS: Initial trial %d did not reach lambda_a\n", itraj);
+      /* Try to continue... */
+    }
+
     /* We reached the first interface; start the trials! */
     wt = 1.0;
     ffs_branched_recursive(1, inst_id, 1, wt, nstepmax, nsteplambda,
@@ -247,6 +252,9 @@ int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
 
     lambda_old = lambda;
   }
+
+  *status = FFS_TRIAL_SUCCEEDED;
+  if (n >= init_nstepmax) *status = FFS_TRIAL_TIMED_OUT;
 
   return 0;
 
