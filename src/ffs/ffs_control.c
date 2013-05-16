@@ -240,6 +240,7 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
  err:
 
   if (obj->instance) ffs_inst_free(obj->instance);
+  obj->instance = NULL;
   if (ran) ranlcg_free(ran);
   mpilog(obj->log, "Failed to execute correctly\n");
 

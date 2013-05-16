@@ -51,8 +51,7 @@ struct ffs_inst_type {
 
 static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input);
 static int ffs_inst_read_init(ffs_inst_t * obj, u_config_t * config);
-static int ffs_inst_branched(ffs_inst_t * obj);
-static int ffs_inst_direct(ffs_inst_t * obj);
+static int ffs_inst_run(ffs_inst_t * obj);
 static int ffs_inst_compute_proxy_size(ffs_inst_t * obj);
 static int ffs_inst_start_proxy(ffs_inst_t * obj);
 static int ffs_inst_results(ffs_inst_t * obj);
@@ -198,7 +197,7 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(input == NULL, -1);
 
-  err_err_if(ffs_inst_read_config(obj, input));
+  dbg_err_if( ffs_inst_read_config(obj, input) );
 
   switch (obj->method) {
   case FFS_METHOD_TEST:
@@ -207,14 +206,14 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
     break;
   case FFS_METHOD_BRANCHED:
     mpilog(obj->log, "Branched FFS was selected\n");
-    err_err_if(ffs_inst_branched(obj));
+    dbg_err_if( ffs_inst_run(obj) );
     break;
   case FFS_METHOD_DIRECT:
     mpilog(obj->log, "Direct FFS was selected\n");
-    err_err_if(ffs_inst_direct(obj));
+    dbg_err_if( ffs_inst_run(obj) );
     break;
   default:
-    err_err("Internal error: no method");
+    dbg_err("Internal error: no method");
   }
 
   mpilog(obj->log, "Finishing instance execution.\n");
@@ -459,24 +458,25 @@ int ffs_inst_config(ffs_inst_t * obj) {
 
 /*****************************************************************************
  *
- *  ffs_inst_branched
+ *  ffs_inst_run
  *
  *****************************************************************************/
 
-static int ffs_inst_branched(ffs_inst_t * obj) {
+static int ffs_inst_run(ffs_inst_t * obj) {
 
   int ntrial;
   int nlambda;
+  ffs_trial_arg_t list;
+  ffs_trial_arg_t * trial = &list;
 
   dbg_return_if(obj == NULL, -1);
 
-  /* Check input for branched */
 
-  mpilog(obj->log, "Checking branched input\n");
+  /* Interface chaeck and details to log */
+
+  mpilog(obj->log, "Checking input\n");
 
   dbg_err_if( ffs_param_check(obj->param) );
-
-  /* Interface details to log */
 
   mpilog(obj->log, "\n");
   mpilog(obj->log, "The interface parameters are as follows\n");
@@ -492,12 +492,29 @@ static int ffs_inst_branched(ffs_inst_t * obj) {
   dbg_err_if( ffs_inst_compute_proxy_size(obj) );
   dbg_err_if( ffs_result_create(nlambda, ntrial/obj->nproxy, &obj->result) );
 
-  /* Start proxy */
+  /* Start proxy, set trial argument list, and run */
 
   dbg_err_if( ffs_inst_start_proxy(obj) );
-  dbg_err_if( ffs_branched_run(obj->init, obj->param, obj->proxy,
-			    obj->inst_id, obj->nproxy,
-			       obj->seed, obj->log, obj->result));
+
+  trial->init = obj->init;
+  trial->param = obj->param;
+  trial->proxy = obj->proxy;
+  trial->inst_id = obj->inst_id;
+  trial->nproxy = obj->nproxy;
+  trial->inst_seed = obj->seed;
+  trial->log = obj->log;
+  trial->result = obj->result;
+
+  switch (obj->method) {
+  case FFS_METHOD_BRANCHED:
+    dbg_err_if( ffs_branched_run(trial) );
+    break;
+  case FFS_METHOD_DIRECT:
+    dbg_err_if( ffs_direct_run(trial) );
+    break;
+  default:
+    dbg_err("Internal error: no method");
+  }
 
   mpilog(obj->log, "Closing down the simulation proxy\n");
 
@@ -653,21 +670,6 @@ static int ffs_inst_start_proxy(ffs_inst_t * obj) {
   mpilog(obj->log, "Failed to start simulation proxy");
 
   return -1;
-}
-
-/*****************************************************************************
- *
- *  ffs_inst_direct
- *
- *****************************************************************************/
-
-static int ffs_inst_direct(ffs_inst_t * obj) {
-
-  dbg_return_if(obj == NULL, -1);
-
-  mpilog(obj->log, "DIRECT FFS NOT VERY INTERSTING YET\n");
-
-  return 0;
 }
 
 /*****************************************************************************

@@ -1,0 +1,120 @@
+ffs
+{
+	ffs_instances	1
+	ffs_seed	53
+
+	ffs_inst
+	{
+		method			direct
+
+		sim_mpi_tasks           1
+		sim_name		dmc
+		sim_argv		inputs/dmc_switch1_comp.dat inputs/dmc_switch1_react.dat
+
+		init_independent	no
+		init_teq		100.0
+		init_nskip		10
+		init_nstepmax		100000
+		init_nsteplambda	1
+		init_prob_accept        1.0
+	}
+
+	interfaces
+	{
+		nlambda 13
+		pprune_default 0.00
+		nskeep_default 0
+		nstate_default 0
+		interface1
+		{
+			lambda -24.0
+			ntrial 200
+			nstate 10
+			pprune 1.0
+		}
+		interface2
+		{
+			lambda -22.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface3
+		{
+			lambda -20.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface4
+		{
+			lambda -18.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface5
+		{
+			lambda -15.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface6
+		{
+			lambda -12.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface7
+		{
+			lambda -9.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface8
+		{
+			lambda -5.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface9
+		{
+			lambda 0.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface10
+		{
+			lambda 7.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface11
+		{
+			lambda 15.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface12
+		{
+			lambda 20.0
+			ntrial 100
+			nstate 10
+			pprune 0.4
+		}
+		interface13
+		{
+			lambda 25.0
+			ntrial 0
+			nstate 0
+			pprune 0.0
+		}
+	}
+}
