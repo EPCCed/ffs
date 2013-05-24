@@ -31,6 +31,7 @@ struct ffs_inst_type {
   int seed;             /* RNG seed */
   MPI_Comm parent;      /* Parent communicator */
   MPI_Comm comm;        /* FFS instance communicator */
+  MPI_Comm x_comm;      /* instance x communicator between proxies */
   ffs_param_t * param;  /* Parameters (interfaces) */
   mpilog_t * log;       /* Instance log */
 
@@ -55,6 +56,7 @@ static int ffs_inst_run(ffs_inst_t * obj);
 static int ffs_inst_compute_proxy_size(ffs_inst_t * obj);
 static int ffs_inst_start_proxy(ffs_inst_t * obj);
 static int ffs_inst_results(ffs_inst_t * obj);
+static int ffs_inst_start_xcomm(ffs_inst_t * obj);
 
 /*****************************************************************************
  *
@@ -79,6 +81,7 @@ int ffs_inst_create(int id, MPI_Comm parent, ffs_inst_t ** pobj) {
 
   obj->inst_id = id;
   obj->parent = parent;
+  obj->x_comm = MPI_COMM_NULL;
 
   MPI_Comm_rank(obj->parent, &rank);
   MPI_Comm_split(obj->parent, obj->inst_id, rank, &obj->comm);
@@ -119,6 +122,7 @@ void ffs_inst_free(ffs_inst_t * obj) {
   if (obj->sim_name) u_string_free(obj->sim_name);
   if (obj->sim_argv) u_string_free(obj->sim_argv);
 
+  if (obj->x_comm != MPI_COMM_NULL) MPI_Comm_free(&obj->x_comm);
   MPI_Comm_free(&obj->comm);
   U_FREE(obj);
 
@@ -160,6 +164,7 @@ int ffs_inst_start(ffs_inst_t * obj, const char * filename,
   err_err_if(mpilog_fopen(obj->log, filename, mode));
   mpilog(obj->log, "FFS instance log for instance id %d\n", obj->inst_id);
   mpilog(obj->log, "Running on %d MPI task%s\n", sz, (sz > 1) ? "s" : "");
+  mpilog(obj->log, "The instance RNG seed is %d\n", obj->seed);
 
   return 0;
  err:
@@ -495,6 +500,7 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   /* Start proxy, set trial argument list, and run */
 
   dbg_err_if( ffs_inst_start_proxy(obj) );
+  dbg_err_if( ffs_inst_start_xcomm(obj) );
 
   trial->init = obj->init;
   trial->param = obj->param;
@@ -521,7 +527,7 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   proxy_delegate_free(obj->proxy);
   proxy_free(obj->proxy);
 
-  ffs_result_reduce(obj->result, obj->comm, 0);
+  ffs_result_reduce(obj->result, obj->x_comm, 0);
   ffs_inst_results(obj);
 
   ffs_result_free(obj->result);
@@ -548,16 +554,26 @@ static int ffs_inst_run(ffs_inst_t * obj) {
 static int ffs_inst_results(ffs_inst_t * obj) {
 
   int ntrial, nlambda;
-  int n, nstates, ntry, nprune;
+  int n, neq, nstates, ntry, nprune;
   int nsum_trial = 0, nsum_prune = 0, nsum_success = 0;
   double tmax, tsum, wt, lambda;
 
   dbg_return_if(obj == NULL, -1);
 
   mpilog(obj->log, "\n");
-  mpilog(obj->log, "Instance results\n");
+  mpilog(obj->log, "Instance results\n\n");
 
   ffs_param_nstate(obj->param, 1, &ntrial);
+  ffs_result_status_final(obj->result, FFS_TRIAL_SUCCEEDED, &nstates);
+  ffs_result_status_final(obj->result, FFS_TRIAL_TIMED_OUT, &n);
+  ffs_result_eq_final(obj->result, &neq);
+  
+  mpilog(obj->log, "Attempts at first interface:         %d\n", ntrial);
+  mpilog(obj->log, "States generated at first interface: %d\n", nstates);
+  mpilog(obj->log, "Time outs at first interface:        %d\n", n);
+  mpilog(obj->log, "Number of equilibration runs:        %d\n", neq);
+  mpilog(obj->log, "\n");
+
   ffs_param_nlambda(obj->param, &nlambda);
 
   mpilog(obj->log,
@@ -718,4 +734,41 @@ int ffs_inst_seed_set(ffs_inst_t * obj, int seed) {
   obj->seed = seed;
 
   return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_start_xcomm
+ *
+ *  We must have a proxy at this point.
+ *
+ *****************************************************************************/
+
+static int ffs_inst_start_xcomm(ffs_inst_t * obj) {
+
+  int inst_rank;
+  int proxy_rank;
+  MPI_Comm comm;
+
+  dbg_return_if(obj == NULL, -1);
+
+  proxy_comm(obj->proxy, &comm);
+
+  MPI_Comm_rank(comm, &proxy_rank);
+  MPI_Comm_split(obj->comm, proxy_rank, obj->proxy_id, &obj->x_comm);
+
+  /* We reply on this later to see the results ... */
+
+  MPI_Comm_rank(obj->comm, &inst_rank);
+  dbg_err_if(inst_rank == 0 && proxy_rank != 0);
+
+  mpilog(obj->log, "Started proxy cross communicator\n");
+
+  return 0;
+
+ err:
+
+  mpilog(obj->log, "Failed to start instance cross communicator\n");
+
+  return -1;
 }

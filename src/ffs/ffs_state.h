@@ -42,7 +42,7 @@ typedef struct ffs_state_type ffs_state_t;
  *  \brief Create a state object
  *
  *  \param inst_id   the instance id (to form part of file stub)
- *  \param proxy_id  the simulation proxy id (also to form part of the stub)
+ *  \param ngrp_id   the group id (also to form part of the stub)
  *  \param pobj      a pointer to the new object to be returned
  *
  *  \retval 0        a success
@@ -50,7 +50,7 @@ typedef struct ffs_state_type ffs_state_t;
  *
  */
 
-int ffs_state_create(int inst_id, int proxy_id, ffs_state_t ** pobj);
+int ffs_state_create(int inst_id, int ngrp_id, ffs_state_t ** pobj);
 
 /**
  *  \brief Release a state object
@@ -124,6 +124,21 @@ int ffs_state_mem_set(ffs_state_t * obj, void * memblock);
  */
 
 const char * ffs_state_stub(ffs_state_t * obj); 
+
+/**
+ *  \brief Return the stub for alternative state id
+ *
+ *  \param obj       a valid ffs_state_t
+ *  \param id        an integer
+ *
+ *  This will return the state stub for this state, but with the
+ *  alternative state id.
+ *
+ *  \retval a string on success
+ *  \retval NULL if there is a problem with the requested id
+ */
+
+const char * ffs_state_stub_id(ffs_state_t * obj, int id);
 
 /**
  * \}

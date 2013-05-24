@@ -20,12 +20,14 @@
 int ut_util_misc(u_test_case_t * tc) {
 
   u_dbg("Start");
-  u_test_err_if(util_compare_double(1.234, 1.234, DBL_EPSILON) != 0);
-  u_test_err_if(util_compare_double(1.234, 1.235, DBL_EPSILON) == 0);
+  dbg_err_if(util_compare_double(1.234, 1.234, DBL_EPSILON) != 0);
+  dbg_err_if(util_compare_double(1.234, 1.235, DBL_EPSILON) == 0);
 
-  u_test_err_if(util_compare_double(-1.234, -1.23400, DBL_EPSILON) != 0);
-  u_test_err_if(util_compare_double(DBL_EPSILON, 0.0, DBL_EPSILON) == 0);
-  u_test_err_if(util_compare_double(DBL_EPSILON, 0.0, 2*DBL_EPSILON) != 0);
+  dbg_err_if(util_compare_double(-1.234, -1.23400, DBL_EPSILON) != 0);
+  dbg_err_if(util_compare_double(DBL_EPSILON, 0.0, DBL_EPSILON) == 0);
+  dbg_err_if(util_compare_double(DBL_EPSILON, 0.0, 2*DBL_EPSILON) != 0);
+
+  dbg_err_if(util_filename_stub(1, 1, 1) == NULL);
 
   u_dbg("Success\n");
   return U_TEST_SUCCESS;
@@ -52,15 +54,15 @@ int ut_util_config(u_test_case_t * tc) {
   /* Set up a configuration with a double value */
 
   u_dbg("Start");
-  u_test_err_if(u_config_create(&config));
-  u_test_err_if(u_config_add_key(config, key, svalue));
+  dbg_err_if(u_config_create(&config));
+  dbg_err_if(u_config_add_key(config, key, svalue));
 
-  u_test_err_if(util_config_get_subkey_value_d(config, key, 0.0, &value));
-  u_test_err_if(u_atof(svalue, &ref));
-  u_test_err_if(util_compare_double(value, ref, DBL_EPSILON));
+  dbg_err_if(util_config_get_subkey_value_d(config, key, 0.0, &value));
+  dbg_err_if(u_atof(svalue, &ref));
+  dbg_err_if(util_compare_double(value, ref, DBL_EPSILON));
 
-  u_test_err_if(util_config_get_subkey_value_d(config, "nokey", 0.0, &value));
-  u_test_err_if(util_compare_double(value, 0.0, DBL_EPSILON));
+  dbg_err_if(util_config_get_subkey_value_d(config, "nokey", 0.0, &value));
+  dbg_err_if(util_compare_double(value, 0.0, DBL_EPSILON));
 
   u_config_free(config);
 

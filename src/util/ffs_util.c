@@ -18,6 +18,13 @@
 
 int facility = LOG_LOCAL0;
 
+struct util_s {
+  u_string_t * stub;
+};
+
+static int util_inst(void);
+static struct util_s * inst = NULL;
+
 /*****************************************************************************
  *
  *  util_ulog
@@ -83,4 +90,60 @@ int util_mpi_any(int expr, MPI_Comm comm) {
   MPI_Allreduce(&expr, &mpi_errno, 1, MPI_INT, MPI_LOR, comm);
 
   return mpi_errno;
+}
+
+/*****************************************************************************
+ *
+ *  util_filename_stub
+ *
+ ****************************************************************************/
+
+const char * util_filename_stub(int id_inst, int id_group, int id_state) {
+
+  const int ifmt4 = 9999;         /* Maximum instance, group number */
+  const int ifmt9 = 999999999;    /* Maximum state id */
+  const char * fmt = "inst%4.4d-grp%4.4d-state%9.9d";
+
+  dbg_return_if(id_inst < 0, NULL);
+  dbg_return_if(id_group < 0, NULL);
+  dbg_return_if(id_state < 0, NULL);
+  dbg_return_if(util_inst(), NULL);
+
+  dbg_err_ifm(id_inst  > ifmt4, "Format botch inst. = %d", id_inst);
+  dbg_err_ifm(id_group > ifmt4, "Format botch group = %d", id_group);
+  dbg_err_ifm(id_state > ifmt9, "Format botch state = %d", id_state);
+
+  u_string_sprintf(inst->stub, fmt, id_inst, id_group, id_state);
+
+  return u_string_c(inst->stub);
+
+ err:
+
+  return NULL;
+}
+
+/*****************************************************************************
+ *
+ *  util_inst
+ *
+ *  Singleton object
+ *
+ *****************************************************************************/
+
+static int util_inst(void) {
+
+  if (inst == NULL) {
+    inst = u_calloc(1, sizeof(struct util_s));
+    dbg_err_if(inst == NULL);
+  }
+
+  if (inst->stub == NULL) {
+    dbg_err_if(u_string_create("", strlen(""), &inst->stub));
+  }
+
+  return 0;
+
+ err:
+
+  return -1;
 }
