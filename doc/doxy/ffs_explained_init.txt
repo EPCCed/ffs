@@ -1,0 +1,91 @@
+/**
+ *  \page ffs_explained_init Generating the Initial States
+
+\tableofcontents
+
+\section ffs_ex_init Reference state and initial states
+
+In order to make simulation trials from the initial interface, a
+number of states at \f$ \lambda_1 \f$ must be generated. This
+process also doubles as a mechanism for measuring the number
+of trajectories which cross \f$ \lambda_1 \f$ in the forward
+direction in unit time (the "forward flux"). This is used to
+determine the final probability of the rare event in conjunction
+with the conditional probability \f$ P(B|A) \f$.
+
+It is assumed that a single reference state is supplied for
+which \f$ \lambda < \lambda_1 \f$ and from which initial trials
+are started.
+
+To generate \f$ N_A \f$ states at the initial interface, we fire
+exactly \f$ N_A \f$ trials from the reference state. If a number
+of these trials fail to reach \f$ \lambda_1 \f$ (e.g., they reach
+the maximum time for a trial), the number of initial states will
+be less than that requested in the input file. The actual number
+is recorded, and used in the proceeding computation. If no trials
+reach the initial interface, clearly no further progress can be
+made.
+
+![](../diagrams/init1.gif "Generating a number of initial states")
+
+The schematic diagram shows a situation where two states \f$ S_1 \f$
+and \f$ S_2 \f$ have been generated at the first interface from a
+total of three trials from the reference state. The third trial
+\f$ t_3 \f$ has not reached the first interface and state \f$ S_3 \f$
+cannot be used as the basis of future trials from the first interface.
+
+\section ffs_ex_gen Generating the initial states
+
+### Equilibration of the reference state
+
+As the reference state is fixed, it may be necessary to equilibrate
+this state in the A basin before starting a trial trajectory. An
+equilibration time \f$ t_{eq} \f$ may be defined in the input file.
+If, during the equilibration period, the state reaches state B,
+the state is re-initialised from the reference state and a new
+equilibration is attempted. The equilibration time does not
+contribute to the calculation of the flux at the first interface.
+
+### Initial states from a single trajectory
+
+There are a number of different ways of generating the initial
+states. The first approach is inherently serial. A single trajectory
+is fired from the reference state (after equilibration, if required).
+This trajectory is expected to fluctuate about the first interface
+\f$ \lambda_1 \f$ as seen in the diagram below. Each forward crossing
+of the interface defines a state which, potentially, can be used as
+the basis of forward trajectories.
+
+![](../diagrams/init2a.gif "Single trajectory")
+
+As these states may be close together in state space, it may be desirable
+to sub-sample the initial crossing points by skipping every so many states,
+or accepting them with some probability. However, all the crossings are
+recorded in order to compute the flux at \f$ \lambda_1 \f$.
+
+This method may be used in parallel, in which case each parallel task
+computes a single trajectory of its own. However, the results will not
+be the same on different numbers of MPI tasks.
+
+### Initial states from parallel trajectories
+
+A parallel alternative may be constructed simply by allowing multiple
+trajectories to be used to sample the initial states. In this case,
+different trajectories may be computed by different MPI tasks. If the
+random number seed for each trajectory is always based on a unique
+global trajectory number, the same states will be generated irrespective
+of the number of MPI tasks. For the direct FFS variant, some additional
+care is required to ensure the same ensemble of states at the first
+interface is collected independent of parallel decomposition.
+
+![](../diagrams/init2b.gif "Parallel trajectories")
+
+The statistics for the number of crossings and trajectory duration
+must be collected at the end of the run to provide a single figure
+for the measured flux at \f$ \lambda_1 \f$.
+
+\section ffs_init_stats Statistics of the initial crossings
+
+
+
+*/

@@ -2,7 +2,19 @@
  *
  * \page ffs_explained Forward Flux Sampling Explained
  *
+ * 
 
-This page will contain on overview.
+\tableofcontents
+
+\section ffs_explained_intro Introduction
+
+Rare events, while occuring infrequently, may have important consequences
+when they do occur. It is therefore useful to be able to simulate rare
+events without wasting a great deal of computational effort on the
+"uniteresting" time between these events.
+
+A number of techniques have been developed which attempt to do this
+in different contexts. One of these techniques is Forward Flux Sampling
+(FFS).
 
 */

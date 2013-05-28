@@ -97,6 +97,21 @@ int mpilog_fp_set(mpilog_t * obj, FILE * fp);
 int mpilog(mpilog_t * obj, const char * fmt, ...);
 
 /**
+ *  \brief Log a message (all ranks)
+ *
+ *  \param obj       the log object
+ *  \param fmt       printf-like format string
+ *  \param ...
+ *
+ *  \retval 0        a success
+ *  \retval -1       a failure
+ *
+ *  Logs a message on the current stream.
+ */
+
+int mpilog_all(mpilog_t * obj, const char * fmt, ...);
+
+/**
  *  \brief Log a message on a given stream
  *
  *  \param obj     the log object

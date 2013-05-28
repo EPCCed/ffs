@@ -139,14 +139,14 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename);
 /**
  *  \brief Start the log file using fopen-like arguments
  *
- *  \param  obj         the ffs_control_t object
- *  \param  name        a name for the run (to be used in log file names)
+ *  \param  obj             the ffs_control_t object
+ *  \param  runname         a name for this FFS run
  *
- *  \retval 0           a success
- *  \retval -1          a failure
+ *  \retval 0               a success
+ *  \retval -1              a failure
  */
 
-int ffs_control_start(ffs_control_t * obj, const char * name);
+int ffs_control_start(ffs_control_t * obj, const char * runname);
 
 /**
  *  \brief Stop the log at end of calculation
@@ -165,6 +165,7 @@ int ffs_control_stop(ffs_control_t * obj);
  *  \brief Log details of config to log
  *
  *  \param obj         the ffs control object
+ *  \param log         an mpilog_t log
  *
  *  \retval 0          a success
  *  \retval -1         a failure
