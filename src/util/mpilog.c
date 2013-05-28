@@ -118,6 +118,29 @@ int mpilog(mpilog_t * obj, const char * fmt, ...) {
 
 /*****************************************************************************
  *
+ *  mpilog_all
+ *
+ *****************************************************************************/
+
+int mpilog_all(mpilog_t * obj, const char * fmt, ...) {
+
+  va_list args;
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(fmt == NULL, -1);
+  dbg_return_if(obj->fp == NULL, 0);
+
+  fprintf(obj->fp, "[%d] ", obj->rank);
+
+  va_start(args, fmt);
+  vfprintf(obj->fp, fmt, args);
+  va_end(args);
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
  *  mpilog_fp
  *
  *****************************************************************************/

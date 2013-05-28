@@ -16,6 +16,7 @@
 
 #include "u/libu.h"
 
+
 /**
  *  \defgroup ffs_util Utilities
  *  \ingroup utilities
@@ -55,6 +56,19 @@
  *  \endcode
  *
  */
+
+/**
+ *  \brief Trial result enumerator type
+ *
+ *  Identifies the status of various trial results.
+ */
+
+typedef enum {FFS_TRIAL_SUCCEEDED = 0,    /**< Clean finish */
+	      FFS_TRIAL_TIMED_OUT,        /**< Reached maximum allowed time */
+	      FFS_TRIAL_WENT_BACKWARDS,   /**< ..in lambda space */
+	      FFS_TRIAL_WAS_PRUNED,       /**< Got the chop */
+	      FFS_TRIAL_IN_PROGRESS       /**< Still going */
+} ffs_trial_enum_t;
 
 /**
  *  \brief Log a message and jump to label \b mpi_sync: if \b expr is true
@@ -151,6 +165,22 @@ int util_config_get_subkey_value_d(u_config_t * c, const char * subkey,
  */
 
 int util_compare_double(double a, double b, double tol);
+
+/**
+ *  \brief Return a file name stub, e.g.,  "inst0000-grp0000-state00000000"
+ *
+ *  \param  id_inst      intended for the instance number
+ *  \param  id_group     intended for group or ensemble number
+ *  \param  id_state     state id
+ *
+ *   The format used to construct the stub is "inst%4.4d-ngrp%4.4d-state%9.9d"
+ *
+ *  \retval stub  the file stub on success
+ *  \retval NULL if there was a problem formating the string
+ *
+ */
+
+const char * util_filename_stub(int id_inst, int id_group, int id_state);
 
 /**
  * \}

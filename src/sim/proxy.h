@@ -119,7 +119,7 @@ int proxy_state(proxy_t * obj, sim_state_enum_t action, const char * stub);
 int proxy_lambda(proxy_t * obj);
 
 /**
- *  \brief Requestion exchange of information
+ *  \brief Request exchange of information
  *
  *  \param  obj     the proxy object
  *  \param  param   one of ffs_info_enum_t describing information and direction
@@ -182,7 +182,7 @@ int proxy_comm(proxy_t * obj, MPI_Comm * comm);
  *  \retval -1         a NULL pointer was received or problem caching data
  */
 
-int proxy_cache_info_int(proxy_t * obj, ffs_info_enum_t action, int n,
+int proxy_cache_info_int(proxy_t * obj, ffs_info_enum_t action, int count,
 			 int * data);
 
 /**

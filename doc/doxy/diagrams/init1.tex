@@ -1,0 +1,103 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%%  init1.tex
+%%
+%%  Generic picture for generation of initial states.
+%%
+%%  Convert to gif and reduce to 9cm in height for final gif for web.
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{5pt}%
+\usetikzlibrary{arrows, shapes, petri}
+
+\begin{document}
+\pagestyle{empty}
+
+\def\StateA{StateA}
+\def\StateB{StateB}
+\def\StateONE{StateONE}
+\def\StateTWO{StateTWO}
+\def\StateTHREE{StateTHREE}
+\def\Sref{Sref}
+\def\LambdaONE{LambdaONE}
+\def\LambdaTWO{LambdaTWO}
+\def\LambdaDOT{LambdaDOT}
+\def\StateR{StateR}
+
+
+\begin{tikzpicture}[every node/.style={font=\normalsize,
+  minimum height=0.5cm,minimum width=0.5cm},]
+
+% Here's the grid
+
+\node [matrix, column sep = 1.2cm, row sep = 0.3cm] (matrix) at (0,0) {
+
+  \node(0,0) (\StateA 1) {}; & & & \node(0,0) (\LambdaONE 1) {};
+   & \node(0,0) (\LambdaTWO 1) {}; & \node(0,0) (\LambdaDOT 1) {};
+  & \node(0,0) (\StateB 1) {}; & & \\
+
+  & & & & & & & \\
+
+  \node(0,0) (t1 left) {}; & & & \node(0,0) (\StateONE) {}; & & & &
+  \node(0,0) (t1 right) {}; &\\
+
+  \node(0,0) (\StateA 2) {}; & \node(0,0) (\Sref 2) {}; & &
+    & & & & & \\
+
+  \node(0,0) (t2 left) {}; & & & \node(0,0) (\StateTWO) {}; & & & &
+  \node(0,0) (t2 right) {}; & \\
+
+  & & \node(0,0) (\StateTHREE) {}; & & & & & & \\
+
+  & & & \node(0,0) (\LambdaONE 3) {}; & \node(0,0) (\LambdaTWO 3) {};
+  & \node(0,0) (\LambdaDOT 3) {}; 
+    & \node(0,0) (\StateB 3) {}; & & \node(0,0) (\StateR) {}; \\
+
+  \node(0,0) (t3 left) {}; & & & & & & \node(0,0) (t3 right) {}; & &\\
+};
+
+
+% Horizontal progress
+\draw [-latex,dashed] 
+  (t3 left) -- (t3 right.east) node[right] {\it Progress};
+
+% Vertical Interfaces
+
+\draw
+  (\LambdaONE 1.north) -- (\LambdaONE 3.south) node[below] {$\lambda_1$}
+  (\LambdaTWO 1.north) -- (\LambdaTWO 3.south) node[below] {$\lambda_2$}
+  (\LambdaDOT 1.north) -- (\LambdaDOT 3.south) node[below] {$\ldots$}
+  (\StateB 1.north) -- (\StateB 3.south) node[below] {$\lambda_n$};
+
+% Blocks for A and B states
+
+\filldraw[fill=blue!20]
+  (\StateA 1.north) rectangle (\LambdaONE 3.south)
+  (\StateB 1.north) rectangle (\StateR.south);
+
+\fill
+  (\StateA 1) node[right] {STATE A}
+  (\StateB 1) node[right] {STATE B};
+
+% States
+\draw
+  (\Sref 2) node[draw, circle, fill=green!20] {$S_{ref}$}
+  (\StateONE) node[draw,circle,fill=green!20] {$S_1$}
+  (\StateTWO) node[draw,circle,fill=green!20] {$S_2$}
+  (\StateTHREE) node[draw,circle,fill=red!20] {$S_3$};
+
+% Trjectories
+\path[->, thick, >=stealth', shorten <=4pt, shorten >=3pt]
+(\Sref 2) edge [out=45, in=135] node[auto] {$t_1$} (\StateONE.north west)
+(\Sref 2) edge [out=-60, in=135] node[auto] {$t_2$} (\StateTWO.north west)
+(\Sref 2) edge [out=-90, in=-180] node[auto] {$t_3$} (\StateTHREE.west);
+
+\end{tikzpicture}
+\end{document}

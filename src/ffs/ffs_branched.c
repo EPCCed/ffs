@@ -13,14 +13,6 @@
 #include "ffs_state.h"
 #include "ffs_branched.h"
 
-enum {FFS_TRIAL_SUCCEEDED = 0, FFS_TRIAL_TIMED_OUT, FFS_TRIAL_WENT_BACKWARDS,
-      FFS_TRIAL_WAS_PRUNED, FFS_TRIAL_IN_PROGRESS};
-
-int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
-		      ffs_state_t * sinit,
-		      ranlcg_t * ran, int nlocal, int seed,
-		      ffs_result_t * result, int * status);
-
 static int ffs_branched_run_to_time(proxy_t * proxy, double teq,
 				    int nstepmax, int * status);
 
@@ -38,6 +30,220 @@ int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
 		       int nstepmax, int nsteplambda, int * status);
 int ffs_branched_eq(proxy_t * proxy, ffs_state_t * state, int seed,
 		    int nstepmax, double teq);
+int ffs_temp_direct(ffs_state_t * sref, ffs_trial_arg_t * trial);
+
+int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
+		   ranlcg_t * rantraj, int nlocaltraj, int itraj,
+		   int * status);
+
+
+
+typedef struct ffs_ensemble_s ffs_ensemble_t;
+
+struct ffs_ensemble_s {
+  int nmax;
+  ffs_state_t ** state;
+};
+
+int ffs_ensemble_create(int nmax, int inst, int pid, ffs_ensemble_t ** pobj);
+void ffs_ensemble_free(ffs_ensemble_t * obj);
+
+
+int ffs_ensemble_create(int nmax, int inst, int pid, ffs_ensemble_t ** pobj) {
+
+  int n;
+  ffs_ensemble_t * obj = NULL;
+
+  obj= u_calloc(1, sizeof(ffs_ensemble_t));
+  dbg_err_if(obj == NULL);
+
+  obj->nmax = nmax;
+  obj->state = u_calloc(nmax, sizeof(ffs_state_t *));
+  dbg_err_if(obj->state == NULL);
+
+  for (n = 0; n < nmax; n++) {
+    dbg_err_if(ffs_state_create(inst, pid, &obj->state[n]));
+  }
+
+  *pobj = obj;
+
+  return 0;
+
+ err:
+
+  if (obj) ffs_ensemble_free(obj);
+
+  return -1;
+}
+
+void ffs_ensemble_free(ffs_ensemble_t * obj) {
+
+  int n;
+
+  dbg_return_if(obj == NULL,);
+
+  for (n = 0; n < obj->nmax; n++) {
+    if (obj->state && obj->state[n]) ffs_state_free(obj->state[n]);
+  }
+
+  if (obj->state) u_free(obj->state);
+  u_free(obj);
+
+  return;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_direct_run
+ *
+ *****************************************************************************/
+
+int ffs_direct_run(ffs_trial_arg_t * trial) {
+
+  int pid;
+  int mpi_errnol = 0;
+  const char * stub = NULL;
+  ffs_state_t * sref = NULL;
+
+  MPI_Comm comm;
+
+  dbg_return_if(trial == NULL, -1);
+
+  /* As this is the first time the simulation is run, be sure
+   * to check for errors and avoid possible deadlock. If any
+   * MPI tasks get stuck in the simulation... we'll be stuck
+   * too. */
+
+  dbg_err_if( proxy_id(trial->proxy, &pid) );
+  dbg_err_if( proxy_comm(trial->proxy, &comm) );
+
+  dbg_err_if( ffs_state_create(trial->inst_id, pid, &sref) );
+  dbg_err_if( ffs_state_id_set(sref, 0) );
+
+  mpi_errnol = proxy_execute(trial->proxy, SIM_EXECUTE_INIT);
+
+  if (mpi_errnol) {
+    mpilog_all(trial->log, "SIM_EXECUTE_INIT (proxy %d) failed.\n", pid);
+  }
+
+  mpi_sync_if_any(mpi_errnol, comm);
+
+  stub = ffs_state_stub(sref);
+  dbg_err_if(stub == NULL);
+
+  mpi_errnol = proxy_state(trial->proxy, SIM_STATE_INIT, stub);
+
+  if (mpi_errnol) {
+    mpilog_all(trial->log, "SIM_STATE_INIT (proxy %d) failed\n", pid);
+  }
+
+  mpi_sync_if_any(mpi_errnol, comm);
+
+  mpi_errnol = proxy_state(trial->proxy, SIM_STATE_WRITE, stub);
+
+  if (mpi_errnol) {
+    mpilog_all(trial->log, "SIM_STATE_WRITE (proxy %d) failed\n", pid);
+  }
+
+  mpi_sync_if_any(mpi_errnol, comm);
+
+  /* The initialisation has worked, so run the FFS (at last). */
+
+  ffs_temp_direct(sref, trial);
+
+  /* Assume the clean-up will work if we've reached this far;
+   * even if it doesn't, let's have a normal exit so we get to
+   * to the results... */
+
+  proxy_state(trial->proxy, SIM_STATE_DELETE, stub);
+  proxy_execute(trial->proxy, SIM_EXECUTE_FINISH);
+  ffs_state_free(sref);
+
+  return 0;
+
+ mpi_sync:
+
+  mpilog(trial->log, "Failed to initialise simulation\n");
+
+ err:
+
+  if (sref) ffs_state_free(sref);
+  mpilog(trial->log, "Failed to run requested FFS simulations\n");
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_temp_direct
+ *
+ *****************************************************************************/
+
+int ffs_temp_direct(ffs_state_t * sref, ffs_trial_arg_t * trial) {
+
+  int n, nstart, nstate, nstate_local;
+  int ntrial, ntrial_local;
+  int pid;
+  int itraj;
+  int status;
+  long int lseed;
+  const char * stub = NULL;
+
+  ranlcg_t * ran = NULL;
+  ffs_ensemble_t * ensemble = NULL;
+
+  dbg_return_if(sref == NULL, -1);
+  dbg_return_if(trial == NULL, -1);
+
+  /* Initial states */
+
+  dbg_err_if( proxy_id(trial->proxy, &pid) );
+
+  ffs_param_ntrial(trial->param, 1, &ntrial);
+  ffs_param_nstate(trial->param, 1, &nstate);
+
+  dbg_err_if(nstate % trial->nproxy != 0);
+
+  ntrial_local = nstate / trial->nproxy;
+  nstart = pid*ntrial_local;
+
+  ffs_ensemble_create(ntrial_local, trial->inst_id, pid, &ensemble);
+
+  /* Start the trajectory RNG */
+
+  lseed = trial->inst_seed;
+  ranlcg_create(lseed, &ran);
+
+  nstate_local = 0;
+
+  for (n = 0; n < ntrial_local; n++) {
+
+    itraj = 1 + n + nstart;                  /* parallel trial id */
+    lseed = trial->inst_seed + n + nstart;   /* trajectory seed */
+    ranlcg_state_set(ran, lseed);
+
+    ffs_trial_init(trial, sref, ran, n, itraj, &status);
+
+    if (status != FFS_TRIAL_SUCCEEDED) continue;
+
+    ffs_state_id_set(ensemble->state[nstate_local], itraj);
+    stub = ffs_state_stub(ensemble->state[nstate_local]);
+    proxy_state(trial->proxy, SIM_STATE_WRITE, stub);
+    nstate_local += 1;
+  }
+
+  ranlcg_free(ran);
+  ffs_ensemble_free(ensemble);
+
+  return 0;
+
+ err:
+
+  if (ran) ranlcg_free(ran);
+  if (ensemble) ffs_ensemble_free(ensemble);
+
+  return -1;
+}
 
 /*****************************************************************************
  *
@@ -45,10 +251,8 @@ int ffs_branched_eq(proxy_t * proxy, ffs_state_t * state, int seed,
  *
  *****************************************************************************/
 
-int ffs_branched_run(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
-		     int inst_id,
-		     int inst_nsim, int inst_seed, mpilog_t * log,
-		     ffs_result_t * result) {
+int ffs_branched_run(ffs_trial_arg_t * trial) {
+
   int pid;
   int ntrial;
   int n, nstart;
@@ -62,67 +266,62 @@ int ffs_branched_run(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
   ffs_state_t * sinit = NULL;
   ranlcg_t * ran = NULL;
 
-  dbg_return_if(init == NULL, -1);
-  dbg_return_if(param == NULL, -1);
-  dbg_return_if(proxy == NULL, -1);
-  dbg_return_if(log == NULL, -1);
-  dbg_return_if(result == NULL, -1);
+  dbg_return_if(trial == NULL, -1);
 
-  /* trial limits */
+  /* trial limits NEED TO BE SET FROM INPUT */
   nstepmax = 10000000;
   nsteplambda = 1;
 
   /* Set up the initial simulation state and save it immediately */
 
-  err_err_if(proxy_id(proxy, &pid));
-  err_err_if(proxy_ffs(proxy, &ffs));
+  err_err_if(proxy_id(trial->proxy, &pid));
+  err_err_if(proxy_ffs(trial->proxy, &ffs));
 
-  err_err_if(ffs_state_create(inst_id, pid, &sinit));
+  err_err_if(ffs_state_create(trial->inst_id, pid, &sinit));
   err_err_if(ffs_state_id_set(sinit, 0));
 
-  err_err_if(proxy_execute(proxy, SIM_EXECUTE_INIT));
+  err_err_if(proxy_execute(trial->proxy, SIM_EXECUTE_INIT));
 
-  err_err_if(proxy_state(proxy, SIM_STATE_INIT, ffs_state_stub(sinit)));
-  err_err_if(proxy_state(proxy, SIM_STATE_WRITE, ffs_state_stub(sinit)));
+  err_err_if(proxy_state(trial->proxy, SIM_STATE_INIT, ffs_state_stub(sinit)));
+  err_err_if(proxy_state(trial->proxy, SIM_STATE_WRITE, ffs_state_stub(sinit)));
 
   /* Start the trajectory RNG (use instance seed for now) */
-  lseed = inst_seed;
+  lseed = trial->inst_seed;
   ranlcg_create(lseed, &ran);
 
   /* Distribute the trials evenly among the simulation instances */
   /* We have a local trial index n, and a global seed (1 + n + nstart) */
 
-  ffs_param_nstate(param, 1, &ntrial);
+  ffs_param_nstate(trial->param, 1, &ntrial);
 
-  ntrial = ntrial / inst_nsim;
+  dbg_err_if(ntrial % trial->nproxy != 0);
+
+  ntrial = ntrial / trial->nproxy;
   nstart = pid*ntrial;
 
-  mpilog(log, "\n");
-  mpilog(log, "Starting %d trials each on %d tasks\n", ntrial, inst_nsim);
+  mpilog(trial->log, "\n");
+  mpilog(trial->log, "Starting %d trials each on %d proxies\n", ntrial,
+	 trial->nproxy);
 
   for (n = 0; n < ntrial; n++) {
 
-    itraj = 1 + n + nstart;           /* trajectory number (global) */
-    lseed = inst_seed + n + nstart;   /* trajectory seed */
+    itraj = 1 + n + nstart;                  /* trajectory number (global) */
+    lseed = trial->inst_seed + n + nstart;   /* trajectory seed */
     ranlcg_state_set(ran, lseed);
 
-    ffs_branched_init(init, param, proxy, sinit, ran, n, itraj,
-		      result, &status);
+    ffs_trial_init(trial, sinit, ran, n, itraj, &status);
 
-    if (status != FFS_TRIAL_SUCCEEDED) {
-      mpilog(log, "FFS: Initial trial %d did not reach lambda_a\n", itraj);
-      /* Try to continue... */
-    }
+    if (status != FFS_TRIAL_SUCCEEDED) continue;
 
     /* We reached the first interface; start the trials! */
     wt = 1.0;
-    ffs_branched_recursive(1, inst_id, 1, wt, nstepmax, nsteplambda,
-			   param, proxy, ran, result);
+    ffs_branched_recursive(1, trial->inst_id, 1, wt, nstepmax, nsteplambda,
+			   trial->param, trial->proxy, ran, trial->result);
   }
 
-  err_err_if(proxy_state(proxy, SIM_STATE_WRITE, ffs_state_stub(sinit)));
-  proxy_state(proxy, SIM_STATE_DELETE, ffs_state_stub(sinit));
-  proxy_execute(proxy, SIM_EXECUTE_FINISH);
+  err_err_if(proxy_state(trial->proxy, SIM_STATE_WRITE, ffs_state_stub(sinit)));
+  proxy_state(trial->proxy, SIM_STATE_DELETE, ffs_state_stub(sinit));
+  proxy_execute(trial->proxy, SIM_EXECUTE_FINISH);
 
   ranlcg_free(ran);
   ffs_state_free(sinit);
@@ -139,14 +338,15 @@ int ffs_branched_run(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
 
 /*****************************************************************************
  *
- *  ffs_branched_init
+ *  ffs_trial_init
+ *
+ *  Generate an initial configuration at lambda_a
  *
  *****************************************************************************/
 
-int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
-		      ffs_state_t * sinit, ranlcg_t * rantraj, int nlocaltraj,
-		      int itraj,
-		      ffs_result_t * result, int * status) {
+int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
+		   ranlcg_t * rantraj, int nlocaltraj, int itraj,
+		   int * status) {
 
   ffs_t * ffs = NULL;
   MPI_Comm comm;
@@ -167,24 +367,24 @@ int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
   double init_prob_accept;
   double teq;
 
-  dbg_return_if(init == NULL, -1);
-  dbg_return_if(param == NULL, -1);
-  dbg_return_if(proxy == NULL, -1);
-  dbg_return_if(result == NULL, -1);
+  dbg_return_if(trial == NULL, -1);
+  dbg_return_if(sinit == NULL, -1);
+  dbg_return_if(rantraj == NULL, -1);
+  dbg_return_if(status == NULL, -1);
 
-  ffs_init_independent(init, &init_independent);
-  ffs_init_nstepmax(init, &init_nstepmax);
-  ffs_init_nskip(init, &init_nskip);
-  ffs_init_prob_accept(init, &init_prob_accept);
-  ffs_init_teq(init, &teq);
+  ffs_init_independent(trial->init, &init_independent);
+  ffs_init_nstepmax(trial->init, &init_nstepmax);
+  ffs_init_nskip(trial->init, &init_nskip);
+  ffs_init_prob_accept(trial->init, &init_prob_accept);
+  ffs_init_teq(trial->init, &teq);
 
-  ffs_param_lambda_a(param, &lambda_a);
-  ffs_param_lambda_b(param, &lambda_b);
+  ffs_param_lambda_a(trial->param, &lambda_a);
+  ffs_param_lambda_b(trial->param, &lambda_b);
 
-  proxy_ffs(proxy, &ffs);
+  dbg_err_if( proxy_ffs(trial->proxy, &ffs) );
   ffs_comm(ffs, &comm);
 
-  mpi_errnol = proxy_lambda(proxy);
+  mpi_errnol = proxy_lambda(trial->proxy);
   mpi_sync_if_any(mpi_errnol, comm);
 
   ffs_lambda(ffs, &lambda_old);
@@ -195,21 +395,21 @@ int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
 
     /* Equilibrate */
     ranlcg_reep_int32(rantraj, &seed);
-    err_err_if(ffs_branched_eq(proxy, sinit, seed, init_nstepmax, teq));
-
+    ffs_branched_eq(trial->proxy, sinit, seed, init_nstepmax, teq);
+    ffs_result_eq_accum(trial->result, 1);
   }
 
-  proxy_lambda(proxy);
+  proxy_lambda(trial->proxy);
   ffs_lambda(ffs, &lambda_old);
 
   t_elapsed = 0.0;
-  proxy_info(proxy, FFS_INFO_TIME_PUT);
+  proxy_info(trial->proxy, FFS_INFO_TIME_PUT);
   ffs_time(ffs, &t0);
 
   for (n = 0; n < init_nstepmax; n++) {
 
-    proxy_execute(proxy, SIM_EXECUTE_RUN);
-    proxy_lambda(proxy);
+    proxy_execute(trial->proxy, SIM_EXECUTE_RUN);
+    proxy_lambda(trial->proxy);
     ffs_lambda(ffs, &lambda);
     ffs_time(ffs, &t1);
 
@@ -223,10 +423,11 @@ int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
 
       /* Re-equilibrate */
       ranlcg_reep_int32(rantraj, &seed);
-      err_err_if(ffs_branched_eq(proxy, sinit, seed, init_nstepmax, teq));
+      ffs_branched_eq(trial->proxy, sinit, seed, init_nstepmax, teq);
+      ffs_result_eq_accum(trial->result, 1);
 
       ffs_time(ffs, &t0);
-      proxy_lambda(proxy);
+      proxy_lambda(trial->proxy);
       ffs_lambda(ffs, &lambda_old);
       lambda = lambda_old;
     }
@@ -237,21 +438,24 @@ int ffs_branched_init(ffs_init_t * init, ffs_param_t * param, proxy_t * proxy,
     MPI_Bcast(&icrossed, 1, MPI_INT, 0, comm);
 
     if (icrossed) {
-      ffs_result_ncross_accum(result, 1);
-      ffs_result_ncross(result, &ncross);
+      ffs_result_ncross_accum(trial->result, 1);
+      ffs_result_ncross(trial->result, &ncross);
       ffs_time(ffs, &t1);
       t_elapsed += (t1 - t0);
       t0 = t1;
       if (ncross % init_nskip == 0) {
-	ffs_result_time_set(result, nlocaltraj, t_elapsed);
 	random = -1.0;
 	if (init_independent) ranlcg_reep(rantraj, &random);
+	/* This is the state we want, so break if accepted */
 	if (random < init_prob_accept) break;
       }
     }
 
     lambda_old = lambda;
   }
+
+  dbg_err_if( ffs_result_status_set(trial->result, nlocaltraj, *status) );
+  dbg_err_if( ffs_result_time_set(trial->result, nlocaltraj, t_elapsed) );
 
   *status = FFS_TRIAL_SUCCEEDED;
   if (n >= init_nstepmax) *status = FFS_TRIAL_TIMED_OUT;
@@ -512,7 +716,8 @@ int ffs_branched_eq(proxy_t * proxy, ffs_state_t * state, int seed,
   proxy_info(proxy, FFS_INFO_RNG_SEED_FETCH);
 
   mpi_errnol = ffs_branched_run_to_time(proxy, teq, nstepmax, &status);
-  mpi_sync_if_any(mpi_errnol || status != FFS_TRIAL_SUCCEEDED, comm);
+  mpi_sync_if_any(mpi_errnol, comm);
+  dbg_ifm(status != FFS_TRIAL_SUCCEEDED, "Equilibration not complete");
 
   return 0;
 

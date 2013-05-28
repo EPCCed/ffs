@@ -7,7 +7,6 @@
 #include <stdio.h>
 
 #include "u/libu.h"
-#include "ffs_util.h"
 #include "ffs_result.h"
 
 struct ffs_result_s {
@@ -29,6 +28,10 @@ struct ffs_result_s {
   double * probs;    /* Probabilities at interfaces */
   int * nstates;     /* Number of states at this interface recorded */
   int * nprune;      /* Number of trials pruned at this interface */
+
+  int init_nsuccess; /* Number of successful trials reaching lambda1 */
+  int init_nto;      /* Time-outs before lambda1 */
+  int init_eq;       /* Number of equilibration runs */
 };
 
 
@@ -247,6 +250,10 @@ int ffs_result_time(ffs_result_t * obj, int n, double * t) {
  *
  *  We want:
  *
+ *     init_nsuccess  number of trials reaching first interface 
+ *     init_nto       number of trials timed out before first interface
+ *     init_eq        number of equilibration runs
+ *
  *     ncross = total number of initial crossings
  *     tsum   = sum of trajectory times
  *     tmax   = maximum trajectory time
@@ -255,7 +262,7 @@ int ffs_result_time(ffs_result_t * obj, int n, double * t) {
  *     states = number of successful trials reaching this interface
  *
  *  Note that the results overwrite the existing numbers on root,
- *  so this is only to be called at teh end of execution.
+ *  so this is only to be called at the end of execution.
  *
  *****************************************************************************/
 
@@ -263,6 +270,9 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
 
   int n;
   int ncross_local;
+  int init_nsuccess_local = 0;
+  int init_nto = 0;
+  int init_eq_local = 0;
   int mpi_errnol = 0;
 
   double tsum_local = 0.0;
@@ -273,12 +283,19 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
   dbg_return_if(obj == NULL, -1);
 
   ncross_local = obj->init_ncross;
+  init_eq_local = obj->init_eq;
 
   for (n = 0; n < obj->ntrial; n++) {
     tsum_local += obj->t0[n];
     if (obj->t0[n] > tmax_local) tmax_local = obj->t0[n];
+    if (obj->status[n] == FFS_TRIAL_SUCCEEDED) init_nsuccess_local += 1;
+    if (obj->status[n] == FFS_TRIAL_TIMED_OUT) init_nto += 1;
   }
 
+  MPI_Reduce(&init_nsuccess_local, &obj->init_nsuccess, 1, MPI_INT, MPI_SUM,
+	     root, comm);
+  MPI_Reduce(&init_nto, &obj->init_nto, 1, MPI_INT, MPI_SUM, root, comm);
+  MPI_Reduce(&init_eq_local, &obj->init_eq, 1, MPI_INT, MPI_SUM, root, comm);
   MPI_Reduce(&ncross_local, &obj->init_ncross, 1, MPI_INT, MPI_SUM, root, comm);
   MPI_Reduce(&tsum_local, &obj->tsum, 1, MPI_DOUBLE, MPI_SUM, root, comm);
   MPI_Reduce(&tmax_local, &obj->tmax, 1, MPI_DOUBLE, MPI_MAX, root, comm);
@@ -432,3 +449,60 @@ int ffs_result_prune(ffs_result_t * obj, int interface, int * np) {
   return 0;
 }
 
+/*****************************************************************************
+ *
+ *  ffs_result_success_final
+ *
+ *****************************************************************************/
+
+int ffs_result_status_final(ffs_result_t * obj, ffs_trial_enum_t key,
+			    int * sum) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(sum == NULL, -1);
+
+  switch (key) {
+  case FFS_TRIAL_SUCCEEDED:
+    *sum = obj->init_nsuccess;
+    break;
+  case FFS_TRIAL_TIMED_OUT:
+    *sum = obj->init_nto;
+    break;
+  default:
+    u_dbg("ffs_trial_enum_t not handled");
+    *sum = -1;
+  }
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_eq_accum
+ *
+ *****************************************************************************/
+
+int ffs_result_eq_accum(ffs_result_t * obj, int add) {
+
+  dbg_return_if(obj == NULL, -1);
+
+  obj->init_eq += add;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_eq_final
+ *
+ *****************************************************************************/
+
+int ffs_result_eq_final(ffs_result_t * obj, int * n) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n == NULL, -1);
+
+  *n = obj->init_eq;
+
+  return 0;
+}

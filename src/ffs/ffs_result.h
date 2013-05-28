@@ -8,6 +8,7 @@
 #define FFS_RESULT_H
 
 #include <mpi.h>
+#include "ffs_util.h"
 
 /**
  *  \defgroup ffs_result FFS result structure
@@ -246,7 +247,47 @@ int ffs_result_prune_add(ffs_result_t * obj, int interface);
 
 int ffs_result_prune(ffs_result_t * obj, int interface, int * np);
 
+/**
+ *  \brief Return the total number of trial status results of type key
+ *
+ *  \param obj       the ffs_result_t
+ *  \param key       identifies the result wanted
+ *  \param sum       a pointer to the result to be returned
+ *
+ *  This routine must be preceeded by a call to ffs_result_reduce() to
+ *  provide a meaningful answer. The value of sum returned is -1 if no
+ *  value is available.
+ *
+ *  \retval 0        a success.
+ */
 
+int ffs_result_status_final(ffs_result_t * obj, ffs_trial_enum_t key,
+			    int * sum);
+
+/**
+ *  \brief Accumulate number of equilibrartion runs
+ *
+ *  \param obj    the ffs_result_t
+ *  \param add    the number to be accumulated
+ *
+ *
+ *  \retval 0     a success
+ *  \retval -1    obj was NULL
+ */
+
+int ffs_result_eq_accum(ffs_result_t * obj, int add);
+
+/**
+ *  \brief Return the final number of equilibrartion runs
+ *
+ *  \param obj     the ffs_result_t
+ *  \param nsum    a pointer to the number to be returned
+ *
+ *  \retval 0      a success
+ *  \retval -1     a NULL pointer was received
+ */
+
+int ffs_result_eq_final(ffs_result_t * obj, int * nsum);
 
 /**
  * \}

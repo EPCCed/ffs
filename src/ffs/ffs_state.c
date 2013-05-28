@@ -13,11 +13,12 @@
 #include <stdlib.h>
 
 #include "u/libu.h"
+#include "ffs_util.h"
 #include "ffs_state.h"
 
 struct ffs_state_type {
   int inst_id;        /* Instance id */
-  int proxy_id;       /* Simluation proxy id */
+  int ngrp_id;        /* 'Group id' for ensemble, interface or proxy */
   int id;             /* For file identification */
   void * memory;      /* For simulation memory block, if required */
   u_string_t * stub;  /* Stub file name */
@@ -31,17 +32,20 @@ static int ffs_state_stub_set(ffs_state_t * obj);
  *
  *****************************************************************************/
 
-int ffs_state_create(int inst, int proxy, ffs_state_t ** pobj) {
+int ffs_state_create(int inst, int ngrp_id, ffs_state_t ** pobj) {
 
-  ffs_state_t * obj;
+  ffs_state_t * obj = NULL;
 
   dbg_return_if(pobj == NULL, -1);
 
-  err_err_sif((obj = u_calloc(1, sizeof(ffs_state_t))) == NULL);
+  obj = u_calloc(1, sizeof(ffs_state_t));
+  dbg_err_sif(obj == NULL);
 
   obj->inst_id = inst;
-  obj->proxy_id = proxy;
-  err_err_if(ffs_state_stub_set(obj));
+  obj->ngrp_id = ngrp_id;
+
+  dbg_err_if(ffs_state_stub_set(obj));
+
   *pobj = obj;
 
   return 0;
@@ -80,6 +84,7 @@ int ffs_state_id(ffs_state_t * obj, int * id) {
   dbg_return_if(id == NULL, -1);
 
   *id = obj->id;
+
   return 0;
 }
 
@@ -94,7 +99,7 @@ int ffs_state_id_set(ffs_state_t * obj, int id) {
   dbg_return_if(obj == NULL, -1);
 
   obj->id = id;
-  err_err_if(ffs_state_stub_set(obj));
+  dbg_err_if(ffs_state_stub_set(obj));
 
   return 0;
 
@@ -115,6 +120,7 @@ int ffs_state_mem(ffs_state_t * obj, void ** memblock) {
   dbg_return_if(memblock == NULL, -1);
 
   *memblock = obj->memory;
+
   return 0;
 }
 
@@ -129,6 +135,7 @@ int ffs_state_mem_set(ffs_state_t * obj, void * memblock) {
   dbg_return_if(obj == NULL, -1);
 
   obj->memory = memblock;
+
   return 0;
 }
 
@@ -147,24 +154,36 @@ const char * ffs_state_stub(ffs_state_t * obj) {
 
 /*****************************************************************************
  *
+ *  ffs_state_stub_id
+ *
+ *****************************************************************************/
+
+const char * ffs_state_stub_id(ffs_state_t * obj, int id) {
+
+  dbg_return_if(obj == NULL, NULL);
+
+  return util_filename_stub(obj->inst_id, obj->ngrp_id, id);
+}
+
+/*****************************************************************************
+ *
  *  ffs_state_stub_set
  *
  *****************************************************************************/
 
 static int ffs_state_stub_set(ffs_state_t * obj) {
 
+  const char * stub = NULL;
+
   dbg_return_if(obj == NULL, -1);
 
-  if (obj->stub == NULL) {
-    err_err_if(u_string_create("", strlen(""), &obj->stub));
-  }
+  if (obj->stub == NULL) u_string_create("", strlen(""), &obj->stub);
+  dbg_err_ifm(obj->stub == NULL, "No stub");
 
-  err_err_ifm(obj->inst_id > 9999, "Format botch inst_id = %d", obj->inst_id);
-  err_err_ifm(obj->proxy_id > 9999, "Format botch proxy = %d", obj->proxy_id);
-  err_err_ifm(obj->id > 99999, "Format botch state id = %d", obj->id);
+  stub = util_filename_stub(obj->inst_id, obj->ngrp_id, obj->id);
+  dbg_err_if(stub == NULL);
 
-  err_err_if(u_string_sprintf(obj->stub, "inst-%4.4d-proxy-%4.4d-state%5.5d",
-			      obj->inst_id, obj->proxy_id, obj->id));
+  u_string_sprintf(obj->stub, "%s", stub);
 
   return 0;
 
