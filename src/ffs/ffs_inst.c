@@ -354,33 +354,39 @@ static int ffs_inst_read_init(ffs_inst_t * obj, u_config_t * config) {
   int init_nskip = 0;          /* Skip every n crossings at A */
   int init_nstepmax = 0;       /* Maximum length of initial run */
   int init_nsteplambda = 1;    /* Steps between lambda evalutations */ 
+  int init_ntrials = 0;        /* Number of trials to first interface */
   double prob_accept = 0.0;    /* Probability of accepting crossing at A */
   double teq = 0.0;            /* Equilibration time in A */
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(config == NULL, -1);
 
-  err_err_if(u_config_get_subkey_value_b(config,
+  dbg_err_if(u_config_get_subkey_value_b(config,
 					 FFS_CONFIG_INIT_INDEPENDENT,
 					 FFS_DEFAULT_INIT_INDEPENDENT,
 					 &init_independent));
 
-  err_err_if(u_config_get_subkey_value_i(config,
+  dbg_err_if(u_config_get_subkey_value_i(config,
 					 FFS_CONFIG_INIT_NSTEPMAX,
 					 FFS_DEFAULT_INIT_NSTEPMAX,
 					 &init_nstepmax));
 
-  err_err_if(u_config_get_subkey_value_i(config,
+  dbg_err_if(u_config_get_subkey_value_i(config,
 					 FFS_CONFIG_INIT_NSKIP,
 					 FFS_DEFAULT_INIT_NSKIP,
 					 &init_nskip));
 
-  err_err_if(util_config_get_subkey_value_d(config,
+  dbg_err_if(u_config_get_subkey_value_i(config,
+					 FFS_CONFIG_INIT_NTRIALS,
+					 FFS_DEFAULT_INIT_NTRIALS,
+					 &init_ntrials));
+
+  dbg_err_if(util_config_get_subkey_value_d(config,
 					    FFS_CONFIG_INIT_PROB_ACCEPT,
 					    FFS_DEFAULT_INIT_PROB_ACCEPT,
 					    &prob_accept));
 
-  err_err_if(util_config_get_subkey_value_d(config,
+  dbg_err_if(util_config_get_subkey_value_d(config,
 					    FFS_CONFIG_INIT_TEQ,
 					    FFS_DEFAULT_INIT_TEQ,
 					    &teq));
@@ -391,10 +397,13 @@ static int ffs_inst_read_init(ffs_inst_t * obj, u_config_t * config) {
   ffs_init_prob_accept_set(obj->init, prob_accept);
   ffs_init_teq_set(obj->init, teq);
   ffs_init_nsteplambda_set(obj->init, init_nsteplambda);
+  ffs_init_ntrials_set(obj->init, init_ntrials);
 
   return 0;
 
  err:
+
+  mpilog(obj->log, "Problem parsing initial parameters\n");
 
   return -1;
 }
@@ -486,16 +495,11 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   mpilog(obj->log, "\n");
   mpilog(obj->log, "The interface parameters are as follows\n");
 
+  ffs_param_nlambda(obj->param, &nlambda);
   ffs_param_log_to_mpilog(obj->param, obj->log);
   ffs_init_log_to_mpilog(obj->init, obj->log);  
 
-  /* Results object for local number of starting trials */
-
-  ffs_param_nlambda(obj->param, &nlambda);
-  ffs_param_nstate(obj->param, 1, &ntrial);
-
   dbg_err_if( ffs_inst_compute_proxy_size(obj) );
-  dbg_err_if( ffs_result_create(nlambda, ntrial/obj->nproxy, &obj->result) );
 
   /* Start proxy, set trial argument list, and run */
 
@@ -509,15 +513,24 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   trial->nproxy = obj->nproxy;
   trial->inst_seed = obj->seed;
   trial->log = obj->log;
+  trial->xcomm = obj->x_comm;
+  trial->inst_comm = obj->comm;
+  trial->nstepmax = 10000000; /* TODO: from input please. */
+  trial->nsteplambda = 1; /* TODO ditto */
+
+  ffs_init_ntrials(obj->init, &ntrial);
+  dbg_err_if( ffs_result_create(nlambda, ntrial/obj->nproxy, &obj->result) );
   trial->result = obj->result;
 
   switch (obj->method) {
   case FFS_METHOD_BRANCHED:
     dbg_err_if( ffs_branched_run(trial) );
     break;
+
   case FFS_METHOD_DIRECT:
     dbg_err_if( ffs_direct_run(trial) );
     break;
+
   default:
     dbg_err("Internal error: no method");
   }
@@ -563,7 +576,7 @@ static int ffs_inst_results(ffs_inst_t * obj) {
   mpilog(obj->log, "\n");
   mpilog(obj->log, "Instance results\n\n");
 
-  ffs_param_nstate(obj->param, 1, &ntrial);
+  ffs_init_ntrials(obj->init, &ntrial);
   ffs_result_status_final(obj->result, FFS_TRIAL_SUCCEEDED, &nstates);
   ffs_result_status_final(obj->result, FFS_TRIAL_TIMED_OUT, &n);
   ffs_result_eq_final(obj->result, &neq);

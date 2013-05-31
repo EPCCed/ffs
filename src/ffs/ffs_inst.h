@@ -64,6 +64,7 @@
  *    sim_argv         string      # command line to be passed to simulation
  *
  *    init_independent flag        # Use independent (parallel) initial states
+ *    init_ntrials     int         # Number of trials to first interface
  *    init_nstepmax    int         # Maximum length of run in state A
  *    init_nskip       int         # Crossing skip rate (steps)
  *    init_prob_accept double      # Crossing acceptance rate
@@ -71,6 +72,7 @@
  *
  *    trial_nstepmax    int        # Maximum length of trial (steps)
  *    trial_tmax        double     # Maximum time of trial (simulation units)
+ *    trial_nsteplambda int        # Steps between lambda evaluations
  *
  *    seed0             int        # RNG seed for this instance
  *
@@ -141,6 +143,9 @@
  * \def FFS_CONFIG_INIT_TEQ
  * Key for equilibration time for initialisation runs
  *
+ * \def FFS_CONFIG_INIT_NTRIALS
+ * Key for initial trials
+ *
  * \def FFS_DEFAULT_INIT_INDEPENDENT
  * Use parallel initialisation of states at lambda_A
  *
@@ -155,6 +160,9 @@
  *
  * \def FFS_DEFAULT_INIT_TEQ
  * Should be specified by the user
+ *
+ * \def FFS_DEFAULT_INIT_NTRIALS
+ * The number of trials used to generate states at the first interface
  */ 
 
 #define FFS_CONFIG_INIT_INDEPENDENT   "init_independent"
@@ -162,11 +170,13 @@
 #define FFS_CONFIG_INIT_NSKIP         "init_nskip"
 #define FFS_CONFIG_INIT_PROB_ACCEPT   "init_prob_accept"
 #define FFS_CONFIG_INIT_TEQ           "init_teq"
+#define FFS_CONFIG_INIT_NTRIALS       "init_ntrials"
 #define FFS_DEFAULT_INIT_INDEPENDENT  1
 #define FFS_DEFAULT_INIT_NSTEPMAX     0
 #define FFS_DEFAULT_INIT_NSKIP        1
 #define FFS_DEFAULT_INIT_PROB_ACCEPT  1.0
 #define FFS_DEFAULT_INIT_TEQ          0.0
+#define FFS_DEFAULT_INIT_NTRIALS      1
 
 /**
  *  \def FFS_CONFIG_METHOD_TEST

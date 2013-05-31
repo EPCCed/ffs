@@ -16,6 +16,7 @@ SRCS += sim/proxy.c
 SRCS += sim/sim_dmc.c
 SRCS += sim/sim_test.c
 SRCS += util/ffs_util.c
+SRCS += util/ffs_ensemble.c
 SRCS += util/mpilog.c
 SRCS += util/ranlcg.c
 

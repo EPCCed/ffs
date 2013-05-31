@@ -6,6 +6,7 @@
 
 #include "u/libu.h"
 #include "util/ffs_util.h"
+#include "util/ffs_ensemble.h"
 #include "util/ranlcg.h"
 
 #include "ffs_private.h"
@@ -30,66 +31,105 @@ int ffs_branched_prune(ffs_param_t * param, proxy_t * proxy, ranlcg_t * ran,
 		       int nstepmax, int nsteplambda, int * status);
 int ffs_branched_eq(proxy_t * proxy, ffs_state_t * state, int seed,
 		    int nstepmax, double teq);
-int ffs_temp_direct(ffs_state_t * sref, ffs_trial_arg_t * trial);
 
 int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
 		   ranlcg_t * rantraj, int nlocaltraj, int itraj,
 		   int * status);
 
 
+int ffs_ensemble_close_up(ffs_ensemble_t * old, ffs_ensemble_t * new,
+			  ffs_trial_arg_t * trial);
 
-typedef struct ffs_ensemble_s ffs_ensemble_t;
+int ffs_direct_init(ffs_state_t * sref, ffs_trial_arg_t * trial,
+		    ffs_ensemble_t * states);
+int ffs_direct_exec(ffs_state_t * sref, ffs_trial_arg_t * trial);
+int ffs_direct_advance(ffs_ensemble_t * old, ffs_trial_arg_t * trial);
+int ffs_direct_trials(ffs_trial_arg_t * trial, int interface,
+		      ffs_ensemble_t * old, ffs_ensemble_t * new);
 
-struct ffs_ensemble_s {
-  int nmax;
-  ffs_state_t ** state;
-};
+  /* Form a global list of successes in the instance cross comminucator,
+   * add up the total number of successes, and form a global list. If
+   * the number of successes is greater than the number of states
+   * required, we delete the excess */
 
-int ffs_ensemble_create(int nmax, int inst, int pid, ffs_ensemble_t ** pobj);
-void ffs_ensemble_free(ffs_ensemble_t * obj);
+int ffs_ensemble_close_up(ffs_ensemble_t * old, ffs_ensemble_t * new,
+			  ffs_trial_arg_t * trial) {
 
+  ffs_ensemble_t * list = NULL;
+  int * list_nsuccess = NULL;
+  int * displs = NULL;
+  int nsuccess;
+  int nexcess;
+  int pid;
+  int n, ntmp;
 
-int ffs_ensemble_create(int nmax, int inst, int pid, ffs_ensemble_t ** pobj) {
+  const char * stub = NULL;
 
-  int n;
-  ffs_ensemble_t * obj = NULL;
+  dbg_return_if(old == NULL, -1);
+  dbg_return_if(new == NULL, -1);
 
-  obj= u_calloc(1, sizeof(ffs_ensemble_t));
-  dbg_err_if(obj == NULL);
+  dbg_err_if( proxy_id(trial->proxy, &pid) );
 
-  obj->nmax = nmax;
-  obj->state = u_calloc(nmax, sizeof(ffs_state_t *));
-  dbg_err_if(obj->state == NULL);
+  /* Form the global list of successful trials from the (local) old ensemble */
 
-  for (n = 0; n < nmax; n++) {
-    dbg_err_if(ffs_state_create(inst, pid, &obj->state[n]));
+  list_nsuccess = u_calloc(trial->nproxy, sizeof(int));
+  dbg_err_if(list_nsuccess == NULL);
+
+  MPI_Allgather(&old->nsuccess, 1, MPI_INT, list_nsuccess, 1, MPI_INT,
+		trial->xcomm);
+
+  nsuccess = 0;
+  for (n = 0; n < trial->nproxy; n++) {
+    nsuccess += list_nsuccess[n];
   }
 
-  *pobj = obj;
+  displs = u_calloc(trial->nproxy, sizeof(int));
+  dbg_err_if(displs == NULL);
+  dbg_err_if( ffs_ensemble_create(nsuccess, &list) );
+
+  displs[0] = 0;
+  for (n = 1; n < trial->nproxy; n++) {
+    displs[n] = displs[n-1] + list_nsuccess[n-1];
+  }
+
+  MPI_Allgatherv(old->traj, old->nsuccess, MPI_INT,
+		 list->traj, list_nsuccess, displs, MPI_INT, trial->xcomm);
+
+  /* Delete excess. Only one proxy is required to delete the files, but
+   * all instance ranks delete their record of the state. */
+
+  nexcess = nsuccess - new->nmax;
+
+  for (n = 0; n < nexcess; n += 1) {
+    ntmp = n*(nsuccess/nexcess);
+    if (pid == 0) {
+      stub = util_filename_stub(trial->inst_id, 0, list->traj[ntmp]);
+      proxy_state(trial->proxy, SIM_STATE_DELETE, stub);
+    }
+    /* These are skipped in the next loop */
+    list->traj[ntmp] = -1;
+  }
+
+  new->nsuccess = 0;
+  for (n = 0; n < nsuccess; n++) {
+    if (list->traj[n] != -1) new->traj[new->nsuccess++] = list->traj[n];
+  }
+
+  u_free(displs);
+  u_free(list_nsuccess);
+  ffs_ensemble_free(list);
 
   return 0;
 
  err:
 
-  if (obj) ffs_ensemble_free(obj);
+  mpilog(trial->log, "Problem in closing up states (maybe deadlock!)\n");
 
-  return -1;
-}
+  if (displs) u_free(displs);
+  if (list_nsuccess) u_free(list_nsuccess);
+  if (list) ffs_ensemble_free(list);
 
-void ffs_ensemble_free(ffs_ensemble_t * obj) {
-
-  int n;
-
-  dbg_return_if(obj == NULL,);
-
-  for (n = 0; n < obj->nmax; n++) {
-    if (obj->state && obj->state[n]) ffs_state_free(obj->state[n]);
-  }
-
-  if (obj->state) u_free(obj->state);
-  u_free(obj);
-
-  return;
+  return  -1;
 }
 
 /*****************************************************************************
@@ -149,7 +189,7 @@ int ffs_direct_run(ffs_trial_arg_t * trial) {
 
   /* The initialisation has worked, so run the FFS (at last). */
 
-  ffs_temp_direct(sref, trial);
+  ffs_direct_exec(sref, trial);
 
   /* Assume the clean-up will work if we've reached this far;
    * even if it doesn't, let's have a normal exit so we get to
@@ -157,6 +197,7 @@ int ffs_direct_run(ffs_trial_arg_t * trial) {
 
   proxy_state(trial->proxy, SIM_STATE_DELETE, stub);
   proxy_execute(trial->proxy, SIM_EXECUTE_FINISH);
+
   ffs_state_free(sref);
 
   return 0;
@@ -175,13 +216,57 @@ int ffs_direct_run(ffs_trial_arg_t * trial) {
 
 /*****************************************************************************
  *
- *  ffs_temp_direct
+ *  ffs_direct_exec
  *
  *****************************************************************************/
 
-int ffs_temp_direct(ffs_state_t * sref, ffs_trial_arg_t * trial) {
+int ffs_direct_exec(ffs_state_t * sref, ffs_trial_arg_t * trial) {
 
-  int n, nstart, nstate, nstate_local;
+  int n, nstate;
+  ffs_ensemble_t * states = NULL;
+
+  dbg_return_if(sref == NULL, -1);
+  dbg_return_if(trial == NULL, -1);
+
+  /* Set up the initial (global) ensemble, and then run. */
+
+  dbg_err_if( ffs_param_nstate(trial->param, 1, &nstate));
+  dbg_err_if( ffs_ensemble_create(nstate, &states) );
+
+  mpilog(trial->log, "Generating %d initial direct states\n", nstate);
+
+  dbg_err_if( ffs_direct_init(sref, trial, states) );
+
+  for (n = 0; n < states->nsuccess; n++) {
+    states->wt[n] = 1.0;
+  }
+
+  mpilog(trial->log, "Advancing states\n");
+
+  dbg_err_if( ffs_direct_advance(states, trial) );
+
+  ffs_ensemble_free(states);
+
+  return 0;
+
+ err:
+
+  mpilog(trial->log, "Failed to execute direct ffs correctly\n");
+  if (states) ffs_ensemble_free(states);
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_direct_init
+ *
+ *****************************************************************************/
+
+int ffs_direct_init(ffs_state_t * sref, ffs_trial_arg_t * trial,
+		    ffs_ensemble_t * states) {
+
+  int n, nstart;
   int ntrial, ntrial_local;
   int pid;
   int itraj;
@@ -190,7 +275,7 @@ int ffs_temp_direct(ffs_state_t * sref, ffs_trial_arg_t * trial) {
   const char * stub = NULL;
 
   ranlcg_t * ran = NULL;
-  ffs_ensemble_t * ensemble = NULL;
+  ffs_ensemble_t * list_local = NULL;
 
   dbg_return_if(sref == NULL, -1);
   dbg_return_if(trial == NULL, -1);
@@ -199,22 +284,17 @@ int ffs_temp_direct(ffs_state_t * sref, ffs_trial_arg_t * trial) {
 
   dbg_err_if( proxy_id(trial->proxy, &pid) );
 
-  ffs_param_ntrial(trial->param, 1, &ntrial);
-  ffs_param_nstate(trial->param, 1, &nstate);
+  ffs_init_ntrials(trial->init, &ntrial);
+  dbg_err_if(ntrial % trial->nproxy != 0);
 
-  dbg_err_if(nstate % trial->nproxy != 0);
-
-  ntrial_local = nstate / trial->nproxy;
+  ntrial_local = ntrial / trial->nproxy;
   nstart = pid*ntrial_local;
-
-  ffs_ensemble_create(ntrial_local, trial->inst_id, pid, &ensemble);
+  dbg_err_if( ffs_ensemble_create(ntrial_local, &list_local) );
 
   /* Start the trajectory RNG */
 
   lseed = trial->inst_seed;
   ranlcg_create(lseed, &ran);
-
-  nstate_local = 0;
 
   for (n = 0; n < ntrial_local; n++) {
 
@@ -226,21 +306,164 @@ int ffs_temp_direct(ffs_state_t * sref, ffs_trial_arg_t * trial) {
 
     if (status != FFS_TRIAL_SUCCEEDED) continue;
 
-    ffs_state_id_set(ensemble->state[nstate_local], itraj);
-    stub = ffs_state_stub(ensemble->state[nstate_local]);
+    /* Record state */
+
+    list_local->traj[list_local->nsuccess] = itraj;
+    stub = util_filename_stub(trial->inst_id, 0, itraj);
     proxy_state(trial->proxy, SIM_STATE_WRITE, stub);
-    nstate_local += 1;
+
+    ffs_result_trial_success_add(trial->result, 1);
+    list_local->nsuccess += 1;
   }
 
+  ffs_ensemble_close_up(list_local, states, trial);
+
   ranlcg_free(ran);
-  ffs_ensemble_free(ensemble);
+  ffs_ensemble_free(list_local);
 
   return 0;
 
  err:
 
+  mpilog(trial->log, "Failure in generating direct initial states\n");
   if (ran) ranlcg_free(ran);
-  if (ensemble) ffs_ensemble_free(ensemble);
+  if (list_local) ffs_ensemble_free(list_local);
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_direct_advance
+ *
+ *****************************************************************************/
+
+int ffs_direct_advance(ffs_ensemble_t * old, ffs_trial_arg_t * trial) {
+
+  int n, nlambda, nstate;
+  ffs_ensemble_t * new = NULL;
+  ffs_ensemble_t * swap;
+
+  dbg_return_if(old == NULL, -1);
+  dbg_return_if(trial == NULL, -1);
+
+  dbg_err_if( ffs_param_nlambda(trial->param, &nlambda) );
+
+  for (n = 1; n < nlambda; n++) {
+
+    mpilog(trial->log, "Direct trial from interface %2d\n", n);
+
+    ffs_param_nstate(trial->param, n+1, &nstate);
+    ffs_ensemble_create(nstate, &new);
+
+    /* Make trials from existing states to new */
+
+    dbg_err_if( ffs_direct_trials(trial, n, old, new) );
+
+    /* Remove old states and the old ensemble structure; update the
+     * ensemble pointers for the next step, or at the end we exit
+     * with the final ensemble being "old" to be returned. */
+
+    /* DELTE OLD ENSEMBLE FILES */
+
+    swap = old; old = new; new = NULL;
+    ffs_ensemble_free(swap);
+  }
+
+  return 0;
+
+ err:
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_direct_trials
+ *
+ *****************************************************************************/
+
+int ffs_direct_trials(ffs_trial_arg_t * trial, int interface,
+		      ffs_ensemble_t * old, ffs_ensemble_t * new) {
+
+  int n, ntrial, ntrial_local;
+  int itraj, irun;
+  int pid, nstart;
+  int status;
+  long int lseed;
+  double wt;
+  double lambda_min, lambda_max;
+
+  const char * stub = NULL;
+  ranlcg_t * ran = NULL;
+  ffs_ensemble_t * list_local = NULL;
+
+  dbg_return_if(trial == NULL, -1);
+  dbg_return_if(old == NULL, -1);
+  dbg_return_if(new == NULL, -1);
+
+  dbg_err_if( ffs_param_lambda(trial->param, interface - 1, &lambda_min) );
+  dbg_err_if( ffs_param_lambda(trial->param, interface + 1, &lambda_max) );
+  dbg_err_if( ffs_param_ntrial(trial->param, interface, &ntrial) );
+
+  dbg_err_if( proxy_id(trial->proxy, &pid) );
+
+  ffs_init_ntrials(trial->init, &ntrial);
+  dbg_err_if(ntrial % trial->nproxy != 0);
+
+  ntrial_local = ntrial / trial->nproxy;
+  nstart = pid*ntrial_local;
+  dbg_err_if( ffs_ensemble_create(ntrial_local, &list_local) );
+
+  lseed = trial->inst_seed;
+  ranlcg_create(lseed, &ran);
+
+  for (n = 0; n < ntrial_local; n++) {
+
+    itraj = 1 + n + nstart;                  /* parallel trial id */
+    lseed = trial->inst_seed + n + nstart;   /* trajectory seed */
+    ranlcg_state_set(ran, lseed);
+
+    /* Choose state from old according to weight and load the state */
+
+    dbg_err_if(ffs_ensemble_samplewt(old, ran, &irun));
+    dbg_err_if(irun >= old->nsuccess);
+    stub = util_filename_stub(trial->inst_id, interface-1, old->traj[irun]);
+    proxy_state(trial->proxy, SIM_STATE_READ, stub);
+
+    /* Run to lambda_max */
+
+    wt = 1.0;
+    ffs_branched_run_to_lambda(trial->proxy, lambda_min, lambda_max,
+			       trial->nstepmax, trial->nsteplambda, &status);
+
+    if (status == FFS_TRIAL_WENT_BACKWARDS || status == FFS_TRIAL_TIMED_OUT) {
+      ffs_branched_prune(trial->param, trial->proxy, ran, interface, &wt,
+			 trial->result, trial->nstepmax, trial->nsteplambda,
+			 &status);
+    }
+
+    /* If success, keep the state, add wt contribution to interface */
+
+    if (status != FFS_TRIAL_SUCCEEDED) continue;
+
+    list_local->traj[list_local->nsuccess] = itraj;
+    stub = util_filename_stub(trial->inst_id, interface, itraj);
+    dbg_err_if(proxy_state(trial->proxy, SIM_STATE_WRITE, stub));
+
+    ffs_result_trial_success_add(trial->result, interface + 1);
+    list_local->nsuccess += 1;
+  }
+
+  printf("Close up %d\n", interface);
+  dbg_err_if( ffs_ensemble_close_up(list_local, new, trial) );
+
+  ranlcg_free(ran);
+  ffs_ensemble_free(list_local);
+
+  return 0;
+
+ err:
 
   return -1;
 }
@@ -257,8 +480,6 @@ int ffs_branched_run(ffs_trial_arg_t * trial) {
   int ntrial;
   int n, nstart;
   int status;
-  int nstepmax;
-  int nsteplambda;
   int itraj;
   long int lseed;
   double wt;
@@ -267,10 +488,6 @@ int ffs_branched_run(ffs_trial_arg_t * trial) {
   ranlcg_t * ran = NULL;
 
   dbg_return_if(trial == NULL, -1);
-
-  /* trial limits NEED TO BE SET FROM INPUT */
-  nstepmax = 10000000;
-  nsteplambda = 1;
 
   /* Set up the initial simulation state and save it immediately */
 
@@ -292,7 +509,7 @@ int ffs_branched_run(ffs_trial_arg_t * trial) {
   /* Distribute the trials evenly among the simulation instances */
   /* We have a local trial index n, and a global seed (1 + n + nstart) */
 
-  ffs_param_nstate(trial->param, 1, &ntrial);
+  ffs_init_ntrials(trial->init, &ntrial);
 
   dbg_err_if(ntrial % trial->nproxy != 0);
 
@@ -315,7 +532,8 @@ int ffs_branched_run(ffs_trial_arg_t * trial) {
 
     /* We reached the first interface; start the trials! */
     wt = 1.0;
-    ffs_branched_recursive(1, trial->inst_id, 1, wt, nstepmax, nsteplambda,
+    ffs_branched_recursive(1, trial->inst_id, 1, wt, trial->nstepmax,
+			   trial->nsteplambda,
 			   trial->param, trial->proxy, ran, trial->result);
   }
 
@@ -454,11 +672,11 @@ int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
     lambda_old = lambda;
   }
 
-  dbg_err_if( ffs_result_status_set(trial->result, nlocaltraj, *status) );
-  dbg_err_if( ffs_result_time_set(trial->result, nlocaltraj, t_elapsed) );
-
   *status = FFS_TRIAL_SUCCEEDED;
   if (n >= init_nstepmax) *status = FFS_TRIAL_TIMED_OUT;
+
+  dbg_err_if( ffs_result_status_set(trial->result, nlocaltraj, *status) );
+  dbg_err_if( ffs_result_time_set(trial->result, nlocaltraj, t_elapsed) );
 
   return 0;
 
@@ -621,7 +839,6 @@ int ffs_branched_run_to_lambda(proxy_t * proxy, double lambda_min,
     for (n = 0; n < nsteplambda; n++) {
       proxy_execute(proxy, SIM_EXECUTE_RUN);
       nstep += 1;
-      /* firesteps += 1;*/
     }
   }
 
