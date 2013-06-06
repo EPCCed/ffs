@@ -10,20 +10,29 @@
 #include "ffs_ensemble.h"
 
 
+/*****************************************************************************
+ *
+ *  ffs_ensemble_create
+ *
+ *****************************************************************************/
+
 int ffs_ensemble_create(int nmax, ffs_ensemble_t ** pobj) {
 
   ffs_ensemble_t * obj = NULL;
 
+  dbg_return_if(pobj == NULL, -1);
+
   obj = u_calloc(1, sizeof(ffs_ensemble_t));
-  dbg_err_if(obj == NULL);
+  dbg_err_sif(obj == NULL);
 
   obj->nmax = nmax;
   obj->nsuccess = 0;
-  obj->traj = u_calloc(nmax, sizeof(int));
-  obj->wt = u_calloc(nmax, sizeof(double));
 
-  dbg_err_if(obj->traj == NULL);
-  dbg_err_if(obj->wt == NULL);
+  obj->traj = u_calloc(nmax, sizeof(int));
+  dbg_err_sif(obj->traj == NULL);
+
+  obj->wt = u_calloc(nmax, sizeof(double));
+  dbg_err_sif(obj->wt == NULL);
 
   *pobj = obj;
 
@@ -36,16 +45,28 @@ int ffs_ensemble_create(int nmax, ffs_ensemble_t ** pobj) {
   return -1;
 }
 
-int ffs_ensemble_free(ffs_ensemble_t * obj) {
+/*****************************************************************************
+ *
+ *  ffs_ensemble_free
+ *
+ *****************************************************************************/
 
-  dbg_return_if(obj == NULL, -1);
+void ffs_ensemble_free(ffs_ensemble_t * obj) {
+
+  dbg_return_if(obj == NULL, );
 
   if (obj->wt) u_free(obj->wt);
   if (obj->traj) u_free(obj->traj);
   u_free(obj);
 
-  return 0;
+  return;
 }
+
+/*****************************************************************************
+ *
+ *  ffs_ensemble_sumwt
+ *
+ *****************************************************************************/
 
 int ffs_ensemble_sumwt(ffs_ensemble_t * obj, double * sum) {
 

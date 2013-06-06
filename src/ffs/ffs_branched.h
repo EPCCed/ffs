@@ -1,41 +1,35 @@
 /*****************************************************************************
  *
- *  ffs_brnached.h
+ *  ffs_branched.h
  *
  *****************************************************************************/
 
 #ifndef FFS_BRANCHED_H
 #define FFS_BRANCHED_H
 
-#include <mpi.h>
+#include "ffs_trial.h"
 
-#include "ffs_init.h"
-#include "ffs_param.h"
-#include "ffs_result.h"
-#include "../sim/proxy.h"
-#include "util/mpilog.h"
+/**
+ *  \defgroup ffs_branched FFS branched implementation
+ *  \ingroup  ffs_library
+ *
+ *  An implmentation of bracnhed FFS.
+ *
+ */
 
-/* This is a convenience aggregate argument list */
-
-typedef struct ffs_trial_arg_s ffs_trial_arg_t;
-
-struct ffs_trial_arg_s {
-  int nstepmax;
-  int nsteplambda;
-  double tsum;
-  ffs_init_t * init;
-  ffs_param_t * param;
-  proxy_t * proxy;
-  int inst_id;
-  int nproxy;
-  int inst_seed;
-  mpilog_t * log;
-  ffs_result_t * result;
-  MPI_Comm xcomm;
-  MPI_Comm inst_comm;
-};
+/**
+ *  \brief Driver routine for branched FFS
+ *
+ *  \param   trial       the ffs_trail_arg_t set in the instance.
+ *
+ *  \retval 0            a success
+ *  \retval -1           An error occured during executtion of the trials
+ */
 
 int ffs_branched_run(ffs_trial_arg_t * trial);
-int ffs_direct_run(ffs_trial_arg_t * trial);
+
+/**
+ * \}
+ */
 
 #endif

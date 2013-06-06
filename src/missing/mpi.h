@@ -185,6 +185,11 @@ int MPI_Gather(void * sendbuf, int sendcount, MPI_Datatype sendtype,
 int MPI_Allgather(void * sendbuf, int sendcount, MPI_Datatype sendtype,
 		  void * recvbuf, int recvcount, MPI_Datatype recvtype,
 		  MPI_Comm comm);
+
+int MPI_Allgatherv(void * sendbuf, int sendcount, MPI_Datatype sendtype,
+		   void * recvbuf, int * recvcounts, int * displs,
+		   MPI_Datatype recvtype, MPI_Comm comm);
+
 int MPI_Allreduce(void * send, void * recv, int count, MPI_Datatype type,
 		  MPI_Op op, MPI_Comm comm);
 

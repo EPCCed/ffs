@@ -263,7 +263,7 @@ Flux at lambda_A:       1.913311e-02
 
 Probability P(B|A):     3.289040e-04
 Flux * P(B|A):          6.292957e-06
-\encode
+\endcode
 Note that the number of equilibration runs is now larger than it was,
 as each separate trial requires a separate equilibration. One of
 the initial trials has reached state B (requiring re-equilibration)
@@ -277,7 +277,9 @@ equally between the available tasks,
 where the simulation itself is still uses 1 MPI task (for the current
 implementation of the Gillespie algorithm, it must be). Note that the
 random number generator seeds are arranged so that the final result
-in decomposition independent.
+is decomposition independent (you should be able to confirm that exactly
+the same result is generated on 2, 4, 8 or 16 MPI tasks). Note that the
+number of trials must divide evenly between the available MPI tasks.
 
 ---
 

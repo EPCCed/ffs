@@ -26,8 +26,10 @@ struct ffs_result_s {
   int nlambda;       /* Number of interfaces (total) */
   double * wt;       /* Accumulated weight at interface */
   double * probs;    /* Probabilities at interfaces */
-  int * nstates;     /* Number of states at this interface recorded */
+  int * nsuccess;    /* Number of states at this interface recorded */
   int * nprune;      /* Number of trials pruned at this interface */
+  int * nkeep;       /* Number of states actually retained each interface */
+  int * nto;         /* Number of time outs 'at' each interface */
 
   int init_nsuccess; /* Number of successful trials reaching lambda1 */
   int init_nto;      /* Time-outs before lambda1 */
@@ -50,30 +52,36 @@ int ffs_result_create(int nlambda, int ntrial, ffs_result_t ** pobj) {
   dbg_return_if(ntrial < 1, -1);
 
   obj = u_calloc(1, sizeof(ffs_result_t));
-  err_err_sif(obj == NULL);
+  dbg_err_sif(obj == NULL);
 
   obj->ntrial = ntrial;
   obj->nlambda = nlambda;
 
   obj->status = u_calloc(ntrial, sizeof(int));
-  err_err_sif(obj->status == NULL);
+  dbg_err_sif(obj->status == NULL);
 
   obj->t0 = u_calloc(ntrial, sizeof(double));
-  err_err_sif(obj->t0 == NULL);
+  dbg_err_sif(obj->t0 == NULL);
 
   /* Interfaces are counted using natural numbers, so add 1 */
 
   obj->wt = u_calloc(nlambda + 1, sizeof(double));
-  err_err_sif(obj->wt == NULL);
+  dbg_err_sif(obj->wt == NULL);
 
   obj->probs = u_calloc(nlambda + 1, sizeof(double));
-  err_err_sif(obj->probs == NULL);
+  dbg_err_sif(obj->probs == NULL);
 
-  obj->nstates = u_calloc(nlambda + 1, sizeof(int));
-  err_err_sif(obj->nstates == NULL);
+  obj->nsuccess = u_calloc(nlambda + 1, sizeof(int));
+  dbg_err_sif(obj->nsuccess == NULL);
 
   obj->nprune = u_calloc(nlambda + 1, sizeof(int));
-  err_err_sif(obj->nprune == NULL);
+  dbg_err_sif(obj->nprune == NULL);
+
+  obj->nkeep = u_calloc(nlambda + 1, sizeof(int));
+  dbg_err_sif(obj->nkeep == NULL);
+
+  obj->nto = u_calloc(nlambda + 1, sizeof(int));
+  dbg_err_sif(obj->nto == NULL);
 
   *pobj = obj;
 
@@ -96,12 +104,14 @@ void ffs_result_free(ffs_result_t * obj) {
 
   dbg_return_if(obj == NULL, );
 
+  if (obj->nto) u_free(obj->nto);
   if (obj->status) u_free(obj->status);
   if (obj->t0) u_free(obj->t0);
   if (obj->wt) u_free(obj->wt);
   if (obj->probs) u_free(obj->probs);
-  if (obj->nstates) u_free(obj->nstates);
+  if (obj->nsuccess) u_free(obj->nsuccess);
   if (obj->nprune) u_free(obj->nprune);
+  if (obj->nkeep) u_free(obj->nkeep);
 
   u_free(obj);
 
@@ -322,11 +332,11 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
   mpi_sync_if_any(mpi_errnol, comm);
 
   for (n = 0; n <= obj->nlambda; n++) {
-    st_local[n] = obj->nstates[n];
+    st_local[n] = obj->nsuccess[n];
   }
 
-  MPI_Reduce(st_local, obj->nstates, obj->nlambda + 1, MPI_INT, MPI_SUM, root,
-	     comm);
+  MPI_Reduce(st_local, obj->nsuccess, obj->nlambda + 1, MPI_INT, MPI_SUM,
+	     root, comm);
 
   /* Also use st_local for the number of pruning events */
 
@@ -335,6 +345,15 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
   }
 
   MPI_Reduce(st_local, obj->nprune, obj->nlambda + 1, MPI_INT, MPI_SUM, root,
+	     comm);
+
+  /* Also use st_local for the number of time outs */
+
+  for (n = 0; n <= obj->nlambda; n++) {
+    st_local[n] = obj->nto[n];
+  }
+
+  MPI_Reduce(st_local, obj->nto, obj->nlambda + 1, MPI_INT, MPI_SUM, root,
 	     comm);
 
   u_free(st_local);
@@ -393,7 +412,7 @@ int ffs_result_trial_success_add(ffs_result_t * obj, int interface) {
   dbg_return_if(interface < 0, -1);
   dbg_return_if(interface > obj->nlambda + 1, -1);
 
-  obj->nstates[interface] += 1;
+  obj->nsuccess[interface] += 1;
 
   return 0;
 }
@@ -410,7 +429,7 @@ int ffs_result_trial_success(ffs_result_t * obj, int interface, int * ns) {
   dbg_return_if(interface < 0, -1);
   dbg_return_if(interface > obj->nlambda, -1);
 
-  *ns = obj->nstates[interface];
+  *ns = obj->nsuccess[interface];
 
   return 0;
 }
@@ -503,6 +522,76 @@ int ffs_result_eq_final(ffs_result_t * obj, int * n) {
   dbg_return_if(n == NULL, -1);
 
   *n = obj->init_eq;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_nkeep_set
+ *
+ *****************************************************************************/
+
+int ffs_result_nkeep_set(ffs_result_t * obj, int n, int nkeep) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+
+  obj->nkeep[n] = nkeep;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_nkeep
+ *
+ *****************************************************************************/
+
+int ffs_result_nkeep(ffs_result_t * obj, int n, int * nkeep) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+  dbg_return_if(nkeep == NULL, -1);
+
+  *nkeep = obj->nkeep[n];
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_nto_add
+ *
+ *****************************************************************************/
+
+int ffs_result_nto_add(ffs_result_t * obj, int n, int nto) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+
+  obj->nto[n] += nto;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_nto
+ *
+ *****************************************************************************/
+
+int ffs_result_nto(ffs_result_t * obj, int n, int * nto) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+  dbg_return_if(nto == NULL, -1);
+
+  *nto = obj->nto[n];
 
   return 0;
 }

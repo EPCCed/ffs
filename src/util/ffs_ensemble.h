@@ -13,6 +13,7 @@
 
 /**
  *
+ *  \defgroup ffs_ensemble Ensemble utility
  *  \ingroup utilities
  *  \{
  *     A utility to represent an ensemble of trajectories.
@@ -27,11 +28,15 @@
 
 typedef struct ffs_ensemble_s ffs_ensemble_t;
 
+/**
+ *  \brief Emsemble structure
+ */
+
 struct ffs_ensemble_s {
-  int nmax;
-  int nsuccess;
-  int * traj;
-  int * wt;
+  int nmax;             /**< Maximum number in the ensemble */
+  int nsuccess;         /**< Number of successful trajectories (<= nmax) */ 
+  int * traj;           /**< Integer trajectory ids */
+  double * wt;          /**< Integer trajectory weight */ 
 };
 
 /**
@@ -55,7 +60,7 @@ int ffs_ensemble_create(int nmax, ffs_ensemble_t ** pobj);
  *  \retval -1     a NULL pointer was encountered
  */
 
-int ffs_ensemble_free(ffs_ensemble_t * obj);
+void ffs_ensemble_free(ffs_ensemble_t * obj);
 
 /**
  *  \brief Return sum of weights for successful trajectories
@@ -63,8 +68,7 @@ int ffs_ensemble_free(ffs_ensemble_t * obj);
  *  \param obj        the ensemble
  *  \param sum        a pointer to the sum to be returned
  *
- *  \retval 0         a success
- *  \retval -1        a NULL pointer was received
+ *  \retval           None.
  */
 
 int ffs_ensemble_sumwt(ffs_ensemble_t * obj, double * sum);

@@ -18,10 +18,14 @@
 
 
 /**
- *  \defgroup ffs_util Utilities
+ *  \defgroup utilities Utilities
+ *  \{
+ *    Utilities
+ *  \}
+ *
+ *  \defgroup ffs_util FFS util
  *  \ingroup utilities
  *  \{
- *
  *  There are a number of macros in the style of libu/include/toolbox/carpal.h
  *  which are used to aid error handling in MPI. As different paths through
  *  the code may lead to deadlock under MPI, some care must be observed

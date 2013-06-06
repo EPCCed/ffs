@@ -630,6 +630,36 @@ int MPI_Allgather(void * sendbuf, int sendcount, MPI_Datatype sendtype,
 
 /*****************************************************************************
  *
+ *  MPI_Allgatherv
+ *
+ *  For the stub version it is assumed that recvconuts[0] = sendcount
+ *  and displs[0] = 0 so this is just a copy from the sendbuf to the
+ *  recvbuf.
+ *
+ *****************************************************************************/
+
+int MPI_Allgatherv(void * sendbuf, int sendcount, MPI_Datatype sendtype,
+		   void * recvbuf, int * recvcounts, int * displs,
+		   MPI_Datatype recvtype, MPI_Comm comm) {
+  int rc;
+
+  err_err_rcif(sendbuf == NULL, MPI_ERR_BUFFER);
+  err_err_rcif(recvbuf == NULL, MPI_ERR_BUFFER);
+  err_err_rcif(sendcount != recvcounts[0], MPI_ERR_COUNT);
+  err_err_rcif(sendtype != recvtype, MPI_ERR_TYPE);
+
+  mpi_copy(sendbuf, recvbuf, sendcount, sendtype);
+
+  return MPI_SUCCESS;
+
+ err:
+  mpi_errhandler_(&comm, &rc);
+
+  return rc;
+}
+
+/*****************************************************************************
+ *
  *  MPI_Gather
  *
  *  This is just a copy of the source to the result buffer.

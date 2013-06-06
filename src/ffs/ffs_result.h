@@ -290,6 +290,61 @@ int ffs_result_eq_accum(ffs_result_t * obj, int add);
 int ffs_result_eq_final(ffs_result_t * obj, int * nsum);
 
 /**
+ *  \brief Record the number of states retained at an interface
+ *
+ *  \param  obj      the ffs_result_t data structure
+ *  \param  n        in interface index
+ *  \param  nkeep    the number of states to record
+ *
+ *  \retval 0        a success
+ *  \retval -1       a NULL pointer or invalid n was received
+ */
+
+int ffs_result_nkeep_set(ffs_result_t * obj, int n, int nkeep);
+
+/**
+ *  \brief Return the number of states retained at an interface
+ *
+ *  \param  obj      the ffs_result_t data structure
+ *  \param  n        the interface index
+ *  \param  nkeep    a pointer to the integer to be returned
+ *
+ *  \retval 0        a sucess
+ *  \retval -1       a NULL pointer or invalid n was received
+ */
+
+int ffs_result_nkeep(ffs_result_t * obj, int n, int * nkeep);
+
+/**
+ *  \brief Add a time out at an interface
+ *
+ *  \param  obj      the ffs_result_t data structure
+ *  \param  n        in interface index
+ *  \param  nto      the number to accumulate
+ *
+ *  \retval 0        a success
+ *  \retval -1       a NULL pointer or invalid n was received
+ */
+
+int ffs_result_nto_add(ffs_result_t * obj, int n, int nto);
+
+/**
+ *  \brief Return the number of time outs at an interface
+ *
+ *  \param  obj      the ffs_result_t data structure
+ *  \param  n        the interface index
+ *  \param  nto      a pointer to the integer to be returned
+ *
+ *  \retval 0        a sucess
+ *  \retval -1       a NULL pointer or invalid n was received
+ *
+ *  A call to this routine should be preceded by a call to
+ *  ffs_result_reduce() if the global total is required.
+ */
+
+int ffs_result_nto(ffs_result_t * obj, int n, int * nto);
+
+/**
  * \}
  */
 

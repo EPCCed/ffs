@@ -21,6 +21,7 @@
 #include "ffs_init.h"
 #include "ffs_private.h"
 #include "ffs_result.h"
+#include "ffs_direct.h"
 #include "ffs_branched.h"
 #include "ffs_inst.h"
 
@@ -48,14 +49,18 @@ struct ffs_inst_type {
   /* Initialisation parameters, result object. */
   ffs_init_t * init;
   ffs_result_t * result;
+  int nstepmax_trial;
+  int nsteplambda_trial;
 };
 
 static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input);
 static int ffs_inst_read_init(ffs_inst_t * obj, u_config_t * config);
+static int ffs_inst_read_trial(ffs_inst_t * obj, u_config_t * config);
 static int ffs_inst_run(ffs_inst_t * obj);
 static int ffs_inst_compute_proxy_size(ffs_inst_t * obj);
 static int ffs_inst_start_proxy(ffs_inst_t * obj);
-static int ffs_inst_results(ffs_inst_t * obj);
+static int ffs_inst_results_direct(ffs_inst_t * obj);
+static int ffs_inst_results_branched(ffs_inst_t * obj);
 static int ffs_inst_start_xcomm(ffs_inst_t * obj);
 
 /*****************************************************************************
@@ -312,6 +317,7 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
   /* Initialisation section */
 
   dbg_err_if( ffs_inst_read_init(obj, config) );
+  dbg_err_if( ffs_inst_read_trial(obj, config) );
 
   /* Interface section */
 
@@ -404,6 +410,34 @@ static int ffs_inst_read_init(ffs_inst_t * obj, u_config_t * config) {
  err:
 
   mpilog(obj->log, "Problem parsing initial parameters\n");
+
+  return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_read_trial
+ *
+ *  Extract the trial parameters from the instance config
+ *
+ *****************************************************************************/
+
+static int ffs_inst_read_trial(ffs_inst_t * obj, u_config_t * config) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(config == NULL, -1);
+
+  dbg_err_if( u_config_get_subkey_value_i(config, FFS_CONFIG_TRIAL_NSTEPMAX,
+	      FFS_DEFAULT_TRIAL_NSTEPMAX, &obj->nstepmax_trial));
+
+  dbg_err_if( u_config_get_subkey_value_i(config, FFS_CONFIG_TRIAL_NSTEPLAMBDA,
+	      FFS_DEFAULT_TRIAL_NSTEPLAMBDA, &obj->nsteplambda_trial));
+
+  return 0;
+
+ err:
+
+  mpilog(obj->log, "Failed to parse trial parameters\n");
 
   return -1;
 }
@@ -515,8 +549,8 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   trial->log = obj->log;
   trial->xcomm = obj->x_comm;
   trial->inst_comm = obj->comm;
-  trial->nstepmax = 10000000; /* TODO: from input please. */
-  trial->nsteplambda = 1; /* TODO ditto */
+  trial->nstepmax = obj->nstepmax_trial; /* 10000000;TODO:  input please. */
+  trial->nsteplambda = obj->nsteplambda_trial; /* 1; TODO ditto */
 
   ffs_init_ntrials(obj->init, &ntrial);
   dbg_err_if( ffs_result_create(nlambda, ntrial/obj->nproxy, &obj->result) );
@@ -525,23 +559,27 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   switch (obj->method) {
   case FFS_METHOD_BRANCHED:
     dbg_err_if( ffs_branched_run(trial) );
+
+    ffs_result_reduce(obj->result, obj->x_comm, 0);
+    ffs_inst_results_branched(obj);
     break;
 
   case FFS_METHOD_DIRECT:
     dbg_err_if( ffs_direct_run(trial) );
+
+    ffs_result_reduce(obj->result, obj->x_comm, 0);
+    ffs_inst_results_direct(obj);
     break;
 
   default:
     dbg_err("Internal error: no method");
   }
 
+  mpilog(obj->log, "\n");
   mpilog(obj->log, "Closing down the simulation proxy\n");
 
   proxy_delegate_free(obj->proxy);
   proxy_free(obj->proxy);
-
-  ffs_result_reduce(obj->result, obj->x_comm, 0);
-  ffs_inst_results(obj);
 
   ffs_result_free(obj->result);
 
@@ -558,13 +596,13 @@ static int ffs_inst_run(ffs_inst_t * obj) {
 
 /*****************************************************************************
  *
- *  ffs_inst_results
+ *  ffs_inst_results_branched
  *
  *  Display the results in a human-readable format
  *
  *****************************************************************************/
 
-static int ffs_inst_results(ffs_inst_t * obj) {
+static int ffs_inst_results_branched(ffs_inst_t * obj) {
 
   int ntrial, nlambda;
   int n, neq, nstates, ntry, nprune;
@@ -626,6 +664,98 @@ static int ffs_inst_results(ffs_inst_t * obj) {
   mpilog(obj->log, "\n");
   mpilog(obj->log, "Probability P(B|A):     %12.6e\n", wt/ntrial);
   mpilog(obj->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*wt/ntrial);
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_results_direct
+ *
+ *  Display the results in a human-readable format
+ *
+ *****************************************************************************/
+
+static int ffs_inst_results_direct(ffs_inst_t * obj) {
+
+  int ntrial, nlambda, nsuccess;
+  int n, neq, nstates, ntry, nprune, nto;
+  int nsum_trial = 0, nsum_prune = 0, nsum_success = 0, nsum_nto = 0;
+  double tmax, tsum, wt, lambda, plambda;
+
+  dbg_return_if(obj == NULL, -1);
+
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "Instance results\n\n");
+
+  ffs_init_ntrials(obj->init, &ntrial);
+  ffs_result_status_final(obj->result, FFS_TRIAL_SUCCEEDED, &nsuccess);
+  ffs_result_status_final(obj->result, FFS_TRIAL_TIMED_OUT, &n);
+  ffs_result_eq_final(obj->result, &neq);
+  ffs_result_nkeep(obj->result, 1, &nstates);
+
+  mpilog(obj->log, "Attempts at first interface:         %d\n", ntrial);
+  mpilog(obj->log, "States generated at first interface: %d\n", nsuccess);
+  mpilog(obj->log, "Time outs at first interface:        %d\n", n);
+  mpilog(obj->log, "Number of equilibration runs:        %d\n", neq);
+  mpilog(obj->log, "Number of states retained:           %d\n", nstates);
+  mpilog(obj->log, "\n");
+
+  ffs_param_nlambda(obj->param, &nlambda);
+
+  mpilog(obj->log,
+	 "                  states   forw.                        Prod.of\n");
+  mpilog(obj->log,
+	 "index      lambda   kept  trials  success pruned   to   weights\n");
+  mpilog(obj->log,
+	 "----------------------------------------------------------------\n");
+
+  plambda = 1.0;
+
+  for (n = 1; n <= nlambda; n++) {
+    ffs_param_lambda(obj->param, n, &lambda);
+    ffs_result_weight(obj->result, n, &wt);
+    ffs_result_nkeep(obj->result, n, &nstates);
+    ffs_result_prune(obj->result, n, &nprune);
+    ffs_result_nto(obj->result, n, &nto);
+
+    if (n > 1) {
+      ffs_param_ntrial(obj->param, n - 1, &ntry);
+      if (wt > 1.0*ntry) wt = 1.0*ntry;   /* Can happen with pruning */
+      plambda *= (wt / ntry);
+    }
+
+    ffs_param_ntrial(obj->param, n, &ntry);
+
+    nsuccess = 0;
+    if (n < nlambda) ffs_result_trial_success(obj->result, n+1, &nsuccess);
+
+    mpilog(obj->log, "  %3d %11.4e  %5d %7d %7d %7d %4d %11.4e\n", n, lambda,
+	   nstates, ntry, nsuccess, nprune, nto, plambda);
+
+    nsum_trial += ntry;
+    nsum_success += nsuccess;
+    nsum_prune += nprune;
+    nsum_nto += nto;
+  }
+
+  mpilog(obj->log,
+	 "----------------------------------------------------------------\n");
+  mpilog(obj->log, "(totals)                 %7d %7d %7d %4d\n", nsum_trial,
+	 nsum_success, nsum_prune, nsum_nto);
+
+  ffs_result_tmax(obj->result, &tmax);
+  ffs_result_tsum(obj->result, &tsum);
+  ffs_result_ncross(obj->result, &n);
+
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "Initial Tmax:  result   %12.6e\n", tmax);
+  mpilog(obj->log, "Initial Tsum:  result   %12.6e\n", tsum);
+  mpilog(obj->log, "Number of crossings A:  %d\n", n);
+  mpilog(obj->log, "Flux at lambda_A:       %12.6e\n", n/tsum);
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "Probability P(B|A):     %12.6e\n", plambda);
+  mpilog(obj->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*plambda);
 
   return 0;
 }

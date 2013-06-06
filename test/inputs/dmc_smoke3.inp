@@ -1,5 +1,6 @@
-# Example of serial branched FFS using discrete Monte Carlo (dmc)
-# with a small number of trials
+# Here is an example of direct FFS for Gillespie algorithm (dmc)
+# using a small number of trials. Note there is no pruning.
+# It uses parallel (independent) initial states.
 
 ffs
 {
@@ -8,22 +9,23 @@ ffs
 
 	ffs_inst
 	{
-		method			branched
+		method			direct
 
+		sim_mpi_tasks           1
 		sim_name		dmc
-		sim_mpi_tasks		1
 		sim_argv		inputs/dmc_switch1_comp.dat inputs/dmc_switch1_react.dat
 
-		init_independent	no
+		init_independent	yes
 		init_ntrials            16
 		init_teq		100.0
-		init_nskip		10
-		init_nstepmax		10000000
+		init_nskip		1
+		init_nstepmax		100000
 		init_nsteplambda	1
-		init_prob_accept        1.0
+		init_prob_accept        0.1
 
-                trial_nstepmax          10000000
-                trial_nsteplambda       1
+		trial_nstepmax          10000
+		trial_nsteplambda       1
+		trial_tmax              -1.0
 	}
 
 	interfaces
@@ -31,79 +33,62 @@ ffs
 		nlambda 13
 		pprune_default 0.00
 		nskeep_default 0
-		nstate_default 0
+		nstate_default 8
+		ntrial_default 16
 		interface1
 		{
 			lambda -24.0
-			ntrial 3
 			pprune 1.0
 		}
 		interface2
 		{
 			lambda -22.0
-			ntrial 3
-			pprune 0.667
 		}
 		interface3
 		{
 			lambda -20.0
-			ntrial 3
-			pprune 0.667
 		}
 		interface4
 		{
 			lambda -18.0
-			ntrial 3
-			pprune 0.667
 		}
 		interface5
 		{
 			lambda -15.0
-			ntrial 3
-			pprune 0.667
 		}
 		interface6
 		{
 			lambda -12.0
-			ntrial 3
-			pprune 0.667
 		}
 		interface7
 		{
 			lambda -9.0
-			ntrial 3
-			pprune 0.667
 		}
 		interface8
 		{
 			lambda -5.0
-			ntrial 2
-			pprune 0.5
 		}
 		interface9
 		{
 			lambda 0.0
-			ntrial 1
 		}
 		interface10
 		{
 			lambda 7.0
-			ntrial 1
 		}
 		interface11
 		{
 			lambda 15.0
-			ntrial 1
 		}
 		interface12
 		{
 			lambda 20.0
-			ntrial 1
 		}
 		interface13
 		{
 			lambda 25.0
 			ntrial 0
+			nstate 0
 		}
 	}
 }

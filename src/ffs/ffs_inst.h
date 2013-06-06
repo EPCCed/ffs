@@ -101,12 +101,25 @@
  *  \def FFS_CONFIG_TRIAL_NSTEPMAX
  *  Key for maximum number of simulations steps per trial run
  *
+ *  \def FFS_CONFIG_TRIAL_NSTEPLAMBDA
+ *  Key for trial steps between lambda evaulations
+ *
  *  \def FFS_CONFIG_TRIAL_TMAX
  *  Key for maximum trial run length (simulation units)
+ *
+ *  \def FFS_DEFAULT_TRIAL_NSTEPMAX
+ *  Default value
+ *
+ *  \def FFS_DEFAULT_TRIAL_NSTEPLAMBDA
+ *  Default value
  */
 
 #define FFS_CONFIG_TRIAL_NSTEPMAX     "trial_nstepmax"
 #define FFS_CONFIG_TRIAL_TMAX         "trial_tmax"
+#define FFS_CONFIG_TRIAL_NSTEPLAMBDA  "trial_nsteplambda"
+
+#define FFS_DEFAULT_TRIAL_NSTEPMAX    1
+#define FFS_DEFAULT_TRIAL_NSTEPLAMBDA 1
 
 /**
  *  \def FFS_CONFIG_SIM_MPI_TASKS
