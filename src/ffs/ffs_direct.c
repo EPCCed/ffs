@@ -268,7 +268,7 @@ static int ffs_direct_exec(ffs_state_t * sref, ffs_trial_arg_t * trial) {
   mpilog(trial->log, "Advancing states\n");
 
   dbg_err_if( ffs_direct_advance(&states, trial) );
-  dbg_err_if( ffs_ensemble_free(states) );
+  ffs_ensemble_free(states);
 
   return 0;
 
