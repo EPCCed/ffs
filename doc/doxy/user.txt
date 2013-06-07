@@ -6,6 +6,8 @@
 
 \section user_getting_started Getting Started
 
+- \subpage build Building the library
+
 If you have a successfully compiled version of the library, the
 best place to start is probably one of the worked examples,
 which provide details of input and output for some simple problems.
@@ -14,10 +16,9 @@ There are a number of example simulations available:
 
 - \subpage dmc Simulation of a genetic switch via the Gillespie algorithm
 
-- A simple problem using LAMMPS PENDING
 
 If you want to use a different type of simulation, you should read
-the section on ADDING A SIMULATION TYPE.
+the section on \subpage user_add_sim Adding support for a simulation.
 
 The order parameter required for a given FFS computation is almost
 certainly problem-specific. The library cannot, therefore, anticipate

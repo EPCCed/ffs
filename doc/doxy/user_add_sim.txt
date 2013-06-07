@@ -1,0 +1,10 @@
+/**
+ *  \page user_add_sim Adding support for a simulation
+ *
+ *
+
+The particular type of simulation you want is apparently not
+supported. What do you do? There are a number of questions you
+need to ask yourself before you continue:
+
+*/

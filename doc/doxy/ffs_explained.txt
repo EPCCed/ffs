@@ -1,20 +1,62 @@
 /**
  *
- * \page ffs_explained Forward Flux Sampling Explained
+ * \page ffs_explained Forward Flux Sampling
  *
  * 
 
 \tableofcontents
 
-\section ffs_explained_intro Introduction
+\section ffs_explained_background Overview
 
-Rare events, while occuring infrequently, may have important consequences
+Rare events, while occurring infrequently, may have important consequences
 when they do occur. It is therefore useful to be able to simulate rare
 events without wasting a great deal of computational effort on the
-"uniteresting" time between these events.
+"uninteresting" time between these events.
 
 A number of techniques have been developed which attempt to do this
 in different contexts. One of these techniques is Forward Flux Sampling
-(FFS).
+(FFS). There are a number of recent reviews available from a number of
+different perspectives of FFS and a range of other methods[1--4].
+
+There are a number of similar approaches to the practical problem
+of computing rare events which are broadly independent of the actual
+method used for the simulation. These include
+[PLUMED](http://www.plumed-code.org/) using a number of techniques
+including umbrella sampling for free energy calculations
+and [libTPS](http://matforge.org/mol_sim_api/wiki/) for transition
+path sampling.
+
+-----
+
+\section ffs_explained_intro Contents
+
+The following pages describe the background, and also the details
+of the different stages used in Forward Flux Sampling as implemented
+in the library.
+
+-# \subpage ffs_background
+-# \subpage ffs_explained_init
+-# \subpage ffs_branched
+-# \subpage ffs_direct
+
+
+-----
+
+\section ffs_explained_refs References
+
+-# R.J. Allen, C. Valeriani, and P.R. ten Wolde\n
+   Forward flux sampling for rare event simulations,
+   *J. Phys. Condens. Matter* 21 463102 (2009).
+-# F.A. Escobedo, E.E. Borrero, and J.C. Araque\n
+   Transition path sampling and forward flux sampling. Applications to
+   biological systems,
+   *J. Phys. Condens. Matter* 21 333101 (2009).
+-# P.G. Bolhuis and C. Dellago\n
+   Trajectory-based rare event simulations,
+   *Reviews in Computational Chemistry* 27, 111--210 (2010).
+-# T.S. van Erp\n
+   Dynamical rare event simulation techniques for equilibrium and
+   non-equilibrium systems,
+   *Advances in Chemical Physics* 151 27--60 (2012).
 
 */
