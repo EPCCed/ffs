@@ -267,6 +267,7 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
   /* Parse input */
 
   config = u_config_get_child(input, FFS_CONFIG_INST);
+  dbg_ifm(config == NULL, "No config");
   mpilog_err_if(config == NULL, obj->log, "Config file has no %s section\n",
 		FFS_CONFIG_INST);
 
@@ -322,6 +323,7 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
   /* Interface section */
 
   config = u_config_get_child(input, FFS_CONFIG_INTERFACES);
+  dbg_ifm(config == NULL, "No interfaces");
   mpilog_err_if(config == NULL, obj->log, "No %s\n", FFS_CONFIG_INTERFACES);
 
   dbg_err_if( ffs_param_create(obj->log, &obj->param) );

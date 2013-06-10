@@ -50,7 +50,7 @@
  *
  *    The entire execution of the FFS calculation is undertaken by a
  *    call to ffs_control_execute(). All these calls are collective
- *    in the parent communicator (here MPI_COMM_WORLD), although a
+ *    in the parent communicator (here \c MPI_COMM_WORLD), although a
  *    duplicate communicator is used internally. 
  *
  *    The relevant section of the u_config_t input file should contain
@@ -59,13 +59,31 @@
  *    \code
  *    ffs
  *    {
- *       ffs_instances           # the number of independent instances
- *       ffs_seed                # overall random number seed
+ *       ffs_instances        1   # the number of independent instances
+ *       ffs_seed            13   # overall random number seed
  *    }
  *    \endcode
  *    The number of instances must fit in the number of MPI tasks
  *    available (ie., the number in the \c parent communicator),
  *    and there must be a whole number of MPI tasks per instance.
+ *
+ *    The configuration file must have an \c ffs_inst section and
+ *    an \c interfaces section which
+ *    must not be empty for correct execution. See the \ref ffs_param
+ *    section. A bare minimum configuration file includes:
+ *    \code
+ *    ffs_inst
+ *    {
+ *      method   test
+ *    }
+ *    interfaces
+ *    {
+ *      nlambda  0
+ *    }
+ *    \endcode
+ *
+ *    Note that empty configuration blocks {} can prevent correct
+ *    parsing of the file, so please avoid them.
  */
 
 /**

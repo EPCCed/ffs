@@ -14,6 +14,7 @@
 
 static char * input = 
   "inputs/dmc_switch1_comp.dat inputs/dmc_switch1_react.dat";
+static char * stub = "logs/dmc_state.dat";
 
 /*****************************************************************************
  *
@@ -30,11 +31,11 @@ int ut_sim_dmc(u_test_case_t * tc) {
 
   u_dbg("Start\n");
 
-  u_test_err_if(sim_dmc_table(&table));
-  u_test_err_if(sim_dmc_create(&dmc));
-  u_test_err_if(dmc == NULL);
+  dbg_err_if(sim_dmc_table(&table));
+  dbg_err_if(sim_dmc_create(&dmc));
+  dbg_if(dmc == NULL);
 
-  u_test_err_if(sim_dmc_free(dmc));
+  dbg_err_if(sim_dmc_free(dmc));
 
   u_dbg("Success\n");
   return U_TEST_SUCCESS;
@@ -61,30 +62,32 @@ int ut_sim_dmc_proxy(u_test_case_t * tc) {
   proxy_t * proxy = NULL;
 
   int rank = 0;
+  char filename[BUFSIZ];
   MPI_Comm comm = MPI_COMM_NULL;
 
   u_dbg("Start\n");
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_split(MPI_COMM_WORLD, rank, 0, &comm);
+  sprintf(filename, "%s-%d", stub, rank);
 
-  u_test_err_if(proxy_create(rank, comm, &proxy));
-  u_test_err_if(proxy_delegate_create(proxy, "dmc"));
+  dbg_err_if(proxy_create(rank, comm, &proxy));
+  dbg_err_if(proxy_delegate_create(proxy, "dmc"));
 
-  u_test_err_if(proxy_ffs(proxy, &ffs));
-  u_test_err_if(ffs_command_line_set(ffs, input));
-  u_test_err_if(proxy_execute(proxy, SIM_EXECUTE_INIT));
+  dbg_err_if(proxy_ffs(proxy, &ffs));
+  dbg_err_if(ffs_command_line_set(ffs, input));
+  dbg_err_if(proxy_execute(proxy, SIM_EXECUTE_INIT));
 
-  u_test_err_if(proxy_state(proxy, SIM_STATE_INIT, "logs/tmp.dat"));
-  u_test_err_if(proxy_state(proxy, SIM_STATE_WRITE, "logs/tmp.dat"));
-  u_test_err_if(proxy_state(proxy, SIM_STATE_READ, "logs/tmp.dat"));
-  u_test_err_if(proxy_state(proxy, SIM_STATE_DELETE, "logs/tmp.dat"));
+  dbg_err_if(proxy_state(proxy, SIM_STATE_INIT, filename));
+  dbg_err_if(proxy_state(proxy, SIM_STATE_WRITE, filename));
+  dbg_err_if(proxy_state(proxy, SIM_STATE_READ, filename));
+  dbg_err_if(proxy_state(proxy, SIM_STATE_DELETE, filename));
 
-  u_test_err_if(proxy_lambda(proxy));
+  dbg_err_if(proxy_lambda(proxy));
 
-  u_test_err_if(proxy_execute(proxy, SIM_EXECUTE_FINISH));
+  dbg_err_if(proxy_execute(proxy, SIM_EXECUTE_FINISH));
 
-  u_test_err_if(proxy_delegate_free(proxy));
+  dbg_err_if(proxy_delegate_free(proxy));
   proxy_free(proxy);
 
   u_dbg("Success\n");
@@ -123,43 +126,43 @@ int ut_sim_dmc_info(u_test_case_t * tc) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_split(MPI_COMM_WORLD, rank, 0, &comm);
 
-  u_test_err_if(proxy_create(rank, comm, &proxy));
-  u_test_err_if(proxy_delegate_create(proxy, "dmc"));
+  dbg_err_if(proxy_create(rank, comm, &proxy));
+  dbg_err_if(proxy_delegate_create(proxy, "dmc"));
 
-  u_test_err_if(proxy_ffs(proxy, &ffs));
-  u_test_err_if(ffs_command_line_set(ffs, input));
-  u_test_err_if(proxy_execute(proxy, SIM_EXECUTE_INIT));
+  dbg_err_if(proxy_ffs(proxy, &ffs));
+  dbg_err_if(ffs_command_line_set(ffs, input));
+  dbg_err_if(proxy_execute(proxy, SIM_EXECUTE_INIT));
 
   /* We should have declared time as double, and lamnda as integer ... */
 
-  u_test_err_if(ffs_type(ffs, FFS_INFO_TIME_PUT, &n, &type));
-  u_test_err_if(n != 1);
-  u_test_err_if(type != FFS_VAR_DOUBLE);
+  dbg_err_if(ffs_type(ffs, FFS_INFO_TIME_PUT, &n, &type));
+  dbg_err_if(n != 1);
+  dbg_err_if(type != FFS_VAR_DOUBLE);
 
-  u_test_err_if(ffs_type(ffs, FFS_INFO_LAMBDA_PUT, &n, &type));
-  u_test_err_if(n != 1);
-  u_test_err_if(type != FFS_VAR_INT);
+  dbg_err_if(ffs_type(ffs, FFS_INFO_LAMBDA_PUT, &n, &type));
+  dbg_err_if(n != 1);
+  dbg_err_if(type != FFS_VAR_INT);
 
   /* Look at time, lambda, seed ... */
 
   tref = -1.0;
-  u_test_err_if(ffs_info_double(ffs, FFS_INFO_TIME_PUT, 1, &tref));
-  u_test_err_if(proxy_info(proxy, FFS_INFO_TIME_PUT));
-  u_test_err_if(ffs_info_double(ffs, FFS_INFO_TIME_FETCH, 1, &t));
-  u_test_err_if(util_compare_double(t, tref, DBL_EPSILON) == 0);
+  dbg_err_if(ffs_info_double(ffs, FFS_INFO_TIME_PUT, 1, &tref));
+  dbg_err_if(proxy_info(proxy, FFS_INFO_TIME_PUT));
+  dbg_err_if(ffs_info_double(ffs, FFS_INFO_TIME_FETCH, 1, &t));
+  dbg_err_if(util_compare_double(t, tref, DBL_EPSILON) == 0);
 
   sref = -1;
-  u_test_err_if(ffs_info_int(ffs, FFS_INFO_LAMBDA_PUT, 1, &sref));
-  u_test_err_if(proxy_info(proxy, FFS_INFO_LAMBDA_PUT));
-  u_test_err_if(ffs_info_int(ffs, FFS_INFO_LAMBDA_FETCH, 1, &s));
-  u_test_err_if(s == sref);
+  dbg_err_if(ffs_info_int(ffs, FFS_INFO_LAMBDA_PUT, 1, &sref));
+  dbg_err_if(proxy_info(proxy, FFS_INFO_LAMBDA_PUT));
+  dbg_err_if(ffs_info_int(ffs, FFS_INFO_LAMBDA_FETCH, 1, &s));
+  dbg_err_if(s == sref);
 
   sref = 1;
-  u_test_err_if(ffs_info_int(ffs, FFS_INFO_RNG_SEED_PUT, 1, &sref));
-  u_test_err_if(proxy_info(proxy, FFS_INFO_RNG_SEED_FETCH));
+  dbg_err_if(ffs_info_int(ffs, FFS_INFO_RNG_SEED_PUT, 1, &sref));
+  dbg_err_if(proxy_info(proxy, FFS_INFO_RNG_SEED_FETCH));
 
-  u_test_err_if(proxy_execute(proxy, SIM_EXECUTE_FINISH));
-  u_test_err_if(proxy_delegate_free(proxy));
+  dbg_err_if(proxy_execute(proxy, SIM_EXECUTE_FINISH));
+  dbg_err_if(proxy_delegate_free(proxy));
   proxy_free(proxy);
 
   u_dbg("Success\n");
