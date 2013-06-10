@@ -9,6 +9,8 @@ SRCS += ffs/ffs_inst.c
 SRCS += ffs/ffs_param.c
 SRCS += ffs/ffs_state.c
 SRCS += ffs/ffs_control.c
+SRCS += ffs/ffs_trial.c
+SRCS += ffs/ffs_direct.c
 SRCS += ffs/ffs_branched.c
 SRCS += ffs/ffs_result.c
 SRCS += sim/factory.c
@@ -16,6 +18,7 @@ SRCS += sim/proxy.c
 SRCS += sim/sim_dmc.c
 SRCS += sim/sim_test.c
 SRCS += util/ffs_util.c
+SRCS += util/ffs_ensemble.c
 SRCS += util/mpilog.c
 SRCS += util/ranlcg.c
 

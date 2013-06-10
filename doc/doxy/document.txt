@@ -1,0 +1,14 @@
+/**
+ *  \page documentation Documentation
+ *
+
+\subpage ffs_explained Forward Flux Sampling
+
+\subpage user Information for users
+
+\subpage simulation Simulations
+
+\subpage develop Developers
+
+*/
+

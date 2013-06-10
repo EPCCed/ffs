@@ -120,6 +120,19 @@ int ffs_init_nsteplambda_set(ffs_init_t * obj, int nsteplambda);
 int ffs_init_log_to_mpilog(ffs_init_t * obj, mpilog_t * log);
 
 /**
+ *  \brief Return the number of trials
+ *
+ */
+
+int ffs_init_ntrials(ffs_init_t * obj, int * ntrials);
+
+/**
+ *  \brief Set the number of initial trials
+ */
+
+int ffs_init_ntrials_set(ffs_init_t * obj, int ntrials);
+
+/**
  * \}
  */
 

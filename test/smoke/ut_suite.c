@@ -26,7 +26,11 @@ int u_test_suite_smoke_register(u_test_t * t) {
 
   u_test_suite_new("smoke", &ts);
 
-  u_test_case_register("smoke test", st_gil_create, ts);
+  /* Two full runs back-to-back appear to cause second to generate
+   * incorrect results TODO: suggests something not 'clean' */
+  /*u_test_case_register("DMC smoke test II", st_gil_two, ts); */
+
+  u_test_case_register("DMC smoke test I", st_gil_create, ts);
 
   return u_test_suite_add(ts, t);
 }

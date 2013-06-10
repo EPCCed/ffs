@@ -26,7 +26,7 @@ is recorded, and used in the proceeding computation. If no trials
 reach the initial interface, clearly no further progress can be
 made.
 
-![](../diagrams/init1.gif "Generating a number of initial states")
+![](./init1.gif "Generating a number of initial states")
 
 The schematic diagram shows a situation where two states \f$ S_1 \f$
 and \f$ S_2 \f$ have been generated at the first interface from a
@@ -56,7 +56,7 @@ This trajectory is expected to fluctuate about the first interface
 of the interface defines a state which, potentially, can be used as
 the basis of forward trajectories.
 
-![](../diagrams/init2a.gif "Single trajectory")
+![](./init2a.gif "Single trajectory")
 
 As these states may be close together in state space, it may be desirable
 to sub-sample the initial crossing points by skipping every so many states,
@@ -78,7 +78,7 @@ of the number of MPI tasks. For the direct FFS variant, some additional
 care is required to ensure the same ensemble of states at the first
 interface is collected independent of parallel decomposition.
 
-![](../diagrams/init2b.gif "Parallel trajectories")
+![](./init2b.gif "Parallel trajectories")
 
 The statistics for the number of crossings and trajectory duration
 must be collected at the end of the run to provide a single figure

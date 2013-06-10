@@ -1,0 +1,37 @@
+/**
+ *  \page ffs_background Background
+ *
+
+\section background_intro A rare transition between initial and final states
+
+We consider a system where random (usually thermal) fluctuations can
+drive a transition between initial and final states. A characteristic
+example is a chemical reaction in which the initial state corresponds
+to that containing the reactants and the final state corresponds to
+the products. We assume that the reaction involves an activation
+barrier which must be overcome in order for reactants to react and
+form products. Thermal fluctuations may drive the reaction over the
+barrier, a process which will be rare if the barrier height \f$ \Delta E\f$
+is large compared with the thermal energy \f$ k_B T \f$.
+
+![](./react1.gif "A schematic rare event")
+
+When the transition is rare, we expect the system to spend a long
+time in the initial state, and then make a (relatively) very fast
+switch to the final state.
+Throughout this description we will refer to the initial state as
+"State A" or simply "A", and the final state as "State B" or "B".
+
+In general, for a complex energy landscape, it is impossible to
+work out the probability of the reaction (or rate constant) from
+first principles. This gives rise to the need for a computational
+approach such as forward flux sampling.
+
+\section background_lambda A reaction or progress coordinate
+
+\section background_traj Trajectories
+
+
+
+
+*/

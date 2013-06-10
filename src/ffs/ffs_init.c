@@ -14,6 +14,7 @@ struct ffs_init_s {
   int nstepmax;
   int nskip;
   int nsteplambda;
+  int ntrials;
   double prob_accept;
   double teq;
 };
@@ -248,6 +249,37 @@ int ffs_init_nsteplambda_set(ffs_init_t * obj, int nsteplambda) {
 
 /*****************************************************************************
  *
+ *  ffs_init_ntrials
+ *
+ *****************************************************************************/
+
+int ffs_init_ntrials(ffs_init_t * obj, int * nt) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(nt == NULL, -1);
+
+  *nt = obj->ntrials;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_init_ntrials_set
+ *
+ *****************************************************************************/
+
+int ffs_init_ntrials_set(ffs_init_t * obj, int nt) {
+
+  dbg_return_if(obj == NULL, -1);
+
+  obj->ntrials = nt;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
  *  ffs_init_log_to_mpilog
  *
  *****************************************************************************/
@@ -259,6 +291,7 @@ int ffs_init_log_to_mpilog(ffs_init_t * obj, mpilog_t * log) {
 
   mpilog(log, "\n");
   mpilog(log, "Parameters for initial state generation\n");
+  mpilog(log, "No. trials:    %d\n", obj->ntrials);
   mpilog(log, "independent:   %d\n", obj->independent);
   mpilog(log, "nstepmax:      %d\n", obj->nstepmax);
   mpilog(log, "nskip:         %d\n", obj->nskip);

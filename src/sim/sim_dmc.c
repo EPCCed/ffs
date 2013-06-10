@@ -499,6 +499,7 @@ int dmc_finish(dynam_t * dyn) {
   }
   free(dyn->a);
   free(dyn->Xname);
+  free(dyn->state.nx);
   free(dyn->R);
   ranlcg_free(dyn->rng);
 

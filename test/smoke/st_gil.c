@@ -14,13 +14,25 @@ int st_gil_create(u_test_case_t * tc) {
   ffs_control_t * ffs = NULL;
 
   u_dbg("Start\n");
-  u_test_err_if(ffs_control_create(MPI_COMM_WORLD, &ffs));
-  u_test_err_if(ffs_control_start(ffs, "logs/smoke-test-dmc"));
-  u_test_err_if(ffs_control_execute(ffs, "inputs/dmc_smoke1.inp"));
 
-  u_test_err_if(ffs_control_stop(ffs));
+  /* Smoke test 1 */
+
+  dbg_err_if(ffs_control_create(MPI_COMM_WORLD, &ffs));
+  dbg_err_if(ffs_control_start(ffs, "logs/dmc-smoke1"));
+  dbg_err_if(ffs_control_execute(ffs, "inputs/dmc_smoke1.inp"));
+
+  dbg_err_if(ffs_control_stop(ffs));
   ffs_control_free(ffs);
 
+  /* Smoke test 2 */
+  /*
+  dbg_err_if(ffs_control_create(MPI_COMM_WORLD, &ffs));
+  dbg_err_if(ffs_control_start(ffs, "logs/dmc-smoke2"));
+  dbg_err_if(ffs_control_execute(ffs, "inputs/dmc_smoke2.inp"));
+
+  dbg_err_if(ffs_control_stop(ffs));
+  ffs_control_free(ffs);
+  */
   u_dbg("Success\n");
   return U_TEST_SUCCESS;
 
@@ -30,3 +42,30 @@ int st_gil_create(u_test_case_t * tc) {
   u_dbg("Failure\n");
   return U_TEST_FAILURE;
 }
+
+
+int st_gil_two(u_test_case_t * tc) {
+
+  ffs_control_t * ffs = NULL;
+
+  u_dbg("Start\n");
+
+  /* Smoke test 2 */
+
+  dbg_err_if( ffs_control_create(MPI_COMM_WORLD, &ffs) );
+  dbg_err_if( ffs_control_start(ffs, "logs/dmc-smoke2") );
+  dbg_err_if( ffs_control_execute(ffs, "inputs/dmc_smoke2.inp") );
+  dbg_err_if( ffs_control_stop(ffs) );
+  ffs_control_free(ffs);
+
+  u_dbg("Success\n");
+  return U_TEST_SUCCESS;
+
+ err:
+
+  if (ffs) ffs_control_free(ffs);
+  u_dbg("Failure\n");
+
+  return U_TEST_FAILURE;
+}
+

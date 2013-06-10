@@ -143,6 +143,12 @@ Starting 16 trials each on 1 tasks
 Closing down the simulation proxy
 
 Instance results
+
+Attempts at first interface:         16
+States generated at first interface: 16
+Time outs at first interface:        0
+Number of equilibration runs:        1
+
 index      lambda    trials   states   pruned   wt/ntrial
 ---------------------------------------------------------
     1 -2.4000e+01        48       16       74  1.0000e+00
@@ -181,19 +187,18 @@ is the flux at A multiplied by the conditional probability P(B|A) which
 gives here approximately 3.06e-05.
 
 Clearly, using only 16 trials is likely to give rather poor statistics.
-To increase the number of trials, edit the first interface block in the
-input file:
+To increase the number of trials, edit the initialisation conditions in
+the instance configuration:
 \code
-  interface1
-  {
-           lambda -24.0
-           ntrial 3
-           nstate 16
-           pprune 1.0
-  }
+ffs_inst
+{
+               ...
+               init_independent        no
+               init_ntrials            16
+}
 \endcode
 
-and change `nstate` (not `ntrial`) to be, say, 1024. If we run again,
+and change `init_ntrials`  to be, say, 1024. If we run again,
 the code will take somewhat longer to complete (maybe a few
 minutes). Note that the original result file
 `run-inst-0000.log` will be overwritten with the new results.
@@ -226,6 +231,7 @@ For the same set of interfaces as was used above one can set:
                 sim_argv                dmc_switch1_comp.dat dmc_switch1_react.dat
 
                 init_independent        yes
+		init_ntrials            16
                 init_teq                1.0
                 init_nskip              1
                 init_nstepmax           10000000
@@ -241,13 +247,39 @@ run on 1 MPI task via the key value pair:
                 sim_mpi_tasks           1
 \endcode
 
+This example will give a slightly different result to the previous
+case, as different initial states have been generated:
+\code
+Attempts at first interface:         16
+States generated at first interface: 16
+Time outs at first interface:        0
+Number of equilibration runs:        17
+
+...
+Initial Tmax:  result   2.574848e+03
+Initial Tsum:  result   7.421689e+03
+Number of crossings A:  142
+Flux at lambda_A:       1.913311e-02
+
+Probability P(B|A):     3.289040e-04
+Flux * P(B|A):          6.292957e-06
+\endcode
+Note that the number of equilibration runs is now larger than it was,
+as each separate trial requires a separate equilibration. One of
+the initial trials has reached state B (requiring re-equilibration)
+and the total count of equilibration runs is 17. If the initial
+trial time ('init_nstepmax') is too short, some trials may fail
+and are 'timed out'.
+
 If we now increase the number of MPI tasks available to the job
 (usually done via mpirun), the instance will decompose the trials
 equally between the available tasks,
 where the simulation itself is still uses 1 MPI task (for the current
 implementation of the Gillespie algorithm, it must be). Note that the
 random number generator seeds are arranged so that the final result
-in decomposition independent.
+is decomposition independent (you should be able to confirm that exactly
+the same result is generated on 2, 4, 8 or 16 MPI tasks). Note that the
+number of trials must divide evenly between the available MPI tasks.
 
 ---
 

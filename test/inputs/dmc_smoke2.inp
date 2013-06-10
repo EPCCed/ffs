@@ -1,3 +1,7 @@
+# Example of single instance of branched FFS run with independent
+# initialisation.  Results will be reproducable in parallel with
+# each simulation using 1 MPI task (as must be the case for DMC).
+
 ffs
 {
 	ffs_instances	1
@@ -5,18 +9,22 @@ ffs
 
 	ffs_inst
 	{
-		method			direct
+		method			branched
 
-		sim_mpi_tasks           1
 		sim_name		dmc
+		sim_mpi_tasks           1
 		sim_argv		inputs/dmc_switch1_comp.dat inputs/dmc_switch1_react.dat
 
-		init_independent	no
-		init_teq		100.0
-		init_nskip		10
-		init_nstepmax		100000
+		init_independent	yes
+		init_ntrials            16
+		init_teq		1.0
+		init_nskip		1
+		init_nstepmax		10000000
 		init_nsteplambda	1
-		init_prob_accept        1.0
+		init_prob_accept        0.1
+
+                trial_nstepmax          10000000
+                trial_nsteplambda       1
 	}
 
 	interfaces
@@ -28,93 +36,75 @@ ffs
 		interface1
 		{
 			lambda -24.0
-			ntrial 200
-			nstate 10
+			ntrial 3
 			pprune 1.0
 		}
 		interface2
 		{
 			lambda -22.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 3
+			pprune 0.667
 		}
 		interface3
 		{
 			lambda -20.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 3
+			pprune 0.667
 		}
 		interface4
 		{
 			lambda -18.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 3
+			pprune 0.667
 		}
 		interface5
 		{
 			lambda -15.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 3
+			pprune 0.667
 		}
 		interface6
 		{
 			lambda -12.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 3
+			pprune 0.667
 		}
 		interface7
 		{
 			lambda -9.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 3
+			pprune 0.667
 		}
 		interface8
 		{
 			lambda -5.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 2
+			pprune 0.5
 		}
 		interface9
 		{
 			lambda 0.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 1
 		}
 		interface10
 		{
 			lambda 7.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 1
 		}
 		interface11
 		{
 			lambda 15.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 1
 		}
 		interface12
 		{
 			lambda 20.0
-			ntrial 100
-			nstate 10
-			pprune 0.4
+			ntrial 1
 		}
 		interface13
 		{
 			lambda 25.0
 			ntrial 0
-			nstate 0
-			pprune 0.0
 		}
 	}
 }

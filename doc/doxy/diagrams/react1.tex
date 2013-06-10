@@ -1,0 +1,103 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%%  react1.tex
+%%
+%%  A schemematic to represent a chemical reaction between
+%%  state A and state B with an activation barrier.
+%%
+%%  Convert to gif and reduce to 66% for final gif for web.
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{5pt}%
+\usetikzlibrary{arrows, shapes, petri}
+
+\begin{document}
+\pagestyle{empty}
+
+
+\begin{tikzpicture}[every node/.style={font=\normalsize,
+  minimum height=0.5cm,minimum width=2.5cm},]
+
+% Here's the grid
+
+\node [matrix, column sep = 1.2cm, row sep = 0.3cm] (matrix) at (0,0) {
+
+  \node(0,0) (StateA) {}; & \node(0,0) (Transition) {}; &
+  \node(0,0) (StateB) {};  \\
+     & & \\
+     & \node(0,0) (CurveTop) {}; &   \\
+   \node(0,0) (CurveLeft) {}; & \node(0,0) (BarrierBottom) {}; &   \\
+     & &   \node(0,0) (CurveRight) {}; \\
+   \node(0,0) (Origin) {}; &  & \node(0,0) (BottomRight) {}; \\
+};
+
+
+
+% Blocks for A and B states
+\draw
+(StateA) node[draw, rectangle, fill=blue!20] {STATE A}
+(StateB) node[draw, rectangle, fill=blue!20] {STATE B}
+(Transition) node[draw, rectangle, fill=red!20] {TRANSITION STATE};
+
+\draw
+(CurveLeft.north)
+node[draw, ellipse, xshift = 6pt, yshift = 6pt, fill=yellow!20] (Reactants)
+{\textit{Reactants}};
+\draw
+(CurveRight.north)
+node[draw, ellipse, xshift = -6pt, yshift=6pt, fill=yellow!20] (Products)
+{\textit{Products}};
+
+
+%
+\draw[->, thick, >=stealth', shorten >= 4pt]
+(Origin.west) -- (StateA.south west)
+ node[left, rotate=90, yshift = 12pt] {\textit{Energy}};
+\draw[->, thick, >=stealth']
+(Origin.west) -- (BottomRight.east) node[below, xshift = -3cm]
+{\textit{Reaction Path}};
+
+% The hump.
+
+\path[-, shorten <= 1cm]
+(CurveLeft.south west) edge [out = 0, in = 180] (CurveLeft.south east);
+
+\path[-]
+(CurveLeft.south east) edge [out = 0, in = 180] (CurveTop.north)
+(CurveTop.north) edge [out = 0, in = 180] (CurveRight.south west);
+
+\path[-, shorten >= 1cm]
+(CurveRight.south west) edge [out = 0, in = 180] (CurveRight.south east);
+
+% Barrier Bottom
+\path[-, shorten >= 0.8cm, shorten <= 0.8cm]
+(BarrierBottom.south west) edge[] (BarrierBottom.south east); 
+
+\node (TMP) [below of=BarrierBottom] {};
+\path[->, >=triangle 60, shorten <= 2pt]
+(TMP) edge[] (BarrierBottom.south);
+
+% Barrier Top
+\path[-, shorten >= 0.8cm, shorten <= 0.8cm]
+(CurveTop.north west) edge[] (CurveTop.north east); 
+\path[->, >=triangle 60, shorten <= 4pt]
+(Transition) edge[] (CurveTop.north);
+
+\node [above of=BarrierBottom, yshift = -18pt] {$\Delta E$};
+
+% Path
+\path[->, >=stealth', thick, dashed, blue!80]
+(Reactants.north east) edge[out = 30, in = 135] (Products);
+
+\node (Label) [above of=StateA] {};
+\node (LabelText) [left of=Label] {A rare event};
+
+\end{tikzpicture}
+\end{document}
