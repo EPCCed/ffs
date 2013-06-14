@@ -27,11 +27,60 @@ work out the probability of the reaction (or rate constant) from
 first principles. This gives rise to the need for a computational
 approach such as forward flux sampling.
 
-\section background_lambda A reaction or progress coordinate
+\section background_lambda A reaction, or progress, coordinate
+
+We assume we can define a value, often referred to as an order parameter
+\f$ \lambda \f$, which measures the progress of the reaction in the
+forward direction. This order parameter is computed from the state of
+the system and must be monotonically increasing in the forward direction.
+In the example of the chemical reaction, the order parameter might be
+the proportion of product molecules present compared with the reactants,
+e.g., \f$ (n_B - n_A) / (n_A + n_B) \f$, where \f$ n_A \f$ and \f$ n_B \f$
+are the numbers of reactant and product molecules respectively. This value
+would range from -1 in state A to +1 in state B. Increasing order parameter
+represents progress toward the desired target, in this case the product.
+
+We may subdivide the reaction path into segments separated by surfaces
+of constant order parameter, which we will refer to as "interfaces".
+These interfaces we will denote \f$ \lambda_1, \lambda_2, \lambda_3,
+\ldots \f$, with \f$ \lambda_1 < \lambda_2 < \lambda_3 \f$ etc. 
+
+![](./react2.gif "Progress coordinate")
+
+In the above picture, the limit of the initial state is defined
+to be order parameter value \f$ \lambda_A <= \lambda_1 \f$. The series
+of interfaces with order parameter values \f$ \lambda_1, \lambda_2,
+\ldots, \lambda_i, \ldots, \lambda_n\f$ is used to subdivide the
+transition state. The final state is defined by \f$ \lambda_B \f$,
+where \f$ \lambda_n <= \lambda_B\f$.
 
 \section background_traj Trajectories
 
+In performing a simulation of this system, we must provide an
+initial state for the system which has an order parameter value
+appropriate for state A, i.e., \f$ \lambda < \lambda_A \f$. We
+will refer to this state as the reference state \f$ S_{ref}\f$,
+denoted here as a green circle. A simulation allows dynamical
+trajectories to be computed, where at any point we are able to
+compute a value of the order parameter. Most of these trajectories,
+starting at \f$ S_{ref}\f$ will spend a significant time in state A
+if transitions are rare.
 
 
+![](./react3.gif "Trajectories")
 
-*/
+Dynamical trajectories starting at the reference state may
+occasionally reach the transition state and fall back into
+state A (trajectory \f$ t_1 \f$, drawn in red) and, rarely,
+may overcome the energy barrier to reach state B
+(trajectory \f$ t_2 \f$, drawn in blue).
+
+Forward flux sampling works by following trajectories which
+cross successive interfaces. States at forward-moving crossings
+of a given interface are used to generate new forward trajectories,
+while backward moving trajectories are discarded. This biases effort
+toward forward trajectories, and so increases
+the chances that the simulation can capture the rare transition.
+There are a number of different ways of doing this.
+
+**/
