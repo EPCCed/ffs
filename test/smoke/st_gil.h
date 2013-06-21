@@ -9,7 +9,8 @@
 
 #include "u/libu.h"
 
-int st_gil_create(u_test_case_t * tc);
-int st_gil_two(u_test_case_t * tc);
+int st_dmc_branched(u_test_case_t * tc);
+int st_dmc_direct(u_test_case_t * tc);
+int st_dmc_rosenbluth(u_test_case_t * tc);
 
 #endif

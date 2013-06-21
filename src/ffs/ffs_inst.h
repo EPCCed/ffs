@@ -197,11 +197,14 @@
  *  Value string for direct ffs method
  *  \def FFS_CONFIG_METHOD_BRANCHED
  *  Value string for branched ffs method
+ *  \def FFS_CONFIG_METHOD_ROSENBLUTH
+ *  Value string for Rosenbluth-like ffs sampling
  */
 
 #define FFS_CONFIG_METHOD_TEST         "test"
 #define FFS_CONFIG_METHOD_DIRECT       "direct"
 #define FFS_CONFIG_METHOD_BRANCHED     "branched"
+#define FFS_CONFIG_METHOD_ROSENBLUTH   "rosenbluth"
 
 /**
  *  \brief Opaque instance type
@@ -215,7 +218,8 @@ typedef struct ffs_inst_type ffs_inst_t;
 
 enum ffs_inst_method {FFS_METHOD_TEST,
 		      FFS_METHOD_DIRECT,
-		      FFS_METHOD_BRANCHED};
+		      FFS_METHOD_BRANCHED,
+                      FFS_METHOD_ROSENBLUTH};
 
 /**
  *  \brief Create an FFS instance

@@ -23,6 +23,7 @@
 #include "ffs_result.h"
 #include "ffs_direct.h"
 #include "ffs_branched.h"
+#include "ffs_rosenbluth.h"
 #include "ffs_inst.h"
 
 struct ffs_inst_type {
@@ -59,8 +60,6 @@ static int ffs_inst_read_trial(ffs_inst_t * obj, u_config_t * config);
 static int ffs_inst_run(ffs_inst_t * obj);
 static int ffs_inst_compute_proxy_size(ffs_inst_t * obj);
 static int ffs_inst_start_proxy(ffs_inst_t * obj);
-static int ffs_inst_results_direct(ffs_inst_t * obj);
-static int ffs_inst_results_branched(ffs_inst_t * obj);
 static int ffs_inst_start_xcomm(ffs_inst_t * obj);
 
 /*****************************************************************************
@@ -222,6 +221,10 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
     mpilog(obj->log, "Direct FFS was selected\n");
     dbg_err_if( ffs_inst_run(obj) );
     break;
+  case FFS_METHOD_ROSENBLUTH:
+    mpilog(obj->log, "Rosenbluth method was selected\n");
+    dbg_err_if( ffs_inst_run(obj) );
+    break;
   default:
     dbg_err("Internal error: no method");
   }
@@ -289,6 +292,9 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
   }
   else if (strcmp(method, FFS_CONFIG_METHOD_DIRECT) == 0) {
     obj->method = FFS_METHOD_DIRECT;
+  }
+  else if (strcmp(method, FFS_CONFIG_METHOD_ROSENBLUTH) == 0) {
+    obj->method = FFS_METHOD_ROSENBLUTH;
   }
   else {
     /* The requested method was not recognised */
@@ -461,6 +467,8 @@ const char * ffs_inst_method_name(ffs_inst_t * obj) {
     return FFS_CONFIG_METHOD_BRANCHED;
   case FFS_METHOD_DIRECT:
     return FFS_CONFIG_METHOD_DIRECT;
+  case FFS_METHOD_ROSENBLUTH:
+    return FFS_CONFIG_METHOD_ROSENBLUTH;
   }
 
   return "unrecognised";
@@ -484,6 +492,7 @@ int ffs_inst_config_log(ffs_inst_t * obj, mpilog_t * log) {
   mpilog(log, "%s\n", FFS_CONFIG_INST);
   mpilog(log, "{\n");
   mpilog(log, fmts, FFS_CONFIG_INST_METHOD, ffs_inst_method_name(obj));
+  mpilog(log, fmti, FFS_CONFIG_INST_SEED, obj->seed);
   mpilog(log, fmti, FFS_CONFIG_SIM_MPI_TASKS, obj->mpi_request);
   mpilog(log, fmts, FFS_CONFIG_SIM_NAME, u_string_c(obj->sim_name));
   mpilog(log, fmts, FFS_CONFIG_SIM_ARGV, u_string_c(obj->sim_argv));
@@ -542,6 +551,8 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   dbg_err_if( ffs_inst_start_proxy(obj) );
   dbg_err_if( ffs_inst_start_xcomm(obj) );
 
+  /* This could just be replaced by exposing instance object to trials */
+
   trial->init = obj->init;
   trial->param = obj->param;
   trial->proxy = obj->proxy;
@@ -551,8 +562,8 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   trial->log = obj->log;
   trial->xcomm = obj->x_comm;
   trial->inst_comm = obj->comm;
-  trial->nstepmax = obj->nstepmax_trial; /* 10000000;TODO:  input please. */
-  trial->nsteplambda = obj->nsteplambda_trial; /* 1; TODO ditto */
+  trial->nstepmax = obj->nstepmax_trial;
+  trial->nsteplambda = obj->nsteplambda_trial;
 
   ffs_init_ntrials(obj->init, &ntrial);
   dbg_err_if( ffs_result_create(nlambda, ntrial/obj->nproxy, &obj->result) );
@@ -563,14 +574,21 @@ static int ffs_inst_run(ffs_inst_t * obj) {
     dbg_err_if( ffs_branched_run(trial) );
 
     ffs_result_reduce(obj->result, obj->x_comm, 0);
-    ffs_inst_results_branched(obj);
+    ffs_branched_results(trial);
     break;
 
   case FFS_METHOD_DIRECT:
     dbg_err_if( ffs_direct_run(trial) );
 
     ffs_result_reduce(obj->result, obj->x_comm, 0);
-    ffs_inst_results_direct(obj);
+    ffs_direct_results(trial);
+    break;
+
+  case FFS_METHOD_ROSENBLUTH:
+    dbg_err_if( ffs_rosenbluth_run(trial) );
+
+    ffs_result_reduce(obj->result, obj->x_comm, 0);
+    ffs_rosenbluth_results(trial);
     break;
 
   default:
@@ -594,172 +612,6 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   if (obj->proxy) proxy_free(obj->proxy);
 
   return -1;
-}
-
-/*****************************************************************************
- *
- *  ffs_inst_results_branched
- *
- *  Display the results in a human-readable format
- *
- *****************************************************************************/
-
-static int ffs_inst_results_branched(ffs_inst_t * obj) {
-
-  int ntrial, nlambda;
-  int n, neq, nstates, ntry, nprune;
-  int nsum_trial = 0, nsum_prune = 0, nsum_success = 0;
-  double tmax, tsum, wt, lambda;
-
-  dbg_return_if(obj == NULL, -1);
-
-  mpilog(obj->log, "\n");
-  mpilog(obj->log, "Instance results\n\n");
-
-  ffs_init_ntrials(obj->init, &ntrial);
-  ffs_result_status_final(obj->result, FFS_TRIAL_SUCCEEDED, &nstates);
-  ffs_result_status_final(obj->result, FFS_TRIAL_TIMED_OUT, &n);
-  ffs_result_eq_final(obj->result, &neq);
-  
-  mpilog(obj->log, "Attempts at first interface:         %d\n", ntrial);
-  mpilog(obj->log, "States generated at first interface: %d\n", nstates);
-  mpilog(obj->log, "Time outs at first interface:        %d\n", n);
-  mpilog(obj->log, "Number of equilibration runs:        %d\n", neq);
-  mpilog(obj->log, "\n");
-
-  ffs_param_nlambda(obj->param, &nlambda);
-
-  mpilog(obj->log,
-	 "index      lambda    trials   states   pruned   wt/ntrial\n");
-  mpilog(obj->log,
-	 "---------------------------------------------------------\n");
-
-  for (n = 1; n <= nlambda; n++) {
-    ffs_param_lambda(obj->param, n, &lambda);
-    ffs_result_weight(obj->result, n, &wt);
-    ffs_result_trial_success(obj->result, n, &nstates);
-    ffs_result_prune(obj->result, n, &nprune);
-    ffs_param_ntrial(obj->param, n, &ntry);
-
-    mpilog(obj->log, "  %3d %11.4e  %8d %8d %8d %11.4e\n", n, lambda,
-	   nstates*ntry, nstates, nprune, wt/ntrial);
-
-    nsum_trial += nstates*ntry;
-    if (n > 1) nsum_success += nstates;
-    nsum_prune += nprune;
-  }
-
-  mpilog(obj->log,
-	 "----------------------------------------------------------\n");
-  mpilog(obj->log, "(sum/success/fail) %8d %8d %8d\n", nsum_trial,
-	 nsum_success, nsum_prune);
-
-  ffs_result_tmax(obj->result, &tmax);
-  ffs_result_tsum(obj->result, &tsum);
-  ffs_result_ncross(obj->result, &n);
-
-  mpilog(obj->log, "\n");
-  mpilog(obj->log, "Initial Tmax:  result   %12.6e\n", tmax);
-  mpilog(obj->log, "Initial Tsum:  result   %12.6e\n", tsum);
-  mpilog(obj->log, "Number of crossings A:  %d\n", n);
-  mpilog(obj->log, "Flux at lambda_A:       %12.6e\n", n/tsum);
-  mpilog(obj->log, "\n");
-  mpilog(obj->log, "Probability P(B|A):     %12.6e\n", wt/ntrial);
-  mpilog(obj->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*wt/ntrial);
-
-  return 0;
-}
-
-/*****************************************************************************
- *
- *  ffs_inst_results_direct
- *
- *  Display the results in a human-readable format
- *
- *****************************************************************************/
-
-static int ffs_inst_results_direct(ffs_inst_t * obj) {
-
-  int ntrial, nlambda, nsuccess;
-  int n, neq, nstates, ntry, nprune, nto;
-  int nsum_trial = 0, nsum_prune = 0, nsum_success = 0, nsum_nto = 0;
-  double tmax, tsum, wt, lambda, plambda;
-
-  dbg_return_if(obj == NULL, -1);
-
-  mpilog(obj->log, "\n");
-  mpilog(obj->log, "Instance results\n\n");
-
-  ffs_init_ntrials(obj->init, &ntrial);
-  ffs_result_status_final(obj->result, FFS_TRIAL_SUCCEEDED, &nsuccess);
-  ffs_result_status_final(obj->result, FFS_TRIAL_TIMED_OUT, &n);
-  ffs_result_eq_final(obj->result, &neq);
-  ffs_result_nkeep(obj->result, 1, &nstates);
-
-  mpilog(obj->log, "Attempts at first interface:         %d\n", ntrial);
-  mpilog(obj->log, "States generated at first interface: %d\n", nsuccess);
-  mpilog(obj->log, "Time outs at first interface:        %d\n", n);
-  mpilog(obj->log, "Number of equilibration runs:        %d\n", neq);
-  mpilog(obj->log, "Number of states retained:           %d\n", nstates);
-  mpilog(obj->log, "\n");
-
-  ffs_param_nlambda(obj->param, &nlambda);
-
-  mpilog(obj->log,
-	 "                  states   forw.                        Prod.of\n");
-  mpilog(obj->log,
-	 "index      lambda   kept  trials  success pruned   to   weights\n");
-  mpilog(obj->log,
-	 "----------------------------------------------------------------\n");
-
-  plambda = 1.0;
-
-  for (n = 1; n <= nlambda; n++) {
-    ffs_param_lambda(obj->param, n, &lambda);
-    ffs_result_weight(obj->result, n, &wt);
-    ffs_result_nkeep(obj->result, n, &nstates);
-    ffs_result_prune(obj->result, n, &nprune);
-    ffs_result_nto(obj->result, n, &nto);
-
-    if (n > 1) {
-      ffs_param_ntrial(obj->param, n - 1, &ntry);
-      if (wt > 1.0*ntry) wt = 1.0*ntry;   /* Can happen with pruning */
-      plambda *= (wt / ntry);
-    }
-
-    ffs_param_ntrial(obj->param, n, &ntry);
-
-    nsuccess = 0;
-    if (n < nlambda) ffs_result_trial_success(obj->result, n+1, &nsuccess);
-
-    mpilog(obj->log, "  %3d %11.4e  %5d %7d %7d %7d %4d %11.4e\n", n, lambda,
-	   nstates, ntry, nsuccess, nprune, nto, plambda);
-
-    nsum_trial += ntry;
-    nsum_success += nsuccess;
-    nsum_prune += nprune;
-    nsum_nto += nto;
-  }
-
-  mpilog(obj->log,
-	 "----------------------------------------------------------------\n");
-  mpilog(obj->log, "(totals)                 %7d %7d %7d %4d\n", nsum_trial,
-	 nsum_success, nsum_prune, nsum_nto);
-
-  ffs_result_tmax(obj->result, &tmax);
-  ffs_result_tsum(obj->result, &tsum);
-  ffs_result_ncross(obj->result, &n);
-
-  mpilog(obj->log, "\n");
-  mpilog(obj->log, "Initial Tmax:  result   %12.6e\n", tmax);
-  mpilog(obj->log, "Initial Tsum:  result   %12.6e\n", tsum);
-  mpilog(obj->log, "Number of crossings A:  %d\n", n);
-  mpilog(obj->log, "Flux at lambda_A:       %12.6e\n", n/tsum);
-  mpilog(obj->log, "\n");
-  mpilog(obj->log, "Probability P(B|A):     %12.6e\n", plambda);
-  mpilog(obj->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*plambda);
-
-  return 0;
 }
 
 /*****************************************************************************

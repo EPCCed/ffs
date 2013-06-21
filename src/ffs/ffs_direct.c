@@ -501,3 +501,96 @@ static int ffs_direct_trials(ffs_trial_arg_t * trial, int interface,
 
   return -1;
 }
+
+
+/*****************************************************************************
+ *
+ *  ffs_direct_results
+ *
+ *  Display the results in a human-readable format
+ *
+ *****************************************************************************/
+
+int ffs_direct_results(ffs_trial_arg_t * trial) {
+
+  int ntrial, nlambda, nsuccess;
+  int n, neq, nstates, ntry, nprune, nto;
+  int nsum_trial = 0, nsum_prune = 0, nsum_success = 0, nsum_nto = 0;
+  double tmax, tsum, wt, lambda, plambda;
+
+  dbg_return_if(trial == NULL, -1);
+
+  mpilog(trial->log, "\n");
+  mpilog(trial->log, "Instance results\n\n");
+
+  ffs_init_ntrials(trial->init, &ntrial);
+  ffs_result_status_final(trial->result, FFS_TRIAL_SUCCEEDED, &nsuccess);
+  ffs_result_status_final(trial->result, FFS_TRIAL_TIMED_OUT, &n);
+  ffs_result_eq_final(trial->result, &neq);
+  ffs_result_nkeep(trial->result, 1, &nstates);
+
+  mpilog(trial->log, "Attempts at first interface:         %d\n", ntrial);
+  mpilog(trial->log, "States generated at first interface: %d\n", nsuccess);
+  mpilog(trial->log, "Time outs at first interface:        %d\n", n);
+  mpilog(trial->log, "Number of equilibration runs:        %d\n", neq);
+  mpilog(trial->log, "Number of states retained:           %d\n", nstates);
+  mpilog(trial->log, "\n");
+
+  ffs_param_nlambda(trial->param, &nlambda);
+
+  mpilog(trial->log,
+	 "                  states   forw.                        Prod.of\n");
+  mpilog(trial->log,
+	 "index      lambda   kept  trials  success pruned   to   weights\n");
+  mpilog(trial->log,
+	 "----------------------------------------------------------------\n");
+
+  plambda = 1.0;
+
+  for (n = 1; n <= nlambda; n++) {
+    ffs_param_lambda(trial->param, n, &lambda);
+    ffs_result_weight(trial->result, n, &wt);
+    ffs_result_nkeep(trial->result, n, &nstates);
+    ffs_result_prune(trial->result, n, &nprune);
+    ffs_result_nto(trial->result, n, &nto);
+
+    if (n > 1) {
+      ffs_param_ntrial(trial->param, n - 1, &ntry);
+      if (wt > 1.0*ntry) wt = 1.0*ntry;   /* Can happen with pruning */
+      plambda *= (wt / ntry);
+    }
+
+    ffs_param_ntrial(trial->param, n, &ntry);
+
+    nsuccess = 0;
+    if (n < nlambda) ffs_result_trial_success(trial->result, n+1, &nsuccess);
+
+    mpilog(trial->log, "  %3d %11.4e  %5d %7d %7d %7d %4d %11.4e\n", n, lambda,
+	   nstates, ntry, nsuccess, nprune, nto, plambda);
+
+    nsum_trial += ntry;
+    nsum_success += nsuccess;
+    nsum_prune += nprune;
+    nsum_nto += nto;
+  }
+
+  mpilog(trial->log,
+	 "----------------------------------------------------------------\n");
+  mpilog(trial->log, "(totals)                 %7d %7d %7d %4d\n", nsum_trial,
+	 nsum_success, nsum_prune, nsum_nto);
+
+  ffs_result_tmax(trial->result, &tmax);
+  ffs_result_tsum(trial->result, &tsum);
+  ffs_result_ncross(trial->result, &n);
+
+  mpilog(trial->log, "\n");
+  mpilog(trial->log, "Initial Tmax:  result   %12.6e\n", tmax);
+  mpilog(trial->log, "Initial Tsum:  result   %12.6e\n", tsum);
+  mpilog(trial->log, "Number of crossings A:  %d\n", n);
+  mpilog(trial->log, "Flux at lambda_A:       %12.6e\n", n/tsum);
+  mpilog(trial->log, "\n");
+  mpilog(trial->log, "Probability P(B|A):     %12.6e\n", plambda);
+  mpilog(trial->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*plambda);
+
+  return 0;
+}

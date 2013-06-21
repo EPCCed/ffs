@@ -1,6 +1,6 @@
 /*****************************************************************************
  *
- *  ffs_branched.c
+ *  ffs_rosenbluth.c
  *
  *****************************************************************************/
 
@@ -10,18 +10,18 @@
 
 #include "ffs_private.h"
 #include "ffs_state.h"
-#include "ffs_branched.h"
+#include "ffs_rosenbluth.h"
 
-static int ffs_branched_recursive(ffs_trial_arg_t * trial, int interface,
-				  int id, double wt, ranlcg_t * ran);
+static int ffs_rosenbluth_recursive(ffs_trial_arg_t * trial, int interface,
+				    int id, double wt, ranlcg_t * ran);
 
 /*****************************************************************************
  *
- *  ffs_branched_run
+ *  ffs_rosenbluth_run
  *
  *****************************************************************************/
 
-int ffs_branched_run(ffs_trial_arg_t * trial) {
+int ffs_rosenbluth_run(ffs_trial_arg_t * trial) {
 
   int pid;
   int ntrial;
@@ -83,8 +83,15 @@ int ffs_branched_run(ffs_trial_arg_t * trial) {
 
     /* We reached the first interface; start the trials! */
 
+    stub = util_filename_stub(trial->inst_id, pid, 1);
+    proxy_state(trial->proxy, SIM_STATE_WRITE, stub);
+
     wt = 1.0;
-    ffs_branched_recursive(trial, 1, 1, wt, ran);
+    ffs_rosenbluth_recursive(trial, 1, 1, wt, ran);
+
+    stub = util_filename_stub(trial->inst_id, pid, 1);
+    proxy_state(trial->proxy, SIM_STATE_DELETE, stub);
+
   }
 
   /* Remove the reference state, and finish */
@@ -107,27 +114,34 @@ int ffs_branched_run(ffs_trial_arg_t * trial) {
 
 /*****************************************************************************
  *
- *  ffs_branched_recursive
+ *  ffs_rosenbluth_recursive
+ *
+ *  We perform k trials for every state, record all the successful ones,
+ *  but pick at most one to continue. Note that only state which are
+ *  assoicated with trials contribute to the weight w_b,i at a given
+ *  interface. 
+ *
+ *  We need to make all the trials before the recursion.
  *
  *****************************************************************************/
 
-static int ffs_branched_recursive(ffs_trial_arg_t * trial, int interface,
-				  int id, double wt, ranlcg_t * ran) {
-
+static int ffs_rosenbluth_recursive(ffs_trial_arg_t * trial, int interface,
+				    int id, double wt, ranlcg_t * ran) {
+  int it;
   int nlambda;
   int ntrial, itrial;
   int status;
   int pid;
   int seed;
+  int nsuccess;
+  int * nlist = NULL;
   double lambda_min;
   double lambda_max;
   double wtnow;
-  ffs_state_t * s_keep = NULL;
+  const char * stub = NULL;
 
   ffs_param_nlambda(trial->param, &nlambda);
-  ffs_param_weight_accum(trial->param, interface, wt);
   ffs_result_weight_accum(trial->result, interface, wt);
-  ffs_result_trial_success_add(trial->result, interface);
 
   /* If we have reached the final state then end the recursion */
 
@@ -137,17 +151,19 @@ static int ffs_branched_recursive(ffs_trial_arg_t * trial, int interface,
   ffs_param_lambda(trial->param, interface + 1, &lambda_max);
   ffs_param_ntrial(trial->param, interface, &ntrial);
 
-  /* Save this current state, as it needs to be restored. */
-
   dbg_err_if(proxy_id(trial->proxy, &pid));
-  dbg_err_if(ffs_state_create(trial->inst_id, pid, &s_keep));
-  dbg_err_if(ffs_state_id_set(s_keep, id));
-  proxy_state(trial->proxy, SIM_STATE_WRITE, ffs_state_stub(s_keep));
+
+  nsuccess = 0;
+  nlist = calloc(ntrial, sizeof(int));
 
   for (itrial = 0; itrial < ntrial; itrial++) {
 
-    /* fire off the branches with total weight 1.0*incoming weight */
-    wtnow = wt / ((double) ntrial);
+    /* Make a new trial with new seed */
+    ffs_result_nstart_add(trial->result, interface);
+
+    ranlcg_reep_int32(ran, &seed);
+    proxy_cache_info_int(trial->proxy, FFS_INFO_RNG_SEED_PUT, 1, &seed);
+    proxy_info(trial->proxy, FFS_INFO_RNG_SEED_FETCH);
 
     ffs_trial_run_to_lambda(trial, lambda_min, lambda_max, &status);
 
@@ -155,44 +171,89 @@ static int ffs_branched_recursive(ffs_trial_arg_t * trial, int interface,
       ffs_trial_prune(trial, interface, ran, &wtnow, &status);
     }
 
-    if (status == FFS_TRIAL_SUCCEEDED) {
-      ffs_branched_recursive(trial, interface + 1, ++id, wtnow, ran);
+    /* If we have succeed, record the successful end state */
+
+    if (status != FFS_TRIAL_SUCCEEDED) {
+      ffs_result_nback_add(trial->result, interface);
+    }
+    else {
+      nlist[nsuccess] = id + itrial + 1;
+      stub = util_filename_stub(trial->inst_id, pid, id + itrial + 1);
+      proxy_state(trial->proxy, SIM_STATE_WRITE, stub);
+      ffs_result_trial_success_add(trial->result, interface);
+      nsuccess += 1;
     }
 
-    /* Reset and next trial with new seed, or end of trials */
+    /* Re-read the original state if a further trial is required */
 
-    proxy_state(trial->proxy, SIM_STATE_READ, ffs_state_stub(s_keep));
-    ranlcg_reep_int32(ran, &seed);
-    proxy_cache_info_int(trial->proxy, FFS_INFO_RNG_SEED_PUT, 1, &seed);
-    proxy_info(trial->proxy, FFS_INFO_RNG_SEED_FETCH);
+    if (itrial < ntrial - 1) {
+      stub = util_filename_stub(trial->inst_id, pid, id);
+      proxy_state(trial->proxy, SIM_STATE_READ, stub);
+    }
   }
 
-  proxy_state(trial->proxy, SIM_STATE_DELETE, ffs_state_stub(s_keep));
-  ffs_state_free(s_keep);
+
+  /* Now the weight for successful trials is... */
+
+  wtnow = (wt*nsuccess) / ntrial;
+  ffs_result_success_weight_accum(trial->result, interface, wtnow);
+
+  if (nsuccess == 0) {
+    /* Just fall through and exit the recursion */
+  }
+  else {
+
+    /* If we have any successes at all, choose one at random to
+     * follow it via recursion. Delete all the unwanted states
+     * before going into the recursion to prevent a pile up. */
+
+    ranlcg_reep_int32(ran, &itrial);
+    itrial = itrial % nsuccess;
+
+    for (it = 0; it < nsuccess; it++) {
+      if (it != itrial) {
+	stub = util_filename_stub(trial->inst_id, pid, nlist[it]);
+	proxy_state(trial->proxy, SIM_STATE_DELETE, stub);
+	ffs_result_ndrop_add(trial->result, interface);
+      }
+    }
+
+    stub = util_filename_stub(trial->inst_id, pid, nlist[itrial]);
+    proxy_state(trial->proxy, SIM_STATE_READ, stub);
+
+    ffs_rosenbluth_recursive(trial, interface + 1, nlist[itrial], wtnow, ran);
+
+    stub = util_filename_stub(trial->inst_id, pid, nlist[itrial]);
+    proxy_state(trial->proxy, SIM_STATE_DELETE, stub);
+  }
+
+  free(nlist);
 
   return 0;
 
  err:
 
+  if (nlist) free(nlist);
   mpilog(trial->log, "Failed at interface %d\n", interface);
 
   return -1;
 }
 
+
 /*****************************************************************************
  *
- *  ffs_branched_results
+ *  ffs_rosenbluth_results
  *
  *  Display the results in a human-readable format
  *
  *****************************************************************************/
 
-int ffs_branched_results(ffs_trial_arg_t * trial) {
+int ffs_rosenbluth_results(ffs_trial_arg_t * trial) {
 
-  int ntrial, nlambda;
-  int n, neq, nstates, ntry, nprune;
-  int nsum_trial = 0, nsum_prune = 0, nsum_success = 0;
-  double tmax, tsum, wt, lambda;
+  int ntrial, nlambda, nsuccess;
+  int n, neq, ntry, ndrop, nback, nto;
+  int nsum_trial = 0, nsum_back = 0, nsum_success = 0, nsum_nto = 0;
+  double tmax, tsum, wt, swt, lambda, plambda;
 
   dbg_return_if(trial == NULL, -1);
 
@@ -200,12 +261,12 @@ int ffs_branched_results(ffs_trial_arg_t * trial) {
   mpilog(trial->log, "Instance results\n\n");
 
   ffs_init_ntrials(trial->init, &ntrial);
-  ffs_result_status_final(trial->result, FFS_TRIAL_SUCCEEDED, &nstates);
+  ffs_result_status_final(trial->result, FFS_TRIAL_SUCCEEDED, &nsuccess);
   ffs_result_status_final(trial->result, FFS_TRIAL_TIMED_OUT, &n);
   ffs_result_eq_final(trial->result, &neq);
-  
+
   mpilog(trial->log, "Attempts at first interface:         %d\n", ntrial);
-  mpilog(trial->log, "States generated at first interface: %d\n", nstates);
+  mpilog(trial->log, "States generated at first interface: %d\n", nsuccess);
   mpilog(trial->log, "Time outs at first interface:        %d\n", n);
   mpilog(trial->log, "Number of equilibration runs:        %d\n", neq);
   mpilog(trial->log, "\n");
@@ -213,29 +274,46 @@ int ffs_branched_results(ffs_trial_arg_t * trial) {
   ffs_param_nlambda(trial->param, &nlambda);
 
   mpilog(trial->log,
-	 "index      lambda    trials   states   pruned   wt/ntrial\n");
+  "                   forward                                  Prod.of\n");
   mpilog(trial->log,
-	 "---------------------------------------------------------\n");
+  "index      lambda   trials success  pruned   to dropped     weights\n");
+  mpilog(trial->log,
+  "-------------------------------------------------------------------\n");
+
+  plambda = 1.0;
 
   for (n = 1; n <= nlambda; n++) {
     ffs_param_lambda(trial->param, n, &lambda);
     ffs_result_weight(trial->result, n, &wt);
-    ffs_result_trial_success(trial->result, n, &nstates);
-    ffs_result_prune(trial->result, n, &nprune);
-    ffs_param_ntrial(trial->param, n, &ntry);
+    ffs_result_success_weight(trial->result, n, &swt);
+    ffs_result_nback(trial->result, n, &nback);
+    ffs_result_nto(trial->result, n, &nto);
+    ffs_result_nstart(trial->result, n, &ntry);
+    ffs_result_ndrop(trial->result, n, &ndrop);
+    ffs_result_trial_success(trial->result, n, &nsuccess);
 
-    mpilog(trial->log, "  %3d %11.4e  %8d %8d %8d %11.4e\n", n, lambda,
-	   nstates*ntry, nstates, nprune, wt/ntrial);
+    if (n == 1) {
+      plambda = 1.0;
+    }
+    else {
+      ffs_result_weight(trial->result, n-1, &wt);
+      ffs_result_success_weight(trial->result, n-1, &swt);
+      if (wt > 0.0) plambda *= (swt/wt);
+    }
 
-    nsum_trial += nstates*ntry;
-    if (n > 1) nsum_success += nstates;
-    nsum_prune += nprune;
+    mpilog(trial->log, "  %3d %11.4e  %7d %7d %7d %4d %7d %11.4e\n", n, lambda,
+	   ntry, nsuccess, nback, nto, ndrop, plambda);
+
+    nsum_trial += ntry;
+    nsum_success += nsuccess;
+    nsum_back += nback;
+    nsum_nto += nto;
   }
 
   mpilog(trial->log,
-	 "----------------------------------------------------------\n");
-  mpilog(trial->log, "(sum/success/fail) %8d %8d %8d\n", nsum_trial,
-	 nsum_success, nsum_prune);
+  "-------------------------------------------------------------------\n");
+  mpilog(trial->log, "(totals)         %9d %7d %7d %4d\n", nsum_trial,
+	 nsum_success, nsum_back, nsum_nto);
 
   ffs_result_tmax(trial->result, &tmax);
   ffs_result_tsum(trial->result, &tsum);
@@ -247,8 +325,8 @@ int ffs_branched_results(ffs_trial_arg_t * trial) {
   mpilog(trial->log, "Number of crossings A:  %d\n", n);
   mpilog(trial->log, "Flux at lambda_A:       %12.6e\n", n/tsum);
   mpilog(trial->log, "\n");
-  mpilog(trial->log, "Probability P(B|A):     %12.6e\n", wt/ntrial);
-  mpilog(trial->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*wt/ntrial);
+  mpilog(trial->log, "Probability P(B|A):     %12.6e\n", plambda);
+  mpilog(trial->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*plambda);
 
   return 0;
 }
