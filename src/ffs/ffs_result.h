@@ -345,6 +345,110 @@ int ffs_result_nto_add(ffs_result_t * obj, int n, int nto);
 int ffs_result_nto(ffs_result_t * obj, int n, int * nto);
 
 /**
+ *  \brief Accumulate success weight at interface
+ *
+ *  \param  obj       the ffs_result_t sturcture
+ *  \param  n         the interface index
+ *  \param  swt       the wieght to be accumulated
+ *
+ *  \retval 0         a success
+ *  \retval -1        a NULL pointer or invalid index was received
+ */
+
+int ffs_result_success_weight_accum(ffs_result_t * obj, int n, double swt);
+
+/**
+ *  \brief Get the success weight for an interface
+ *
+ *  \param  obj        the ffs_result_t structure
+ *  \param  n          the interface index
+ *  \param  swt        a pointer to the value to be returned
+ *
+ *  \retval 0          a success
+ *  \retval -1         a NULL pointer or invalid index was received
+ */
+
+int ffs_result_success_weight(ffs_result_t * obj, int n, double * swt);
+
+/**
+ *  \brief Get trial count at interface
+ *
+ *  \param  obj       the ffs_result_t sturcture
+ *  \param  n         the interface index
+ *  \param  nstart    the number of trials started at this interface, to be
+ *                    returned
+ *
+ *  \retval 0         a success
+ *  \retval -1        a NULL pointer or invalid index was received
+ */
+
+int ffs_result_nstart(ffs_result_t * obj, int n, int * nstart);
+
+/**
+ *  \brief Add one to trial count at interface
+ *
+ *  \param  obj        the ffs_result_t structure
+ *  \param  n          the interface index
+ *
+ *  \retval 0          a success
+ *  \retval -1         a NULL pointer or invalid index was received
+ */
+
+int ffs_result_nstart_add(ffs_result_t * obj, int n);
+
+
+/**
+ *  \brief Get count of dropped trajectories (to specfied interface)
+ *
+ *  \param  obj       the ffs_result_t sturcture
+ *  \param  n         the interface index
+ *  \param  ndrop     a pointer to the count to be returned    
+ *
+ *  \retval 0         a success
+ *  \retval -1        a NULL pointer or invalid index was received
+ */
+
+int ffs_result_ndrop(ffs_result_t * obj, int n, int * ndrop);
+
+/**
+ *  \brief Add one to count of trials dropped (trials originating at interface)
+ *
+ *  \param  obj        the ffs_result_t structure
+ *  \param  n          the interface index
+ *
+ *  \retval 0          a success
+ *  \retval -1         a NULL pointer or invalid index was received
+ */
+
+int ffs_result_ndrop_add(ffs_result_t * obj, int n);
+
+/**
+ *  \brief Get count of backsliding  trajectories (from specfied interface)
+ *
+ *  \param  obj       the ffs_result_t sturcture
+ *  \param  n         the interface index
+ *  \param  nback     a pointer to the count to be returned    
+ *
+ *  \retval 0         a success
+ *  \retval -1        a NULL pointer or invalid index was received
+ */
+
+int ffs_result_nback(ffs_result_t * obj, int n, int * nback);
+
+/**
+ *  \brief Add one to count of trials going backwards (trials originating
+ *         at interface)
+ *
+ *  \param  obj        the ffs_result_t structure
+ *  \param  n          the interface index
+ *
+ *  \retval 0          a success
+ *  \retval -1         a NULL pointer or invalid index was received
+ */
+
+int ffs_result_nback_add(ffs_result_t * obj, int n);
+
+/**
  * \}
  */
 

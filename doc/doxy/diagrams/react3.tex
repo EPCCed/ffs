@@ -1,0 +1,108 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%%  react3.tex
+%%
+%%  A schemematic to represent basic trajectories between A and B.
+%%
+%%  Convert to gif and reduce to 66% for final gif for web.
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{5pt}%
+\usetikzlibrary{arrows, shapes, petri}
+
+\begin{document}
+\pagestyle{empty}
+
+
+\begin{tikzpicture}[every node/.style={font=\normalsize,
+  minimum height=0.5cm,minimum width=2.5cm},]
+
+% Here's the grid
+
+\node [matrix, column sep = 1.2cm, row sep = 0.3cm] (matrix) at (0,0) {
+
+  \node(0,0) (StateA) {}; & \node(0,0) (Transition) {};
+     & \node(0,0) (StateB) {};  \\
+     & & \\
+     & \node(0,0) (CurveTop) {}; &    \\
+   \node(0,0) (CurveLeft) {}; & & \node(0,0) (CurveRight) {};    \\
+     & &  \\
+   \node(0,0) (Origin) {}; &  \node (0,0) (Bottom) {};   
+     & \node(0,0) (BottomRight) {}; \\
+};
+
+
+
+% Blocks for A and B states
+\draw
+(StateA) node[draw, rectangle, fill=blue!20] {STATE A}
+(StateB) node[draw, rectangle, fill=blue!20] {STATE B}
+(Transition) node[draw, rectangle, fill=red!20]
+{TRANSITION STATE};
+
+\draw
+(CurveLeft.north)
+node[draw, circle, minimum width = 0.1cm, fill=green!20] (Sref) {$S_{ref}$};
+
+
+% Axes
+%\draw[->, thick, >=stealth', shorten >= 4pt]
+%(Origin.west) -- (StateA.south west)
+% node[left, rotate=90, yshift = 12pt] {\textit{Energy}};
+\draw[->, thick, >=stealth']
+(Origin.south west) -- (BottomRight.south east) node[below, xshift = -2cm]
+{\textit{Order Parameter}};
+
+
+% Interfaces
+\node (tmpA) [below of = StateA, xshift = 1.25cm, yshift = 0.4cm] {};
+\node (tmpB) [above of = Origin, xshift = 1.25cm, yshift = -0.4cm] {};
+\draw (tmpA.north) -- (tmpB.south) node[below] {$\lambda_A$};
+
+\node (tmpA) [below of = StateA, xshift = 1.82cm, yshift = 0.4cm] {};
+\node (tmpB) [above of = Origin, xshift = 1.82cm, yshift = -0.4cm] {};
+\draw (tmpA.north) -- (tmpB.south) node[below] {$\lambda_1$};
+
+\node (tmpA) [below of = StateA, xshift = 2.82cm, yshift = 0.4cm] {};
+\node (tmpB) [above of = Origin, xshift = 2.82cm, yshift = -0.4cm] {};
+\draw (tmpA.north) -- (tmpB.south) node[below] {$\lambda_2$};
+
+%
+\node (tmpA) [below of = StateB, xshift = -1.25cm, yshift = 0.4cm] {};
+\node (tmpB) [above of = BottomRight, xshift = -1.25cm, yshift = -0.4cm] {};
+\draw (tmpA.north) -- (tmpB.south) node[below] {$\lambda_B$};
+
+\node (tmpA) [below of = StateB, xshift = -1.82cm, yshift = 0.4cm] {};
+\node (tmpB) [above of = BottomRight, xshift = -1.82cm, yshift = -0.4cm] {};
+\draw (tmpA.north) -- (tmpB.south) node[below] {$\lambda_n$};
+
+\node (tmpA) [below of = StateB, xshift = -2.82cm, yshift = 0.4cm] {};
+\node (tmpB) [above of = BottomRight, xshift = -2.82cm, yshift = -0.4cm] {};
+\draw (tmpA.north) -- (tmpB.south) node[below] {$\lambda_i$};
+
+\node (tmpA) [below of = Transition] {$\ldots$};
+
+% TRAJECTORIES
+
+\node (tmpA) [below of = StateA, xshift = 2.0cm] {};
+\node (tmpB) [below of = StateA, xshift = -1.0cm, yshift = 0.4cm] {$t_1$};
+\path [-, thick, red] (Sref.north east) edge [out = 45, in = -90] (tmpA.south);
+\path [->, >=stealth', thick, red]
+(tmpA.south) edge[out = 90, in = -10]  (tmpB.south);
+
+\node (tmpB) [below of = StateB, yshift = -1.0cm] {$t_2$};
+\path [->, >=stealth', thick, blue]
+(Sref.south east) edge [out = -45, in = 120] (tmpB);
+
+\node (Label) [above of=StateA] {};
+\node (LabelText) [left of=Label] {Trajectories};
+
+\end{tikzpicture}
+\end{document}

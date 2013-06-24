@@ -26,10 +26,14 @@ struct ffs_result_s {
   int nlambda;       /* Number of interfaces (total) */
   double * wt;       /* Accumulated weight at interface */
   double * probs;    /* Probabilities at interfaces */
+  double * swt;      /* Success weights for Rosenbluth */
   int * nsuccess;    /* Number of states at this interface recorded */
   int * nprune;      /* Number of trials pruned at this interface */
   int * nkeep;       /* Number of states actually retained each interface */
   int * nto;         /* Number of time outs 'at' each interface */
+  int * nstart;      /* Number of trials started at interface */
+  int * ndrop;       /* Number of trajectories dropped (Rosenbluth) */
+  int * nback;       /* Number of trajectories going backward from interface */
 
   int init_nsuccess; /* Number of successful trials reaching lambda1 */
   int init_nto;      /* Time-outs before lambda1 */
@@ -68,6 +72,9 @@ int ffs_result_create(int nlambda, int ntrial, ffs_result_t ** pobj) {
   obj->wt = u_calloc(nlambda + 1, sizeof(double));
   dbg_err_sif(obj->wt == NULL);
 
+  obj->swt = u_calloc(nlambda + 1, sizeof(double));
+  dbg_err_sif(obj->swt == NULL);
+
   obj->probs = u_calloc(nlambda + 1, sizeof(double));
   dbg_err_sif(obj->probs == NULL);
 
@@ -82,6 +89,15 @@ int ffs_result_create(int nlambda, int ntrial, ffs_result_t ** pobj) {
 
   obj->nto = u_calloc(nlambda + 1, sizeof(int));
   dbg_err_sif(obj->nto == NULL);
+
+  obj->nstart = u_calloc(nlambda + 1, sizeof(int));
+  dbg_err_sif(obj->nstart == NULL);
+
+  obj->ndrop = u_calloc(nlambda + 1, sizeof(int));
+  dbg_err_sif(obj->ndrop == NULL);
+
+  obj->nback = u_calloc(nlambda + 1, sizeof(int));
+  dbg_err_sif(obj->nback == NULL);
 
   *pobj = obj;
 
@@ -104,9 +120,13 @@ void ffs_result_free(ffs_result_t * obj) {
 
   dbg_return_if(obj == NULL, );
 
+  if (obj->nback) u_free(obj->nback);
+  if (obj->ndrop) u_free(obj->ndrop);
+  if (obj->nstart) u_free(obj->nstart);
   if (obj->nto) u_free(obj->nto);
   if (obj->status) u_free(obj->status);
   if (obj->t0) u_free(obj->t0);
+  if (obj->swt) u_free(obj->swt);
   if (obj->wt) u_free(obj->wt);
   if (obj->probs) u_free(obj->probs);
   if (obj->nsuccess) u_free(obj->nsuccess);
@@ -269,6 +289,7 @@ int ffs_result_time(ffs_result_t * obj, int n, double * t) {
  *     tmax   = maximum trajectory time
  *
  *     wt     = sum of weights for each interface
+ *     swt    = success wieghts for each interface (Rosenbluth)
  *     states = number of successful trials reaching this interface
  *
  *  Note that the results overwrite the existing numbers on root,
@@ -321,6 +342,15 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
   }
 
   MPI_Reduce(wt_local, obj->wt, obj->nlambda + 1, MPI_DOUBLE, MPI_SUM, root,
+	     comm);
+
+  /* Success weight (use wt_local again) */
+
+  for (n = 0; n <= obj->nlambda; n++) {
+    wt_local[n] = obj->swt[n];
+  }
+
+  MPI_Reduce(wt_local, obj->swt, obj->nlambda + 1, MPI_DOUBLE, MPI_SUM, root,
 	     comm);
 
   u_free(wt_local);
@@ -592,6 +622,146 @@ int ffs_result_nto(ffs_result_t * obj, int n, int * nto) {
   dbg_return_if(nto == NULL, -1);
 
   *nto = obj->nto[n];
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_success_weight
+ *
+ *****************************************************************************/
+
+int ffs_result_success_weight(ffs_result_t * obj, int n, double * swt) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+  dbg_return_if(swt == NULL, -1);
+
+  *swt = obj->swt[n];
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_success_weight_accum
+ *
+ *****************************************************************************/
+
+int ffs_result_success_weight_accum(ffs_result_t * obj, int n, double swt) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+
+  obj->swt[n] += swt;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_nstart
+ *
+ *****************************************************************************/
+
+int ffs_result_nstart(ffs_result_t * obj, int n, int * nstart) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+  dbg_return_if(nstart == NULL, -1);
+
+  *nstart = obj->nstart[n];
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_nstart_add
+ *
+ *****************************************************************************/
+
+int ffs_result_nstart_add(ffs_result_t * obj, int n) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+
+  obj->nstart[n] += 1;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_ndrop
+ *
+ *****************************************************************************/
+
+int ffs_result_ndrop(ffs_result_t * obj, int n, int * ndrop) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+  dbg_return_if(ndrop == NULL, -1);
+
+  *ndrop = obj->ndrop[n];
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_ndrop_add
+ *
+ *****************************************************************************/
+
+int ffs_result_ndrop_add(ffs_result_t * obj, int n) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+
+  obj->ndrop[n] += 1;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_nback
+ *
+ *****************************************************************************/
+
+int ffs_result_nback(ffs_result_t * obj, int n, int * nback) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+  dbg_return_if(nback == NULL, -1);
+
+  *nback = obj->nback[n];
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_nback_add
+ *
+ *****************************************************************************/
+
+int ffs_result_nback_add(ffs_result_t * obj, int n) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(n < 0, -1);
+  dbg_return_if(n > obj->nlambda, -1);
+
+  obj->nback[n] += 1;
 
   return 0;
 }

@@ -595,6 +595,9 @@ static int dmc_read_components(dynam_t * dyn, const char * filename) {
     fscanf(fp, "%d\t\t%s\n", &dyn->state.nx[ic], dyn->Xname[ic]);
   }
 
+  /* We don't read the time, but just set it to zero (always ok here). */
+  dyn->state.t = 0.0;
+
   fclose(fp);
 
   return 0;

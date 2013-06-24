@@ -30,6 +30,18 @@
 int ffs_direct_run(ffs_trial_arg_t * trial);
 
 /**
+ *  \brief Display the results in a human-radable format
+ *
+ *  \param   trial     the ffs_trial_arg_t structure
+ *
+ *  \retval  0         a success
+ *  \retval  -1        a NULL pointer was encountered
+ */
+
+int ffs_direct_results(ffs_trial_arg_t * trial);
+
+
+/**
  *  \}
  */
 
