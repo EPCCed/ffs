@@ -1,0 +1,71 @@
+This directory contains an example of FFS with dimer problem using LAMMPS plugin
+
+The system is 25 particles: two particles forming the dimer and 23 solven particles interacting Weeks-Chandler-Andersen (WCA) potential. The system is 2D.
+
+Directory includes following files:
+1) dimer.in - input file to create a starting configuration for FFS
+2) dimer.data - initial molecular data
+3) dimer.FFS.in - input file for FFS simulation
+4) log.lammps.25Jun13 - thermodynamic data produced by the initial simulation
+5) bond.dump.25Jun13 - bond lengths for the last 100 steps of the initial 
+   simulation at 10 step intervals
+6) testrun-inst-0000.log.25Jun13 - result from test ffs simulation
+
+Directory ../lmp_example/USER-DW 
+contains the LAMMPS source code for double well potential: 
+V(r) = h*(1 - (x - rwca - w)**2/w**2)**2
+This has two minima at r = rwca and r = rwca + 2w, these minima are separated 
+by a barrier of height h.
+
+To prepare the lammps library :
+
+(1) copy the direcory USER-DW to lammps src directory
+(2) to install (in lammps src directory) type
+    make yes-molecule
+    make yes-USER-DW	
+(3) to uninstall:
+    make no-USER-DW
+(4) compile lammps as usual (in lammps/src):
+    
+(5) compile lammps as library (in lammps/src): 
+     make makelib
+    make -f Makefile.lib foo
+    where foo is the desired machine name (openmpi, xe6, etc)
+(6) compile ffs using instructions in (ffs/README)
+
+The file 'dimer.in' and 'dimer.FFS.in' include the bonding parameters for the
+double well potential:
+
+bond_style double_well
+bond_coeff   1   15.0 0.5 1.12246152962189
+#bond_coeff bond_type h w rwca
+
+The barrier height can be changed via modifying the h parameter. The current 
+value (h = 15.0) corresponds to 'holy grail' literature value 
+(van Erp, JCP, 118, 7762 (2003)). At this value transition are very infrequent.
+Sensible choices are h > 4.0.
+
+
+To prepare the simulation data:
+(1) /path/to/lammps/lammps_executable -in dimer.in
+
+    This will produce following files:
+    1) dimer.start - a binary restart file for ffs
+    2) log.lammps - thermodynamic output
+    3) bond.dump - bond lengths for the last 100 steps of the initial 
+       simulation at 10 step intervals
+
+The 'bond.dump' file can be used to easily access the information of the 
+current value of bond length ie. the order parameter lambda. The last value 
+is the lambda ffs simulations are started from. Thus, if this is value is not 
+what is desired further equilibration might be needed. This can be achieved 
+by increasing the run variables in dimer.in
+
+To run ffs simulation using the dimer problem using the direct method:
+(1) ${path-to-ffs}/src/bin/run lmp_dimer_FFS.inp
+
+
+
+
+
+

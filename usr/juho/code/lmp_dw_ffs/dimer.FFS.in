@@ -1,0 +1,40 @@
+# lammps input file for the simulation of double well potential using FFs
+
+### FFS read restart command ###
+#$FFS_READ_RESTART
+read_restart dimer.start
+
+neighbor 1.9 bin
+neigh_modify every 1 delay 1 check yes 
+
+group all type 1 2
+
+#  1.12246 = 2^(1/6) is the minimum of the potential
+
+pair_style      lj/cut 1.12246152962189
+pair_modify shift yes
+pair_coeff      * * 1.0 1.0 
+
+
+bond_style double_well
+bond_coeff   *   15.0 0.5 1.12246152962189 
+
+fix 1 all   nve   ###NVE ensemble
+
+### FFS fix command ###
+#$FFS_FIX langevin
+fix 2 all   langevin   1.0 1.0   2.0   7364   ###Langevin integrator Tstart Tstop 1/friction rndseed
+
+fix		3 all momentum 1 linear 1 1 1
+
+fix             4 all enforce2d
+
+
+###
+# set timestep of integrator
+###
+timestep 0.001 
+
+### FFS run command ###
+#$FFS_RUN
+run 10
