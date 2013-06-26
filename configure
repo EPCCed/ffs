@@ -8,6 +8,38 @@ makl_args_init "$@"
 
 ${ECHO} "MAKL_ETC is ${MAKL_ETC}"
 
+##############################################################################
+#
+#  makl_compile uses CC to compile; if want CXX, use this.
+#
+#  param1   pathname of file
+#  param2   arguments to be passed to compiler CXX
+#
+##############################################################################
+
+makl_compile_cxx ()
+{
+  cc="${CC}"
+  file="$1"
+  shift
+
+  CC="${CXX}"
+  makl_compile "${file}" "$*"
+
+  if [ $? -ne 0 ]; then
+      return 1
+  fi
+  CC="${cc}"
+
+  return 0
+}
+
+##############################################################################
+#
+#  Start configure process
+#
+##############################################################################
+
 #
 # --debug
 #
@@ -116,12 +148,12 @@ fftw=`makl_get_var_mk "HAVE_FFTW"`
 if [ $fftw ]
     then
     fftwdir=`makl_get_var_mk "FFTWDIR"`
-    ${ECHO} "Looking for FFTW in ${fftwdir}"
+    ${ECHO} "checking for FFTW in ${fftwdir}"
     makl_compile "build/fftw.c" "-I${fftwdir}/include" "-L${fftwdir}/lib -lfftw"
     [ $? == 0 ] || makl_err 1 "could not build fftw"
     makl_append_var_mk "LDFLAGS" "-L${fftwdir}/lib -lfftw"
 else
-    echo "No FFTW (ok)"
+    echo "No FFTW config (ok)"
 fi
 
 ##############################################################################
@@ -129,26 +161,29 @@ fi
 # Check LAMMPS
 # We require LAMMPS include directory  $lmpdir/include
 # and a statically linked library      $lmpdir/lib -llmp
-# The link is via CC -lstdc++
+#
+# The link is via CXX and -lstdc++
 #
 ##############################################################################
 
 lammps=`makl_get_var_mk "HAVE_LAMMPS"`
+
 if [ $lammps ]
 then
     lmpdir=`makl_get_var_mk "LAMMPSDIR"`
     libs=`makl_get_var_mk "LDFLAGS"`
     ${ECHO} "Looking for LAMMPS library in ${lmpdir}..."
-    makl_compile "build/lammps.c" "-I${lmpdir}/include" \
+    makl_compile_cxx "build/lammps.c" "-I${lmpdir}/include" \
 	"-L${lmpdir}/lib -llmp -lstdc++ ${libs}"
     [ $? == 0 ] || makl_err 1 "could not compile LAMMPS test"
     makl_append_var_mk "CFLAGS" "-I${lmpdir}/include"
     makl_append_var_mk "LDFLAGS" "-L${lmpdir}/lib -llmp -lstdc++"
 else
-    ${ECHO} "No LAMMPS (ok)"
+    ${ECHO} "No LAMMPS config (ok)"
 fi
 
 makl_append_var_mk "LDFLAGS" "-lm"
 
 
 . $MAKL_DIR/cf/makl.term
+

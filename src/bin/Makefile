@@ -19,3 +19,9 @@ CFLAGS += -I../ffs -I../util
 LDADD += ../libffs.a
 
 include prog.mk
+
+ifdef HAVE_LAMMPS
+# In general, we may need to link with CXX
+all-hook-pre: $(OBJS) $(LDADD)
+	$(CXX) $(CFLAGS) -o $(PROG) $(OBJS) $(LDADD) $(LDFLAGS)
+endif
