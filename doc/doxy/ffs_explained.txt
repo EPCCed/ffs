@@ -38,6 +38,8 @@ in the library.
 -# \subpage ffs_explained_init
 -# \subpage ffs_branched
 -# \subpage ffs_direct
+-# \subpage ffs_rosenbluth
+-# \subpage ffs_brute_force
 
 
 -----

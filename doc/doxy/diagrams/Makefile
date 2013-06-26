@@ -12,6 +12,7 @@ SRCS += react3.tex
 SRCS += init1.tex
 SRCS += init2a.tex
 SRCS += init2b.tex
+SRCS += rosenbluth1.tex
 
 PDFS = ${SRCS:.tex=.pdf}
 
