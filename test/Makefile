@@ -65,4 +65,4 @@ endif
 
 all-hook-post:
 	make clean-test-logs
-#	@./$(PROG) -s
+	@./$(PROG) -s
