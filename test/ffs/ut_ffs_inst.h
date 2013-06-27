@@ -13,8 +13,10 @@
 
 #include "u/libu.h"
 
-#define UT_INST_NAME "ffs inst test"
+#define UT_INST_NAME        "ffs inst test"
+#define UT_INST_INPUT_NAME  "ffs inst input test"
 
 int ut_inst(u_test_case_t * tc);
+int ut_inst_input(u_test_case_t * tc);
 
 #endif /* UT_FFS_INST_H */

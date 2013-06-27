@@ -39,6 +39,8 @@ int u_test_suite_ffs_register(u_test_t * t) {
   u_test_case_register(UT_FFS_LAMBDA_NAME, ut_ffs_lambda_name, ts);
 
   u_test_case_register(UT_INST_NAME, ut_inst, ts);
+  u_test_case_register(UT_INST_INPUT_NAME, ut_inst_input, ts);
+
   u_test_case_register(UT_CONTROL_NAME, ut_control, ts);
 
   u_test_case_register(UT_INIT_NAME, ut_init, ts);

@@ -16,7 +16,6 @@
 
 #include "../util/ffs_util.h"
 #include "../util/mpilog.h"
-#include "../sim/proxy.h"
 
 #include "ffs_init.h"
 #include "ffs_private.h"
@@ -41,6 +40,7 @@ struct ffs_inst_type {
 
   u_string_t * sim_name;   /* The name used to identify the proxy */
   u_string_t * sim_argv;   /* The command line */
+  u_string_t * sim_lambda; /* The identifier for lambda */
   proxy_t * proxy;         /* Simulation proxy object */
   int mpi_request;         /* MPI tasks per simulation (user request) */
   int nproxy;              /* Number of simulations for this instance */
@@ -54,12 +54,10 @@ struct ffs_inst_type {
   int nsteplambda_trial;
 };
 
-static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input);
 static int ffs_inst_read_init(ffs_inst_t * obj, u_config_t * config);
 static int ffs_inst_read_trial(ffs_inst_t * obj, u_config_t * config);
 static int ffs_inst_run(ffs_inst_t * obj);
 static int ffs_inst_compute_proxy_size(ffs_inst_t * obj);
-static int ffs_inst_start_proxy(ffs_inst_t * obj);
 static int ffs_inst_start_xcomm(ffs_inst_t * obj);
 
 /*****************************************************************************
@@ -125,6 +123,7 @@ void ffs_inst_free(ffs_inst_t * obj) {
   if (obj->param) ffs_param_free(obj->param);
   if (obj->sim_name) u_string_free(obj->sim_name);
   if (obj->sim_argv) u_string_free(obj->sim_argv);
+  if (obj->sim_lambda) u_string_free(obj->sim_lambda);
 
   if (obj->x_comm != MPI_COMM_NULL) MPI_Comm_free(&obj->x_comm);
   MPI_Comm_free(&obj->comm);
@@ -165,13 +164,16 @@ int ffs_inst_start(ffs_inst_t * obj, const char * filename,
 
   MPI_Comm_size(obj->comm, &sz);
 
-  err_err_if(mpilog_fopen(obj->log, filename, mode));
+  dbg_err_if(mpilog_fopen(obj->log, filename, mode));
   mpilog(obj->log, "FFS instance log for instance id %d\n", obj->inst_id);
   mpilog(obj->log, "Running on %d MPI task%s\n", sz, (sz > 1) ? "s" : "");
   mpilog(obj->log, "The instance RNG seed is %d\n", obj->seed);
 
   return 0;
+
  err:
+
+  fprintf(stdout, "Failed to open the MPI log file!\n");
 
   return -1;
 }
@@ -206,11 +208,10 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(input == NULL, -1);
 
-  dbg_err_if( ffs_inst_read_config(obj, input) );
+  dbg_err_if( ffs_inst_init_from_config(obj, input) );
 
   switch (obj->method) {
   case FFS_METHOD_TEST:
-    /* Instant success! */
     mpilog(obj->log, "Test method does nothing\n");
     break;
   case FFS_METHOD_BRANCHED:
@@ -245,24 +246,25 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
 
 /*****************************************************************************
  *
- *  ffs_inst_read_config
+ *  ffs_inst_init_from_config
  *
  *  Parse the ffs_inst section of the config. It is assumed every
  *  rank receives exactly the same config, so failures are collective.
  *
  *  Also retreive the simulation (proxy) name, and the command
- *  line strings.
+ *  line strings, etc.
  *
  *  Any check of these data is deferred until the relevant time.
  *
  *****************************************************************************/
 
-static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
+int ffs_inst_init_from_config(ffs_inst_t * obj, u_config_t * input) {
 
   u_config_t * config = NULL;
   const char * method;
   const char * sim_name;
   const char * sim_argv;
+  const char * sim_lambda;
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(input == NULL, -1);
@@ -315,11 +317,16 @@ static int ffs_inst_read_config(ffs_inst_t * obj, u_config_t * input) {
   sim_argv = u_config_get_subkey_value(config, FFS_CONFIG_SIM_ARGV);
   if (sim_argv == NULL) sim_argv = "";
 
+  sim_lambda = u_config_get_subkey_value(config, FFS_CONFIG_SIM_LAMBDA);
+  if (sim_lambda == NULL) sim_lambda = "test";
+
   u_string_create(sim_name, strlen(sim_name), &obj->sim_name);
   u_string_create(sim_argv, strlen(sim_argv), &obj->sim_argv);
+  u_string_create(sim_lambda, strlen(sim_lambda), &obj->sim_lambda);
 
   dbg_err_ifm(obj->sim_name == NULL, "u_string_create(sim_name)");
   dbg_err_ifm(obj->sim_argv == NULL, "u_string_create(sim_argv)");
+  dbg_err_ifm(obj->sim_argv == NULL, "u_string_create(sim_lambda)");
 
   /* Initialisation section */
 
@@ -496,6 +503,7 @@ int ffs_inst_config_log(ffs_inst_t * obj, mpilog_t * log) {
   mpilog(log, fmti, FFS_CONFIG_SIM_MPI_TASKS, obj->mpi_request);
   mpilog(log, fmts, FFS_CONFIG_SIM_NAME, u_string_c(obj->sim_name));
   mpilog(log, fmts, FFS_CONFIG_SIM_ARGV, u_string_c(obj->sim_argv));
+  mpilog(log, fmts, FFS_CONFIG_SIM_LAMBDA, u_string_c(obj->sim_lambda));
   mpilog(log, "}\n");
 
   return 0;
@@ -544,12 +552,9 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   ffs_param_log_to_mpilog(obj->param, obj->log);
   ffs_init_log_to_mpilog(obj->init, obj->log);  
 
-  dbg_err_if( ffs_inst_compute_proxy_size(obj) );
-
   /* Start proxy, set trial argument list, and run */
 
   dbg_err_if( ffs_inst_start_proxy(obj) );
-  dbg_err_if( ffs_inst_start_xcomm(obj) );
 
   /* This could just be replaced by exposing instance object to trials */
 
@@ -595,12 +600,7 @@ static int ffs_inst_run(ffs_inst_t * obj) {
     dbg_err("Internal error: no method");
   }
 
-  mpilog(obj->log, "\n");
-  mpilog(obj->log, "Closing down the simulation proxy\n");
-
-  proxy_delegate_free(obj->proxy);
-  proxy_free(obj->proxy);
-
+  ffs_inst_stop_proxy(obj);
   ffs_result_free(obj->result);
 
   return 0;
@@ -608,8 +608,7 @@ static int ffs_inst_run(ffs_inst_t * obj) {
  err:
 
   if (obj->result) ffs_result_free(obj->result);
-  if (obj->proxy) proxy_delegate_free(obj->proxy);
-  if (obj->proxy) proxy_free(obj->proxy);
+  if (obj->proxy) ffs_inst_stop_proxy(obj);
 
   return -1;
 }
@@ -655,13 +654,16 @@ static int ffs_inst_compute_proxy_size(ffs_inst_t * obj) {
  *
  *****************************************************************************/
 
-static int ffs_inst_start_proxy(ffs_inst_t * obj) {
+int ffs_inst_start_proxy(ffs_inst_t * obj) {
 
   ffs_t * ffs = NULL;
 
   dbg_return_if(obj == NULL, -1);
+  dbg_return_if(obj->log == NULL, -1);
 
   /* Start proxy */
+
+  dbg_err_if( ffs_inst_compute_proxy_size(obj) );
 
   mpilog(obj->log, "\n");
   mpilog(obj->log, "Starting the simulation proxy (%d instance%s)\n",
@@ -674,6 +676,9 @@ static int ffs_inst_start_proxy(ffs_inst_t * obj) {
 
   dbg_err_if( proxy_ffs(obj->proxy, &ffs) );
   dbg_err_if( ffs_command_line_set(ffs, u_string_c(obj->sim_argv)) );
+  dbg_err_if( ffs_lambda_name_set(ffs, u_string_c(obj->sim_lambda)) );
+
+  dbg_err_if( ffs_inst_start_xcomm(obj) );
 
   return 0;
 
@@ -683,6 +688,27 @@ static int ffs_inst_start_proxy(ffs_inst_t * obj) {
   mpilog(obj->log, "Failed to start simulation proxy");
 
   return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_stop_proxy
+ *
+ *****************************************************************************/
+
+int ffs_inst_stop_proxy(ffs_inst_t * obj) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(obj->log == NULL, -1);
+  dbg_return_if(obj->proxy == NULL, -1);
+
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "Closing down the simulation proxy\n");
+
+  proxy_delegate_free(obj->proxy);
+  proxy_free(obj->proxy);
+
+  return 0;
 }
 
 /*****************************************************************************
@@ -768,4 +794,20 @@ static int ffs_inst_start_xcomm(ffs_inst_t * obj) {
   mpilog(obj->log, "Failed to start instance cross communicator\n");
 
   return -1;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_proxy
+ *
+ *****************************************************************************/
+
+int ffs_inst_proxy(ffs_inst_t * obj, proxy_t ** ref) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(ref == NULL, -1);
+
+  *ref = obj->proxy;
+
+  return 0;
 }

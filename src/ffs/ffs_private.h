@@ -45,7 +45,7 @@ int ffs_create(MPI_Comm comm, ffs_t ** pobj);
 void ffs_free(ffs_t * obj);
 
 /**
- *  ffs_lambda_name_set
+ *  \brief Set the string which identifies lambda to simulation
  *
  *  \param  obj      the ffs_t object
  *  \param  name     the name to identify lambda function in simulation

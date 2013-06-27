@@ -135,7 +135,7 @@ int ffs_lambda_name(ffs_t * obj, char * name, int len) {
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(name == NULL, -1);
 
-  err_err_if(u_strlcpy(name, obj->lambda_name, len));
+  dbg_err_if( u_strlcpy(name, obj->lambda_name, len) );
 
   return 0;
 

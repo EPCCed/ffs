@@ -17,6 +17,12 @@
 #include "ffs_control.h"
 #include "ut_ffs_control.h"
 
+/*****************************************************************************
+ *
+ *  ut_control
+ *
+ *****************************************************************************/
+
 int ut_control(u_test_case_t * tc) {
 
   ffs_control_t * ffs = NULL;
@@ -38,12 +44,12 @@ int ut_control(u_test_case_t * tc) {
   dbg_err_if(ffs_control_stop(ffs));
   ffs_control_free(ffs);
 
-  u_dbg("Success");
+  u_dbg("Success\n");
   return U_TEST_SUCCESS;
 
  err:
   if (ffs) ffs_control_free(ffs);
 
-  u_dbg("Failure");
+  u_dbg("Failure\n");
   return U_TEST_FAILURE;
 }

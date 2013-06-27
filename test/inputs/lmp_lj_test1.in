@@ -1,4 +1,6 @@
 # WCA melt
+# There is no FFS associated with this input; it is just to
+# ensure LAMMPS works at all via library calls.
 
 units		lj
 atom_style	sphere

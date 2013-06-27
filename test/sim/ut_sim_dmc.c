@@ -29,7 +29,7 @@ int ut_sim_dmc(u_test_case_t * tc) {
   sim_dmc_t * dmc = NULL;
   interface_t table;
 
-  u_dbg("Start\n");
+  u_dbg("Start");
 
   dbg_err_if(sim_dmc_table(&table));
   dbg_err_if(sim_dmc_create(&dmc));
@@ -65,7 +65,7 @@ int ut_sim_dmc_proxy(u_test_case_t * tc) {
   char filename[BUFSIZ];
   MPI_Comm comm = MPI_COMM_NULL;
 
-  u_dbg("Start\n");
+  u_dbg("Start");
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_split(MPI_COMM_WORLD, rank, 0, &comm);
@@ -121,7 +121,7 @@ int ut_sim_dmc_info(u_test_case_t * tc) {
   int sref, s;
   double tref, t;
 
-  u_dbg("Start\n");
+  u_dbg("Start");
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_split(MPI_COMM_WORLD, rank, 0, &comm);

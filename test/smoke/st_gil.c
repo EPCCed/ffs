@@ -26,7 +26,7 @@ int st_dmc_branched(u_test_case_t * tc) {
 
   ffs_control_t * ffs = NULL;
 
-  u_dbg("Start\n");
+  u_dbg("Start");
 
   /* Smoke test 1 */
 
@@ -69,7 +69,7 @@ int st_dmc_direct(u_test_case_t * tc) {
 
   ffs_control_t * ffs = NULL;
 
-  u_dbg("Start\n");
+  u_dbg("Start");
 
   dbg_err_if( ffs_control_create(MPI_COMM_WORLD, &ffs) );
   dbg_err_if( ffs_control_start(ffs, log1) );
@@ -105,7 +105,7 @@ int st_dmc_rosenbluth(u_test_case_t * tc) {
 
   ffs_control_t * ffs = NULL;
 
-  u_dbg("Start\n");
+  u_dbg("Start");
 
   dbg_err_if( ffs_control_create(MPI_COMM_WORLD, &ffs) );
   dbg_err_if( ffs_control_start(ffs, log1) );

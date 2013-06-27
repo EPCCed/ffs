@@ -1,0 +1,14 @@
+# ffs instance
+
+ffs_inst
+{
+	method		test
+	sim_name	test
+	sim_mpi_tasks   1
+	sim_argv        test command
+	sim_lambda      test_lambda_function
+}
+
+interfaces
+{
+}

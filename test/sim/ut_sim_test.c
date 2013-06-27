@@ -28,21 +28,21 @@ int ut_sim_test(u_test_case_t * tc) {
   /* Test the table function returns something, but no further test
    * of what that something is is done. See proxy test. */
 
-  u_test_err_if(sim_test_table(&table));
+  dbg_err_if(sim_test_table(&table));
 
-  u_test_err_if(sim_test_create(&sim));
+  dbg_err_if(sim_test_create(&sim));
 
-  u_test_err_if(sim_test_execute(sim, NULL, SIM_EXECUTE_INIT));
-  u_test_err_if(sim_test_execute(sim, NULL, SIM_EXECUTE_RUN));
-  u_test_err_if(sim_test_execute(sim, NULL, SIM_EXECUTE_FINISH));
+  dbg_err_if(sim_test_execute(sim, NULL, SIM_EXECUTE_INIT));
+  dbg_err_if(sim_test_execute(sim, NULL, SIM_EXECUTE_RUN));
+  dbg_err_if(sim_test_execute(sim, NULL, SIM_EXECUTE_FINISH));
 
-  u_test_err_if(sim_test_state(sim, NULL, SIM_STATE_INIT, "no stub"));
-  u_test_err_if(sim_test_state(sim, NULL, SIM_STATE_READ, "no stub"));
-  u_test_err_if(sim_test_state(sim, NULL, SIM_STATE_WRITE, "no stub"));
-  u_test_err_if(sim_test_state(sim, NULL, SIM_STATE_DELETE, "no stub"));
+  dbg_err_if(sim_test_state(sim, NULL, SIM_STATE_INIT, "no stub"));
+  dbg_err_if(sim_test_state(sim, NULL, SIM_STATE_READ, "no stub"));
+  dbg_err_if(sim_test_state(sim, NULL, SIM_STATE_WRITE, "no stub"));
+  dbg_err_if(sim_test_state(sim, NULL, SIM_STATE_DELETE, "no stub"));
 
-  u_test_err_if(sim_test_lambda(sim, NULL));
-  u_test_err_if(sim_test_info(sim, NULL, 0));
+  dbg_err_if(sim_test_lambda(sim, NULL));
+  dbg_err_if(sim_test_info(sim, NULL, 0));
 
   sim_test_free(sim);
 

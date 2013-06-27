@@ -14,7 +14,9 @@
 #include <stdio.h>
 #include <mpi.h>
 #include "u/libu.h"
+
 #include "../util/mpilog.h"
+#include "../sim/proxy.h"
 #include "ffs_param.h"
 
 /**
@@ -62,6 +64,7 @@
  *    sim_mpi_tasks    int         # mpi tasks for one simulation
  *    sim_name         string      # used to identify simulation
  *    sim_argv         string      # command line to be passed to simulation
+ *    sim_lambda       string      # used to identify lambda calculation
  *
  *    init_independent flag        # Use independent (parallel) initial states
  *    init_ntrials     int         # Number of trials to first interface
@@ -130,6 +133,9 @@
  *  \def FFS_CONFIG_SIM_ARGV
  *  Key for simulation 'command line argument' string
  *
+ *  \def FFS_CONFIG_SIM_LAMBDA
+ *  Key for simulation lambda computation
+ *
  *  \def FFS_DEFAULT_SIM_MPI_TASKS
  *  Default number of MPI tasks per simulation
  */
@@ -137,6 +143,7 @@
 #define FFS_CONFIG_SIM_MPI_TASKS      "sim_mpi_tasks"
 #define FFS_CONFIG_SIM_NAME           "sim_name"
 #define FFS_CONFIG_SIM_ARGV           "sim_argv"
+#define FFS_CONFIG_SIM_LAMBDA         "sim_lambda"
 #define FFS_DEFAULT_SIM_MPI_TASKS     1
 
 /**
@@ -279,7 +286,7 @@ int ffs_inst_id(ffs_inst_t * obj, int * inst_id);
 int ffs_inst_start(ffs_inst_t * obj, const char * filename, const char * mode);
 
 /**
- *  \brief Close the instance log and otther house-keeping at end
+ *  \brief Close the instance log and other house-keeping at end
  *
  *  \param  obj       the FFS instance object
  *
@@ -303,17 +310,17 @@ int ffs_inst_stop(ffs_inst_t * obj);
 int ffs_inst_execute(ffs_inst_t * obj, u_config_t * config);
 
 /**
- *  \brief Initialise FFS parameters from configuration
+ *  \brief Initialise via configuration object
  *
- *  \param obj         the FFS instance
- *  \param config      an FFS_CONFIG_PARAM configuration
+ *  \param obj         a previously created ffs_inst_t
+ *  \param config      a u_config_t configuration
  *
  *  \retval 0          a success
  *  \retval -1         a failure
  *
  */
 
-int ffs_inst_param_init(ffs_inst_t * obj, u_config_t * config);
+int ffs_inst_init_from_config(ffs_inst_t * obj, u_config_t * config);
 
 /**
  *  \brief Log the instance details to given mpilog object
@@ -384,6 +391,49 @@ int ffs_inst_nsim(ffs_inst_t * obj, int * nsim);
  */
 
 int ffs_inst_seed_set(ffs_inst_t * obj, int seed);
+
+/**
+ *  \brief Obtain a reference to the the instance proxy (this MPI task)
+ *
+ *  \param  obj       the ffs_inst_t structure
+ *  \param  ref       a pointer to the proxy_t to be returned
+ *
+ *  \retval 0         a success
+ *  \retval -1        an argument was NULL
+ *
+ *  If the instance proxy has not been started, or has been stopped,
+ *  ref will be NULL.
+ */
+
+int ffs_inst_proxy(ffs_inst_t * obj, proxy_t ** ref);
+
+/**
+ *  \brief Start the simualtion proxy for the instance
+ *
+ *  \param obj      the ffs_inst_t
+ *
+ *  \retval 0       a success
+ *  \retval -1      a failure
+ *
+ *  The instance should have been initialised via, e.g,
+ *  ffs_inst_init_from_config()
+ */
+
+int ffs_inst_start_proxy(ffs_inst_t * obj);
+
+/**
+ *  \brief Stop the simulation proxy
+ *
+ *  \param  obj        the ffs_inst_t structure
+ *
+ *  \retval 0          a success
+ *  \retval -1         a failure
+ *
+ *  The proxy should have been previously initialised via
+ *  ffs_inst_start_proxy()
+ */
+
+int ffs_inst_stop_proxy(ffs_inst_t * obj);
 
 /**
  * \}

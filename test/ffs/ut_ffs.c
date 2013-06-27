@@ -28,12 +28,12 @@ int ut_ffs_create(u_test_case_t * tc) {
   MPI_Comm comm = MPI_COMM_NULL;
 
   u_dbg("Start");
-  u_test_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
 
-  u_test_err_if(ffs_comm(ffs, &comm));
+  dbg_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
+  dbg_err_if(ffs_comm(ffs, &comm));
 
   MPI_Comm_compare(MPI_COMM_WORLD, comm, &result);
-  u_test_err_if(result != MPI_IDENT);
+  dbg_err_if(result != MPI_IDENT);
 
   ffs_free(ffs);
 
@@ -131,26 +131,26 @@ int ut_ffs_exch_int(u_test_case_t * tc) {
 
   int iref, io;
 
-  u_dbg("Start\n");
+  u_dbg("Start");
 
-  u_test_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
-  u_test_err_if(ffs_type_set(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_INT));
-  u_test_err_if(ffs_type_set(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_INT));
+  dbg_err_if(ffs_create(MPI_COMM_WORLD, &ffs));
+  dbg_err_if(ffs_type_set(ffs, FFS_INFO_TIME_PUT, 1, FFS_VAR_INT));
+  dbg_err_if(ffs_type_set(ffs, FFS_INFO_LAMBDA_PUT, 1, FFS_VAR_INT));
 
   iref = 11;
-  u_test_err_if(ffs_info_int(ffs, FFS_INFO_TIME_PUT, 1, &iref));
-  u_test_err_if(ffs_info_int(ffs, FFS_INFO_TIME_FETCH, 1, &io));
-  u_test_err_if(io != iref);
+  dbg_err_if(ffs_info_int(ffs, FFS_INFO_TIME_PUT, 1, &iref));
+  dbg_err_if(ffs_info_int(ffs, FFS_INFO_TIME_FETCH, 1, &io));
+  dbg_err_if(io != iref);
 
   iref = 12;
-  u_test_err_if(ffs_info_int(ffs, FFS_INFO_RNG_SEED_PUT, 1, &iref));
-  u_test_err_if(ffs_info_int(ffs, FFS_INFO_RNG_SEED_FETCH, 1, &io));
-  u_test_err_if(io != iref);
+  dbg_err_if(ffs_info_int(ffs, FFS_INFO_RNG_SEED_PUT, 1, &iref));
+  dbg_err_if(ffs_info_int(ffs, FFS_INFO_RNG_SEED_FETCH, 1, &io));
+  dbg_err_if(io != iref);
 
   iref = 13;
-  u_test_err_if(ffs_info_int(ffs, FFS_INFO_LAMBDA_PUT, 1, &iref));
-  u_test_err_if(ffs_info_int(ffs, FFS_INFO_LAMBDA_FETCH, 1, &io));
-  u_test_err_if(io != iref);
+  dbg_err_if(ffs_info_int(ffs, FFS_INFO_LAMBDA_PUT, 1, &iref));
+  dbg_err_if(ffs_info_int(ffs, FFS_INFO_LAMBDA_FETCH, 1, &io));
+  dbg_err_if(io != iref);
 
   ffs_free(ffs);
 
