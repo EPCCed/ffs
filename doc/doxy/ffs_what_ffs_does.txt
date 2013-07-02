@@ -1,0 +1,42 @@
+/**
+ *  \page ffs_what_ffs_does What FFS does
+ *
+
+\tableofcontents
+
+\section ffs_what_overview Overview
+
+In the case where transitions from State A to State B are rare, most
+trajectories starting in A will stand little chance of making it to
+B with any reasonable computational effort. FFS uses the decomposition
+of the progress coordinate, or order parameter, into a series of
+interfaces to break the problem down into a series of smaller steps.
+The probability of making these smaller steps is much larger than that
+of the complete transiation A to B, and we can hope to make incremental
+progress between interfaces.
+
+\section ffs_what_init Initial flux and conditional probabilities
+
+
+
+Now consider a series of \f$ n \f$ interfaces \f$ \lambda_1 \f$ to
+\f$ \lambda_{n} \f$ with \f$ \lambda_{n} = \lambda_B \f$.
+We may write the probability that a trajectory
+coming from A crosses \f$ \lambda_1 \f$ and reaches \f$ \lambda_2\f$
+without returning to A as \f$ P(\lambda_2 | \lambda_1)\f$. The overall
+probabilty of getting to \f$ \lambda_{n} \f$ having crossed
+\f$ \lambda_1 \f$ and not having returned to A may then be written
+\f[
+P(\lambda_n | \lambda_1) = \Pi_{i=1}^{n-1} P(\lambda_{i+1} | \lambda_i).
+\f]
+
+The overall rate constant \f$ k_{AB} \f$ for getting from A to B is then
+the flux at the initial interface multiplied by the conditional
+probability of reaching B having started at A, ie.,
+\f[
+k_{AB} = F(\lambda_1) P(\lambda_n | \lambda_1).
+\f]
+
+\section ffs_what_states States and trajectories
+
+*/

@@ -35,6 +35,7 @@ of the different stages used in Forward Flux Sampling as implemented
 in the library.
 
 -# \subpage ffs_background
+-# \subpage ffs_what_ffs_does
 -# \subpage ffs_explained_init
 -# \subpage ffs_branched
 -# \subpage ffs_direct

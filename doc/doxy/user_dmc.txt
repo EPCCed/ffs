@@ -6,15 +6,18 @@
 
 \section dmc_background Background
 
-The Gillespie algorithm is a well-established method for "dynamic
+The Gillespie algorithm [1] is a well-established method for "dynamic
 Monte Carlo" simulation and is particularly well suited to chemical
 reactions. It is "dynamic" in the sense that it introduces a time
 variable and moves forward in time by comparing the rate constants
 of the relevant reactions against random numbers (some people refer
 to this as "kinetic Monte Carlo"). The random element means that
-it is suitable for FFS. [D.T. Gillespie, J. Comp Phys. 17 10 (1975)]
+it is suitable for FFS [1].
 
-The example we will use here is the one of a simple genetic switch.
+The example we will use here is the one of a simple genetic switch [1].
+Two versions of this switch exist: the version discussed below is
+the "general" switch. Input files also exist for the "exclusive"
+switch (see following section).
 
 
 See Allen et al, Phys. Rev. Lett. 94 018104 (2005) and references
@@ -73,6 +76,9 @@ Copy these two files into the same directory as the FFS executable
 
 In addition, copy the FFS input file `test/inputs/dmc_smoke1.inp`
 to the same location and rename it as, e.g., `dmc_input`.
+
+Note that the relevant input files for the exclusive switch are
+`test/inputs/dmc_switch2_comp.dat` and `test/inputs/dmc_switch2_react.dat`.
 
 ----------------------------------------------------------------------------
 
@@ -139,8 +145,7 @@ see below the use of more than one instance in parallel.)
 The `run-inst-0000.log` should contain details of the input parameters,
 and the results:
 \code
-Starting 16 trials each on 1 tasks
-Closing down the simulation proxy
+Starting 16 trials each on 1 proxies
 
 Instance results
 
@@ -151,29 +156,29 @@ Number of equilibration runs:        1
 
 index      lambda    trials   states   pruned   wt/ntrial
 ---------------------------------------------------------
-    1 -2.4000e+01        48       16       74  1.0000e+00
-    2 -2.2000e+01        42       14       30  2.9167e-01
-    3 -2.0000e+01        39       13       32  9.0278e-02
-    4 -1.8000e+01        60       20       34  5.0933e-02
-    5 -1.5000e+01        60       20       50  2.1614e-02
-    6 -1.2000e+01        93       31       67  1.3125e-02
-    7 -9.0000e+00       156       52       76  8.7518e-03
-    8 -5.0000e+00       210      105       30  6.1493e-03
-    9  0.0000e+00       121      121        0  3.8760e-03
-   10  7.0000e+00        72       72        0  2.2883e-03
-   11  1.5000e+01        63       63        0  2.0453e-03
-   12  2.0000e+01        61       61        0  1.9881e-03
-   13  2.5000e+01         0       60        0  1.9738e-03
+    1 -2.4000e+01        48       16       70  1.0000e+00
+    2 -2.2000e+01        48       16       49  3.3333e-01
+    3 -2.0000e+01        78       26      100  1.8056e-01
+    4 -1.8000e+01       186       62      154  1.5743e-01
+    5 -1.5000e+01       315      105      305  8.5655e-02
+    6 -1.2000e+01       654      218      624  5.9161e-02
+    7 -9.0000e+00      1491      497      830  4.4670e-02
+    8 -5.0000e+00      2004     1002      276  3.0810e-02
+    9  0.0000e+00      1066     1066        0  1.6720e-02
+   10  7.0000e+00       546      546        0  9.2898e-03
+   11  1.5000e+01       498      498        0  8.6325e-03
+   12  2.0000e+01       493      493        0  8.5610e-03
+   13  2.5000e+01         0      490        0  8.4895e-03
 ----------------------------------------------------------
-(sum/success/fail)     1025      632      393
+(sum/success/fail)     7427     5019     2408
 
-Initial Tmax:  result   2.115081e+03
-Initial Tsum:  result   1.031380e+04
+Initial Tmax:  result   2.985213e+03
+Initial Tsum:  result   1.599092e+04
 Number of crossings A:  160
-Flux at lambda_A:       1.551319e-02
+Flux at lambda_A:       1.000568e-02
 
-Probability P(B|A):     1.973768e-03
-Flux * P(B|A):          3.061944e-05
+Probability P(B|A):     8.489543e-03
+Flux * P(B|A):          8.494361e-05
 \endcode
 
 This shows that 16 states have been used at the first interface.
@@ -205,10 +210,10 @@ minutes). Note that the original result file
 
 The estimate of the final probability is now:
 \code
-Flux at lambda_A:       1.275056e-02
+Flux at lambda_A:       1.344707e-02
 
-Probability P(B|A):     2.564402e-03
-Flux * P(B|A):          3.269755e-05
+Probability P(B|A):     3.178032e-03
+Flux * P(B|A):          4.273520e-05
 \endcode
 
 How accurate is this result? Some estimate can be gained by, for example,
@@ -253,21 +258,21 @@ case, as different initial states have been generated:
 Attempts at first interface:         16
 States generated at first interface: 16
 Time outs at first interface:        0
-Number of equilibration runs:        17
+Number of equilibration runs:        24
 
 ...
-Initial Tmax:  result   2.574848e+03
-Initial Tsum:  result   7.421689e+03
-Number of crossings A:  142
-Flux at lambda_A:       1.913311e-02
+Initial Tmax:  result   1.663454e+03
+Initial Tsum:  result   6.749986e+03
+Number of crossings A:  135
+Flux at lambda_A:       2.000004e-02
 
-Probability P(B|A):     3.289040e-04
-Flux * P(B|A):          6.292957e-06
+Probability P(B|A):     3.574820e-04
+Flux * P(B|A):          7.149654e-06
 \endcode
 Note that the number of equilibration runs is now larger than it was,
-as each separate trial requires a separate equilibration. One of
-the initial trials has reached state B (requiring re-equilibration)
-and the total count of equilibration runs is 17. If the initial
+as each separate trial requires a separate equilibration. Some of
+the initial trials have reached state B (requiring re-equilibration)
+and the total count of equilibration runs is 24. If the initial
 trial time ('init_nstepmax') is too short, some trials may fail
 and are 'timed out'.
 
@@ -305,5 +310,12 @@ instance.
 
 The results are written to the separate log files `run-inst-0000.log`
 and `run-inst-0001.log`.
+
+-----
+
+\section user_dmc_ref References
+
+[1] D.T. Gillespie, J. Comp Phys. 17 10 (1975)
+
 
 */

@@ -7,6 +7,7 @@
 #include "ffs_private.h"
 #include "ffs_trial.h"
 
+#define FFS_NEQ_FAILSAFE 32    /* Maximum number of equilibration attempts */
 
 /*****************************************************************************
  *
@@ -152,33 +153,64 @@ int ffs_trial_prune(ffs_trial_arg_t * trial, int interface, ranlcg_t * ran,
  *  simulation state, it is potentially fragile so can result
  *  in a collective failure in the proxy communicator.
  *
+ *  To prevent the embarrassment of an infinite loop should lambda
+ *  never go below lambda_a, a count is made of the number of
+ *  recalls of the reference state.
+ *
  *****************************************************************************/
 
-int ffs_trial_eq(proxy_t * proxy, ffs_state_t * state, int seed,
-		 int nstepmax, double teq) {
+int ffs_trial_eq(ffs_trial_arg_t * trial, ffs_state_t * state,
+		 ranlcg_t * ran) {
 
   int mpi_errnol = 0;
   int status;
+  int seed;
+  int nstepmax;
+  int neq = 0;
+  double lambda, lambda_a;
+  double teq;
+
+  ffs_t * ffs = NULL;
   MPI_Comm comm;
 
-  dbg_return_if(proxy == NULL, -1);
+  dbg_return_if(trial == NULL, -1);
   dbg_return_if(state == NULL, -1);
+  dbg_return_if(ran == NULL, -1);
 
-  proxy_comm(proxy, &comm);
+  proxy_comm(trial->proxy, &comm);
+  ffs_init_teq(trial->init, &teq);
+  ffs_init_nstepmax(trial->init, &nstepmax);
+  ffs_param_lambda_a(trial->param, &lambda_a);
 
-  mpi_errnol = proxy_state(proxy, SIM_STATE_READ, ffs_state_stub(state));
-  mpi_sync_if_any(mpi_errnol, comm);
+  do {
+    neq += 1;
+    if (neq > FFS_NEQ_FAILSAFE) break;
 
-  proxy_cache_info_int(proxy, FFS_INFO_RNG_SEED_PUT, 1, &seed);
-  proxy_info(proxy, FFS_INFO_RNG_SEED_FETCH);
+    mpi_errnol =
+      proxy_state(trial->proxy, SIM_STATE_READ, ffs_state_stub(state));
+    mpi_err_if_any(mpi_errnol, comm);
 
-  mpi_errnol = ffs_trial_run_to_time(proxy, teq, nstepmax, &status);
-  mpi_sync_if_any(mpi_errnol, comm);
-  dbg_ifm(status != FFS_TRIAL_SUCCEEDED, "Equilibration not complete");
+    ranlcg_reep_int32(ran, &seed);
+    proxy_cache_info_int(trial->proxy, FFS_INFO_RNG_SEED_PUT, 1, &seed);
+    proxy_info(trial->proxy, FFS_INFO_RNG_SEED_FETCH);
+
+    mpi_errnol = ffs_trial_run_to_time(trial->proxy, teq, nstepmax, &status);
+    mpi_err_if_any(mpi_errnol, comm);
+    dbg_ifm(status != FFS_TRIAL_SUCCEEDED, "Equilibration not complete");
+
+    proxy_lambda(trial->proxy);
+    proxy_ffs(trial->proxy, &ffs);
+    ffs_lambda(ffs, &lambda);
+    ffs_result_eq_accum(trial->result, 1);
+
+  } while (lambda >= lambda_a);
+
 
   return 0;
 
- mpi_sync:
+ err:
+
+  mpilog(trial->log, "Problem in equilibrartion\n");
 
   return -1;
 }
@@ -198,7 +230,6 @@ int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
   ffs_t * ffs = NULL;
   MPI_Comm comm;
 
-  int seed;
   int n, ncross;
   int iovershot;
   int icrossed;
@@ -232,18 +263,14 @@ int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
   ffs_comm(ffs, &comm);
 
   mpi_errnol = proxy_lambda(trial->proxy);
-  mpi_sync_if_any(mpi_errnol, comm);
+  mpi_err_if_any(mpi_errnol, comm);
 
   ffs_lambda(ffs, &lambda_old);
 
   /* Equilibrate */
 
   if (itraj == 1 || init_independent) {
-
-    /* Equilibrate */
-    ranlcg_reep_int32(rantraj, &seed);
-    ffs_trial_eq(trial->proxy, sinit, seed, init_nstepmax, teq);
-    ffs_result_eq_accum(trial->result, 1);
+    dbg_err_if( ffs_trial_eq(trial, sinit, rantraj) );
   }
 
   proxy_lambda(trial->proxy);
@@ -266,12 +293,10 @@ int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
     MPI_Bcast(&iovershot, 1, MPI_INT, 0, comm);
 
     if (iovershot) {
-      t_elapsed += (t1 - t0);
 
-      /* Re-equilibrate */
-      ranlcg_reep_int32(rantraj, &seed);
-      ffs_trial_eq(trial->proxy, sinit, seed, init_nstepmax, teq);
-      ffs_result_eq_accum(trial->result, 1);
+      t_elapsed += (t1 - t0); /* Time spent between A and B is counted */
+
+      dbg_err_if( ffs_trial_eq(trial, sinit, rantraj) );
 
       ffs_time(ffs, &t0);
       proxy_lambda(trial->proxy);
@@ -285,17 +310,18 @@ int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
     MPI_Bcast(&icrossed, 1, MPI_INT, 0, comm);
 
     if (icrossed) {
+
       ffs_result_ncross_accum(trial->result, 1);
       ffs_result_ncross(trial->result, &ncross);
       ffs_time(ffs, &t1);
       t_elapsed += (t1 - t0);
       t0 = t1;
-      if (ncross % init_nskip == 0) {
-	random = -1.0;
-	if (init_independent) ranlcg_reep(rantraj, &random);
-	/* This is the state we want, so break if accepted */
-	if (random < init_prob_accept) break;
-      }
+
+      /* Accept (i.e., break) if... */
+
+      ranlcg_reep(rantraj, &random);
+      if (ncross % init_nskip == 0 && random < init_prob_accept) break;
+
     }
 
     lambda_old = lambda;
@@ -309,8 +335,9 @@ int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
 
   return 0;
 
- mpi_sync:
  err:
+
+  mpilog(trial->log, "Problem in generation of initial state\n");
 
   return -1;
 }

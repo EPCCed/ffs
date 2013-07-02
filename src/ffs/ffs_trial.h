@@ -73,8 +73,8 @@ int ffs_trial_prune(ffs_trial_arg_t * trial, int interface, ranlcg_t * ran,
  *  \brief Run an equilibration
  */
 
-int ffs_trial_eq(proxy_t * proxy, ffs_state_t * state, int seed,
-		 int nstepmax, double teq);
+int ffs_trial_eq(ffs_trial_arg_t * trial, ffs_state_t * state, ranlcg_t * r);
+
 
 /**
  *  \brief Generate a state at first interface from reference state
