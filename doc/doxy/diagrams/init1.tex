@@ -94,9 +94,13 @@
   (\StateTHREE) node[draw,circle,fill=red!20] {$S_3$};
 
 % Trjectories
-\path[->, thick, >=stealth', shorten <=4pt, shorten >=3pt]
-(\Sref 2) edge [out=45, in=135] node[auto] {$t_1$} (\StateONE.north west)
-(\Sref 2) edge [out=-60, in=135] node[auto] {$t_2$} (\StateTWO.north west)
+\path[->, thick, >=stealth', shorten <=5pt, shorten >=3pt]
+(\Sref 2) edge [out=45, in=135] node[auto] {$t_1$} (\StateONE.north west);
+
+\path[->, thick, >=stealth', shorten <=6pt, shorten >=3pt]
+(\Sref 2) edge [out=-60, in=135] node[auto] {$t_2$} (\StateTWO.north west);
+
+\path[->, thick, >=stealth', shorten <=8pt, shorten >=3pt]
 (\Sref 2) edge [out=-90, in=-180] node[auto] {$t_3$} (\StateTHREE.west);
 
 \end{tikzpicture}

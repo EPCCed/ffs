@@ -10,7 +10,8 @@
      (serial only!).
 
   c) A simulation! FFS is a 'meta' method - it does nothing by itself.
-     We provide some simple examples. See XXXX.
+     We provide some simple examples. See the full documentation at
+     http://www.epcc.ed.ac.uk/~kevin/ffs/index.html
 
 2. Install MaKL
 

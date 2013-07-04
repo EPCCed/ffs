@@ -81,6 +81,7 @@ of a given interface are used to generate new forward trajectories,
 while backward moving trajectories are discarded. This biases effort
 toward forward trajectories, and so increases
 the chances that the simulation can capture the rare transition.
-There are a number of different ways of doing this.
+There are a number of different ways of doing this. However, they
+all follow the same basic idea: \ref ffs_what_ffs_does.
 
 **/

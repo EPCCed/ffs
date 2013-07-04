@@ -1,8 +1,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
-%%  init1.tex
+%%  init2a.tex
 %%
 %%  To illustrate serial and parallel initial trajectories.
+%%  (2a) Single serial trajectory
 %%
 %%  Convert to gif and reduce to 66% for final gif for web.
 %%
@@ -86,7 +87,7 @@
   (State3) node[draw,circle,fill=green!20] {$S_3$};
 
 % Trjectory: Sref -> S1
-\path[->, thick, >=stealth', shorten <=4pt, shorten >=3pt]
+\path[->, thick, >=stealth', shorten <=6pt, shorten >=3pt]
 (\Sref) edge [out=-60, in = 180] node[auto] {$t_1$} (\StateONE.west);
 % S1 -> S2 via lamnda 2
 \path[-, thick, shorten <=4pt]

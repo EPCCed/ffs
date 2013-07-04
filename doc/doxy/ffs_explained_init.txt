@@ -6,7 +6,9 @@
 \section ffs_ex_init Reference state and initial states
 
 In order to make simulation trials from the initial interface, a
-number of states at \f$ \lambda_1 \f$ must be generated. This
+number of states at \f$ \lambda_1 \f$ must be generated. Each of these
+trials is seeded with a different random number seed so that they
+follow a different path. This
 process also doubles as a mechanism for measuring the number
 of trajectories which cross \f$ \lambda_1 \f$ in the forward
 direction in unit time (the "forward flux"). This is used to
@@ -34,19 +36,40 @@ total of three trials from the reference state. The third trial
 \f$ t_3 \f$ has not reached the first interface and state \f$ S_3 \f$
 cannot be used as the basis of future trials from the first interface.
 
-\section ffs_ex_gen Generating the initial states
+-----
 
-### Equilibration of the reference state
+\section ffs_ex_eq Equilibration of the reference state
 
 As the reference state is fixed, it may be necessary to equilibrate
 this state in the A basin before starting a trial trajectory. An
 equilibration time \f$ t_{eq} \f$ may be defined in the input file.
-If, during the equilibration period, the state reaches state B,
-the state is re-initialised from the reference state and a new
-equilibration is attempted. The equilibration time does not
+The simulation is run for this time before attempts to identify
+initial states at \f$ \lambda_1 \f$ are made.
+The equilibration time does not
 contribute to the calculation of the flux at the first interface.
 
-### Initial states from a single trajectory
+Relevant input file parameters are:
+\code
+        ffs_inst
+        {
+               init_teq                100.0
+               init_nstepmax           10000000
+        }
+\endcode
+which set, respectively, the initial equilibration time \f$ t_{eq}\f$
+in simulation units,
+and a maximum number of steps (simulation iterations) that the
+equilibration will run before timing out. Note that if, at the
+end of the equilibration period, the simulation is not in state A
+(ie., \f$ \lambda < \lambda_1\f$) a further attempt at equilibration
+will be made. If the equilibration fails, it may suggest a poor choice
+of initial reference state or initial interface. For problems with
+modest barriers, the simulation may enter state B during the
+equilibration period, which may suggest \f$ t_{eq}\f$ could be reduced.
+
+----
+
+\section ffs_ex_init1 Initial states from a single trajectory
 
 There are a number of different ways of generating the initial
 states. The first approach is inherently serial. A single trajectory
@@ -60,32 +83,90 @@ the basis of forward trajectories.
 
 As these states may be close together in state space, it may be desirable
 to sub-sample the initial crossing points by skipping every so many states,
-or accepting them with some probability. However, all the crossings are
+or accepting them with some probability (or some combination). However,
+all the crossings are
 recorded in order to compute the flux at \f$ \lambda_1 \f$.
+
+Relevant entries in the input file are:
+\code
+        ffs_inst
+        {
+                init_independent        no
+                init_ntrials            3
+                init_nskip              10
+                init_prob_accept        1.0
+                init_nsteplambda        1
+        }
+\endcode
+Here, the number of states (and hence initial trials) requested is
+3; every tenth crossing of the first interface generates a state,
+which is accepted with probability unity. The `init_nsteplambda`
+key states that the value of \f$ \lambda \f$ will be computed at
+every simulation iteration. If the order parameter itself is
+costly to compute, it may be desirable to decrease the frequency.
+This will be at the cost of potentially missing some short
+fluctuating paths beyond the initial interface.
+
+### Multiple single trajectories
 
 This method may be used in parallel, in which case each parallel task
 computes a single trajectory of its own. However, the results will not
-be the same on different numbers of MPI tasks.
+be the same on different numbers of MPI tasks. For example, in the
+following picture, two MPI tasks are used to generate six initial
+states via trajectories \f$ t_1 \f$ and \f$ t_2 \f$. If we ran one
+MPI task (trajectory \f$ t_1 \f$ only) to generate six initial states,
+the final three would be different.
 
-### Initial states from parallel trajectories
+![](./init2b.gif "Multiple serial trajectories")
+
+-----
+
+\section ffs_ex_init2 Initial states from parallel trajectories
 
 A parallel alternative may be constructed simply by allowing multiple
 trajectories to be used to sample the initial states. In this case,
 different trajectories may be computed by different MPI tasks. If the
 random number seed for each trajectory is always based on a unique
 global trajectory number, the same states will be generated irrespective
-of the number of MPI tasks. For the direct FFS variant, some additional
-care is required to ensure the same ensemble of states at the first
-interface is collected independent of parallel decomposition.
+of the number of MPI tasks. In the following picture, four MPI tasks
+generate four independent trajectories.
 
-![](./init2b.gif "Parallel trajectories")
+![](./init3.gif "Parallel trajectories")
+
+Note that each independent trajectory undergoes a separate equilibration,
+so this method is has the equilibration overhead to be counted for each
+one.
+
+The relevant choice in the input file is:
+\code
+        ffs_inst
+        {
+                init_independent        yes
+        }
+\endcode
+with the other parameters having the same interpretation as described
+above.
+
+
+-----
+
+\section ffs_init_stats Statistics of the initial crossings
+
 
 The statistics for the number of crossings and trajectory duration
 must be collected at the end of the run to provide a single figure
 for the measured flux at \f$ \lambda_1 \f$.
 
-\section ffs_init_stats Statistics of the initial crossings
-
-
+This is measured by recording the number of forward crossings
+\f$ N_1 \f$ of the initial interface, and the total simulation
+time associated with the
+trajectory or trajectories involved \f$ T_1\f$. This
+time does not include the equilibration time. The time does
+include time spent on fluctuations beyond the initial interface
+but not time spent in state B. The flux \f$ F(\lambda_1)\f$ is
+then just
+\f[
+F(\lambda_1) = N_1 / T_1.
+\f]
 
 */

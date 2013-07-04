@@ -1,0 +1,110 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%%  init3.tex
+%%
+%%  To illustrate serial and parallel initial trajectories.
+%%  Parallel
+%%
+%%  Convert to gif and reduce to 66% for final gif for web.
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{5pt}%
+\usetikzlibrary{arrows, shapes, petri}
+
+\begin{document}
+\pagestyle{empty}
+
+
+\begin{tikzpicture}[every node/.style={font=\normalsize,
+  minimum height=0.5cm,minimum width=0.5cm},]
+
+% Here's the grid
+
+\node [matrix, column sep = 1.2cm, row sep = 0.2cm] (matrix) at (0,0) {
+
+  \node(0,0) (StateA) {}; & & & \node(0,0) (Top-l1) {}; &
+   & \node(0,0) (Top-l2) {}; & \node(0,0) (Top-ldot) {}; \\
+
+  & & & \node(0,0) (State1) {}; & &  \\
+  & & \node(0,0) (t1 left) {}; & & \node(0,0) (t1-l1) {};  & & \\
+
+  & & & \node(0,0) (State2) {}; & & \node(0,0) (State2-l2) {}; & \\
+  & \node(0,0) (Sref) {}; & & & & & \\
+
+  & & &\node(0,0) (State3) {}; & & &  \\
+  & & & & & \node(0,0) (t34-l2) {}; & \\
+  & & & \node(0,0) (State4) {}; & \node(0,0) (t4-mid) {}; & & \\
+
+  & & & \node(0,0) (Bottom-l1) {}; & & \node(0,0) (Bottom-l2) {};
+  & \node(0,0) (Bottom-ldot) {}; \\
+};
+
+
+% Vertical Interfaces
+
+\draw
+  (Top-l1.north) -- (Bottom-l1.south) node[below] {$\lambda_1$}
+  (Top-l2.north) -- (Bottom-l2.south) node[below] {$\lambda_2$}
+  (Top-ldot.north) -- (Bottom-ldot.south) node[below] {$\ldots$};
+
+% Blocks for A and B states
+
+\filldraw[fill=blue!20]
+  (StateA.north) rectangle (Bottom-l1.south);
+
+\fill
+  (StateA) node[right] {STATE A};
+
+% States
+\draw
+  (Sref) node[draw, circle, fill=green!20] {$S_{ref}$}
+  (State1) node[draw,circle,fill=green!20] {$S_1$}
+  (State2) node[draw,circle,fill=green!40] {$S_2$}
+  (State3) node[draw,circle,fill=green!60] {$S_3$}
+  (State4) node[draw,circle,fill=green!80] {$S_4$};
+
+% Trajectory t1: Sref -> S1 -> ...
+
+\path[->, thick, >=stealth', shorten <=6pt, shorten >=3pt]
+(Sref) edge [out=60, in = 180] node[auto] {$t_1$} (State1.west);
+\path[->, thick, >=stealth', shorten <=4pt, shorten >=10pt]
+(State1.east) edge [out=0, in = 180] (Top-l2.south);
+
+% Trajectory t2: Sref -> S2 -> ...
+
+\path[->, thick, >=stealth', shorten <=6pt, shorten >=3pt]
+(Sref) edge [out=30, in = -170] node[auto] {$t_2$} (State2.west);
+\path[->, thick, >=stealth', shorten <=4pt, shorten >=3pt]
+(State2.east) edge [out=10, in = 170] (t1-l1.center);
+
+% Trajectory t3: Sref -> S3 -> ...
+
+\path[->, thick, >=stealth', shorten <=6pt, shorten >=3pt]
+(Sref) edge [out=-45, in = 170] node[auto] {$t_3$} (State3.west);
+\path[->, thick, >=stealth', shorten <=4pt, shorten >=3pt]
+(State3.east) edge [out=-10, in = 100] (t34-l2.west);
+
+
+
+% Trajectory t4: Sref -> S4...
+
+\path[->, thick, >=stealth', shorten <=8pt, shorten >=2pt]
+(Sref.south) edge [out=-90, in = -135] node[auto] {$t_4$} (State4.south west);
+\path[->, thick, >=stealth', shorten <=2pt, shorten >=2pt]
+(State4.north east) edge [out=45, in = -135]  (Bottom-l2.west);
+
+
+
+% LABEL
+\node (Label) [above of=StateA] {};
+\node (LabelText) [right of=Label] {(c) Parallel trajectories};
+
+\end{tikzpicture}
+\end{document}

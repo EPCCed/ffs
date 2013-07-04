@@ -1,0 +1,129 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%%  what1.tex
+%%
+%%  Illustration of what FFS does. (a) Note this is a subset of
+%%  what2.tex.
+%%
+%%  Convert to gif and reduce to 66% for final gif for web.
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{5pt}%
+\usetikzlibrary{arrows, shapes, petri}
+
+\begin{document}
+\pagestyle{empty}
+
+
+\begin{tikzpicture}[every node/.style={font=\normalsize,
+  minimum height=0.5cm,minimum width=0.5cm},]
+
+% Here's the grid
+
+\node [matrix, column sep = 1.2cm, row sep = 0.2cm] (matrix) at (0,0) {
+
+  \node(0,0) (StateA) {}; & \node(0,0) (Top-l1) {}; &
+   & \node(0,0) (Top-l2) {};  & & \node(0,0) (Top-l3) {}; \\
+  & \node(0,0) (State1d) {}; & & &  \\
+
+  \node(0,0) (t1-left) {}; & \node(0,0) (t1-l1) {}; & \node(0,0) (t1-l12) {};
+  & \node(0,0) (State2b) {}; & & \\
+
+  & \node(0,0) (State1c) {}; & & \node(0,0) (State1c-l2) {}; & & \\
+  \node(0,0) (t2-left) {}; &
+  \node(0,0) (t2-l1) {}; & & \node(0,0) (t2-l2) {}; & & \\
+
+  & \node(0,0) (State1b) {}; & \node(0,0) (t3-l12) {}; & & &  \\
+ \node(0,0) (t34-left) {};  & \node(0,0) (t34-l1) {}; & & & &  \\
+
+  \node(0,0) (t4-left) {}; & \node(0,0) (State1a) {}; & \node(0,0) (t4-mid) {};
+  & \node(0,0) (State2a) {}; & & \\
+  &  \node(0,0) (t5-l1) {}; & \node(0,0) (t5-l12) {}; & & & \\
+  \node(0,0) (Bottom-left) {}; &  \node(0,0) (Bottom-l1) {}; & &
+  \node(0,0) (Bottom-l2) {}; & & \node(0,0) (Bottom-l3) {}; \\
+};
+
+
+% Vertical Interfaces
+
+\draw
+  (Top-l1.north) -- (Bottom-l1.south) node[below] {$\lambda_1$}
+  (Top-l2.north) -- (Bottom-l2.south) node[below] {$\lambda_2$}
+  (Top-l3.north) -- (Bottom-l3.south) node[below] {$\lambda_3$};
+
+% States
+\draw
+(State1d) node[draw,circle, minimum height = .9cm, fill=green!20] {$S_1^{d}$}
+(State1c) node[draw,circle, minimum height = .9cm, fill=green!20] {$S_1^{c}$}
+(State1b) node[draw,circle, minimum height = .9cm, fill=green!20] {$S_1^{b}$}
+(State2a) node[draw,circle, minimum height = .9cm, fill=green!20] {$S_2^{a}$}
+(State2b) node[draw,circle, minimum height = .9cm, fill=green!20] {$S_2^{b}$}
+(State1a) node[draw,circle, minimum height = .9cm, fill=green!20] {$S_1^{a}$};
+
+
+% S1a -> ...
+\path[->, thick, >=stealth', shorten <=12pt, shorten >=5pt]
+(t4-left.east) edge [out = 0, in = 170] (State1a.west);
+
+\path[->, thick, >=stealth', shorten <=5pt, shorten >=6pt]
+(State1a.east) edge [out = 0, in = -135] (State2a.west);
+
+\path[-, shorten <=5pt]
+(State1a.east) edge [out = -10, in = 135] (t5-l12.center);
+\path[->, >=stealth']
+(t5-l12.center) edge [out = -45, in = 20] (Bottom-left.east);
+
+
+% Two failures from S1b -> ...
+\path[-, shorten <=5pt]
+(State1b.east) edge [out = -20, in = 150] (t3-l12.south west);
+\path[-]
+(t3-l12.south west) edge [out = -30, in = -20] (t34-l1.north west);
+\path[->, >=stealth']
+(t34-l1.north west) edge [out = 160, in = -20] (t34-left.north west);
+
+\path[-, shorten <= 5pt]
+(State1b.east) edge [out = 0, in = 150] (t3-l12.east);
+\path[-]
+(t3-l12.east) edge [out = -30, in = -20] (t34-l1.center);
+\path[->, >=stealth', shorten >= 12pt]
+(t34-l1.center) edge [out = 160, in = 40] (t4-left.center);
+
+
+% S1c -> ...
+\path[->, thick, >=stealth', shorten <=5pt, shorten >=6pt]
+(State1c.east) edge [out = 20, in = 170] (State2b.west);
+
+\path[-, shorten <= 5pt]
+(State1c.east) edge [out = 0, in = 90] (t2-l2.west);
+\path[-]
+(t2-l2.west) edge [out = -90, in = 10] (t2-l1.center);
+\path[->, >=stealth', shorten >= 6pt]
+(t2-l1.center) edge [out = -170, in = -10] (t2-left.north);
+
+
+% S1d -> ... 
+\path[-, shorten <= 5pt]
+(State1d.east) edge [out = 0, in = 20] (t1-l1.east);
+\path[->, >=stealth', shorten >= 12pt]
+(t1-l1.east) edge [out = -150, in = -20] (t1-left);
+
+\path[-, shorten <= 5pt]
+(State1d.east) edge [out = 20, in = -160] (t1-l12.north);
+\path[->, >=stealth', shorten >= 6pt]
+(t1-l12.north) edge [out = 20, in = 20] (StateA);
+
+
+% LABEL
+\node (Label) [above of=StateA] {};
+\node (LabelText) [right of=Label] {(b) Ensemble};
+
+\end{tikzpicture}
+\end{document}

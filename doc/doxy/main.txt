@@ -1,8 +1,8 @@
 /**
  *  \mainpage Parallel Forward Flux Sampling
 
-What the Hell is Forward Flux Sampling?
----------------------------------------
+What is Forward Flux Sampling?
+------------------------------
 
 Forward Flux Sampling is a method to compute the probability of
 rare events based on computer simulation. It works by running
@@ -33,8 +33,8 @@ and via coupling to the molecular dynamics package LAMMPS.
 What do I need to use this library?
 -----------------------------------
 
-We use BLAH. To see the installation instructions, see the
-[README](./README "README").
+For the installation instructions, please look at the
+\ref ffs_readme_page.
 Further information for users is available on the \ref user page.
 Further information for
 developers is available in the \ref develop section.

@@ -1,9 +1,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
-%%  init1.tex
+%%  init2b.tex
 %%
 %%  To illustrate serial and parallel initial trajectories.
-%%  (b) Parallel
+%%  (2b) Mulitple single trajectories
 %%
 %%  Convert to gif and reduce to 66% for final gif for web.
 %%
@@ -50,10 +50,6 @@
 };
 
 
-% Horizontal progress
-%\draw [-latex,dashed] 
-%  (t3 left) -- (t3 right.east) node[right] {\it Progress};
-
 % Vertical Interfaces
 
 \draw
@@ -81,7 +77,7 @@
 
 % Trajectory t1: Sref -> S1 -> ...
 
-\path[->, thick, >=stealth', shorten <=4pt, shorten >=3pt]
+\path[->, thick, >=stealth', shorten <=6pt, shorten >=3pt]
 (Sref) edge [out=60, in = 180] node[auto] {$t_1$} (State1.west);
 % S1 -> S2
 \path[-, thick, shorten <=4pt]
@@ -108,7 +104,7 @@
 
 % Trajectory t2: Sref -> S4...
 
-\path[->, thick, >=stealth', shorten <=4pt, shorten >=3pt]
+\path[->, thick, >=stealth', shorten <=8pt, shorten >=3pt]
 (Sref.south) edge [out=-90, in = 135] node[auto] {$t_2$} (State4.north west);
 
 % S4 -> S5
@@ -138,7 +134,7 @@
 
 % LABEL
 \node (Label) [above of=StateA] {};
-\node (LabelText) [right of=Label] {(b) Parallel trajectories};
+\node (LabelText) [right of=Label] {(b) Multiple serial trajectories};
 
 \end{tikzpicture}
 \end{document}

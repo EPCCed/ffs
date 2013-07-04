@@ -12,7 +12,7 @@ B with any reasonable computational effort. FFS uses the decomposition
 of the progress coordinate, or order parameter, into a series of
 interfaces to break the problem down into a series of smaller steps.
 The probability of making these smaller steps is much larger than that
-of the complete transiation A to B, and we can hope to make incremental
+of the complete transition A to B, and we can hope to make incremental
 progress between interfaces.
 
 \section ffs_what_init Initial flux and conditional probabilities
@@ -20,11 +20,12 @@ progress between interfaces.
 
 
 Now consider a series of \f$ n \f$ interfaces \f$ \lambda_1 \f$ to
-\f$ \lambda_{n} \f$ with \f$ \lambda_{n} = \lambda_B \f$.
+\f$ \lambda_{n} \f$ with \f$ \lambda_1 = \lambda_A \f$ and
+\f$ \lambda_{n} = \lambda_B \f$.
 We may write the probability that a trajectory
 coming from A crosses \f$ \lambda_1 \f$ and reaches \f$ \lambda_2\f$
 without returning to A as \f$ P(\lambda_2 | \lambda_1)\f$. The overall
-probabilty of getting to \f$ \lambda_{n} \f$ having crossed
+probability of getting to \f$ \lambda_{n} \f$ having crossed
 \f$ \lambda_1 \f$ and not having returned to A may then be written
 \f[
 P(\lambda_n | \lambda_1) = \Pi_{i=1}^{n-1} P(\lambda_{i+1} | \lambda_i).
@@ -37,6 +38,56 @@ probability of reaching B having started at A, ie.,
 k_{AB} = F(\lambda_1) P(\lambda_n | \lambda_1).
 \f]
 
+FFS therefore needs to measure these two quantities. The flux at the
+first interface is relatively easy to access, as we assume the
+probability of reaching \f$ \lambda_A \f$ is reasonably large.
+Getting at the conditional probabilities requires a little more
+work. 
+
 \section ffs_what_states States and trajectories
+
+Suppose we have a state at an interface \f$ \lambda_1 \f$ which has
+been reached by a forward moving trajectory. We can make a number
+of different attempts to follow the trajectory forward from this
+state, e.g., by feeding a different set of random fluctuations into
+the simulation. Trajectories so generated may reach the following
+interface \f$ \lambda_2 \f$, or fall back and cross \f$ \lambda_1 \f$
+going backwards and eventually return to State A. In illustration
+(a) two trajectories are generated of which one is successful in
+reaching \f$ \lambda_2 \f$.
+
+![](./what1.gif "States and trajectories")
+
+If the second interface is not too far away, there is a
+reasonable probability of at least one trajectory reaching it
+if we make a number of different trial trajectories. Trajectories
+not making progress and returning to State A are terminated.
+
+If we then make a large number of such trials
+from different states at \f$ \lambda_1 \f$, we can make an estimate
+of the overall probability of reaching \f$ \lambda_2 \f$ having been
+at \f$ \lambda_1 \f$ and not having gone back to state A. This is
+exactly what we need in FFS to compute the conditional probability
+\f$ P(\lambda_2 | \lambda_1) \f$.
+
+
+![](./what2.gif "Ensemble")
+
+Clearly, to obtain a true estimate of the probability, we must sample
+enough configurations
+at \f$ \lambda_1\f$ that all significant transition paths are captured.
+At the same time, we have generated new states at \f$ \lambda_2 \f$ from
+which new trials may be started in an attempt to reach \f$ \lambda_3 \f$.
+By repeating this process - following forward trajectories between interfaces
+and discarding backward moving trajectories - we can brake up the problem of
+finding rare trajectories spanning A and B into a series of manageable steps.
+
+The exact details of the number of attempts made, and how the
+statistics are computed to arrive at the final probability vary
+between different flavours of FFS, but the basic idea is the same.
+A number of different methods are available.
+
+First, we need to generate some sample states at the first interface.
+This is discussed in the following section: \ref ffs_explained_init.
 
 */
