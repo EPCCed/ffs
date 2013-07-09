@@ -20,6 +20,7 @@
 #include "ffs_init.h"
 #include "ffs_private.h"
 #include "ffs_result.h"
+#include "ffs_result_summary.h"
 #include "ffs_direct.h"
 #include "ffs_branched.h"
 #include "ffs_rosenbluth.h"
@@ -47,9 +48,11 @@ struct ffs_inst_type {
   int proxy_id;            /* id */
   int ntask_per_proxy;     /* Number of MPI tasks per proxy (actual) */
 
-  /* Initialisation parameters, result object. */
+  /* Initialisation parameters, result objects. */
   ffs_init_t * init;
   ffs_result_t * result;
+  ffs_result_aflux_t * flux;
+  ffs_result_summary_t * summary;
   int nstepmax_trial;
   int nsteplambda_trial;
 };
@@ -59,6 +62,7 @@ static int ffs_inst_read_trial(ffs_inst_t * obj, u_config_t * config);
 static int ffs_inst_run(ffs_inst_t * obj);
 static int ffs_inst_compute_proxy_size(ffs_inst_t * obj);
 static int ffs_inst_start_xcomm(ffs_inst_t * obj);
+static int ffs_inst_aflux_result(ffs_result_aflux_t * flux, mpilog_t * log);
 
 /*****************************************************************************
  *
@@ -92,6 +96,7 @@ int ffs_inst_create(int id, MPI_Comm parent, ffs_inst_t ** pobj) {
   mpi_sync_if(mpi_errnol);
 
   mpi_errnol = ffs_init_create(&obj->init);
+  mpi_errnol += ffs_result_summary_create(&obj->summary);
 
  mpi_sync:
   mpi_err_if_any(mpi_errnol, parent);
@@ -121,6 +126,9 @@ void ffs_inst_free(ffs_inst_t * obj) {
   if (obj->log) mpilog_free(obj->log);
   if (obj->init) ffs_init_free(obj->init);
   if (obj->param) ffs_param_free(obj->param);
+  if (obj->result) ffs_result_free(obj->result);
+  if (obj->flux) ffs_result_aflux_free(obj->flux);
+  if (obj->summary) ffs_result_summary_free(obj->summary);
   if (obj->sim_name) u_string_free(obj->sim_name);
   if (obj->sim_argv) u_string_free(obj->sim_argv);
   if (obj->sim_lambda) u_string_free(obj->sim_lambda);
@@ -184,10 +192,12 @@ int ffs_inst_start(ffs_inst_t * obj, const char * filename,
  *
  *****************************************************************************/
 
-int ffs_inst_stop(ffs_inst_t * obj) {
+int ffs_inst_stop(ffs_inst_t * obj, ffs_result_summary_t * result) {
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(obj->log == NULL, -1);
+
+  if (result) ffs_result_summary_copy(obj->summary, result);
 
   mpilog(obj->log, "\n");
   mpilog(obj->log, "Instance finished cleanly\n");
@@ -571,28 +581,38 @@ static int ffs_inst_run(ffs_inst_t * obj) {
   trial->nsteplambda = obj->nsteplambda_trial;
 
   ffs_init_ntrials(obj->init, &ntrial);
-  dbg_err_if( ffs_result_create(nlambda, ntrial/obj->nproxy, &obj->result) );
+  dbg_err_if( ffs_result_create(nlambda, &obj->result) );
+  dbg_err_if( ffs_result_aflux_create(ntrial/obj->nproxy, &obj->flux) );
+
   trial->result = obj->result;
+  trial->summary = obj->summary;
+  trial->flux = obj->flux;
 
   switch (obj->method) {
   case FFS_METHOD_BRANCHED:
     dbg_err_if( ffs_branched_run(trial) );
 
-    ffs_result_reduce(obj->result, obj->x_comm, 0);
+    ffs_result_aflux_reduce(obj->flux, obj->x_comm);
+    ffs_inst_aflux_result(trial->flux, trial->log);
+    ffs_result_reduce(obj->result, obj->x_comm);
     ffs_branched_results(trial);
     break;
 
   case FFS_METHOD_DIRECT:
     dbg_err_if( ffs_direct_run(trial) );
 
-    ffs_result_reduce(obj->result, obj->x_comm, 0);
+    ffs_result_aflux_reduce(obj->flux, obj->x_comm);
+    ffs_inst_aflux_result(trial->flux, trial->log);
+    ffs_result_reduce(obj->result, obj->x_comm);
     ffs_direct_results(trial);
     break;
 
   case FFS_METHOD_ROSENBLUTH:
     dbg_err_if( ffs_rosenbluth_run(trial) );
 
-    ffs_result_reduce(obj->result, obj->x_comm, 0);
+    ffs_result_aflux_reduce(obj->flux, obj->x_comm);
+    ffs_inst_aflux_result(trial->flux, trial->log);
+    ffs_result_reduce(obj->result, obj->x_comm);
     ffs_rosenbluth_results(trial);
     break;
 
@@ -602,6 +622,7 @@ static int ffs_inst_run(ffs_inst_t * obj) {
 
   ffs_inst_stop_proxy(obj);
   ffs_result_free(obj->result);
+  obj->result = NULL;
 
   return 0;
 
@@ -808,6 +829,48 @@ int ffs_inst_proxy(ffs_inst_t * obj, proxy_t ** ref) {
   dbg_return_if(ref == NULL, -1);
 
   *ref = obj->proxy;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_aflux_result
+ *
+ *****************************************************************************/
+
+static int ffs_inst_aflux_result(ffs_result_aflux_t * flux, mpilog_t * log) {
+
+  int ntrial, nstates, nto, neq, nx;
+  double tmax, tsum;
+
+  dbg_return_if(flux == NULL, -1);
+  dbg_return_if(log == NULL, -1);
+
+  ffs_result_aflux_ntrial_final(flux, &ntrial);
+  ffs_result_aflux_status_final(flux, FFS_TRIAL_SUCCEEDED, &nstates);
+  ffs_result_aflux_status_final(flux, FFS_TRIAL_TIMED_OUT, &nto);
+  ffs_result_aflux_neq_final(flux, &neq);
+
+  ffs_result_aflux_tmax_final(flux, &tmax);
+  ffs_result_aflux_tsum_final(flux, &tsum);
+  ffs_result_aflux_ncross_final(flux, &nx);
+
+  mpilog(log, "\n");
+  mpilog(log, "Results at initial interface\n");
+  mpilog(log, "----------------------------\n");
+  mpilog(log, "Trials to first interface:           %d\n", ntrial);
+  mpilog(log, "States generated at first interface: %d\n", nstates);
+  mpilog(log, "Time outs before first interface:    %d\n", nto);
+  mpilog(log, "Number of equilibration runs:        %d\n", neq);
+
+  mpilog(log, "\n");
+
+  mpilog(log, "Initial Tmax:                        %12.6e\n", tmax);
+  mpilog(log, "Initial Tsum:                        %12.6e\n", tsum);
+  mpilog(log, "Number crossings first interface:    %d\n", nx);
+  mpilog(log, "Flux at lambda_A:                    %12.6e\n", nx/tsum);
+  mpilog(log, "\n");
 
   return 0;
 }

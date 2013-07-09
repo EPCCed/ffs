@@ -13,6 +13,8 @@
 #include "ffs_param.h"
 #include "ffs_state.h"
 #include "ffs_result.h"
+#include "ffs_result_aflux.h"
+#include "ffs_result_summary.h"
 #include "../sim/proxy.h"
 
 #include "util/ranlcg.h"
@@ -43,6 +45,8 @@ struct ffs_trial_arg_s {
   int inst_seed;
   mpilog_t * log;
   ffs_result_t * result;
+  ffs_result_aflux_t * flux;
+  ffs_result_summary_t * summary;
   MPI_Comm xcomm;
   MPI_Comm inst_comm;
 };

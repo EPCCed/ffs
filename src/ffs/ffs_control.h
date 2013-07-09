@@ -13,6 +13,7 @@
 #include <mpi.h>
 
 #include "../util/mpilog.h"
+#include "ffs_result_summary.h"
 
 /**
  *  \defgroup ffs_library FFS library
@@ -37,7 +38,7 @@
  *
  *      ffs_control_start(ffs, "name");
  *      ffs_control_execute(ffs, "input.config");
- *      ffs_control_stop(ffs);
+ *      ffs_control_stop(ffs, result);
  *
  *      ffs_control_free(ffs);
  *      MPI_Finalize();
@@ -170,6 +171,7 @@ int ffs_control_start(ffs_control_t * obj, const char * runname);
  *  \brief Stop the log at end of calculation
  *
  *  \param obj      ffs_control_t object
+ *  \param result   a summary summary structure (may be NULL)
  *
  *  \retval 0       a success
  *  \retval -1      a failure
@@ -177,7 +179,7 @@ int ffs_control_start(ffs_control_t * obj, const char * runname);
  *  Should be preceeded by a call to ffs_control_start().
  */
 
-int ffs_control_stop(ffs_control_t * obj);
+int ffs_control_stop(ffs_control_t * obj, ffs_result_summary_t * result);
 
 /**
  *  \brief Log details of config to log

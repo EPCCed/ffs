@@ -147,13 +147,21 @@ and the results:
 \code
 Starting 16 trials each on 1 proxies
 
-Instance results
-
-Attempts at first interface:         16
+Results at initial interface
+----------------------------
+Trials to first interface:           16
 States generated at first interface: 16
-Time outs at first interface:        0
+Time outs before first interface:    0
 Number of equilibration runs:        1
 
+Initial Tmax:                        2.985213e+03
+Initial Tsum:                        1.599092e+04
+Number crossings first interface:    160
+Flux at lambda_A:                    1.000568e-02
+
+
+Conditional probabilities
+-------------------------
 index      lambda    trials   states   pruned   wt/ntrial
 ---------------------------------------------------------
     1 -2.4000e+01        48       16       70  1.0000e+00
@@ -171,11 +179,6 @@ index      lambda    trials   states   pruned   wt/ntrial
    13  2.5000e+01         0      490        0  8.4895e-03
 ----------------------------------------------------------
 (sum/success/fail)     7427     5019     2408
-
-Initial Tmax:  result   2.985213e+03
-Initial Tsum:  result   1.599092e+04
-Number of crossings A:  160
-Flux at lambda_A:       1.000568e-02
 
 Probability P(B|A):     8.489543e-03
 Flux * P(B|A):          8.494361e-05
@@ -210,10 +213,12 @@ minutes). Note that the original result file
 
 The estimate of the final probability is now:
 \code
-Flux at lambda_A:       1.344707e-02
+Initial Tsum:                        7.671122e+05
+Number crossings first interface:    10240
+Flux at lambda_A:                    1.334876e-02
 
-Probability P(B|A):     3.178032e-03
-Flux * P(B|A):          4.273520e-05
+Probability P(B|A):                  3.178032e-03
+Flux * P(B|A):                       4.242280e-05
 \endcode
 
 How accurate is this result? Some estimate can be gained by, for example,
@@ -255,19 +260,22 @@ run on 1 MPI task via the key value pair:
 This example will give a slightly different result to the previous
 case, as different initial states have been generated:
 \code
-Attempts at first interface:         16
+Results at initial interface
+----------------------------
+Trials to first interface:           16
 States generated at first interface: 16
-Time outs at first interface:        0
+Time outs before first interface:    0
 Number of equilibration runs:        24
 
-...
-Initial Tmax:  result   1.663454e+03
-Initial Tsum:  result   6.749986e+03
-Number of crossings A:  135
-Flux at lambda_A:       2.000004e-02
+Initial Tmax:                        1.663454e+03
+Initial Tsum:                        6.749986e+03
+Number crossings first interface:    135
+Flux at lambda_A:                    2.000004e-02
 
-Probability P(B|A):     3.574820e-04
-Flux * P(B|A):          7.149654e-06
+...
+
+Probability P(B|A):                  3.574820e-04
+Flux * P(B|A):                       7.149654e-06
 \endcode
 Note that the number of equilibration runs is now larger than it was,
 as each separate trial requires a separate equilibration. Some of

@@ -18,6 +18,7 @@
 #include "../util/mpilog.h"
 #include "../sim/proxy.h"
 #include "ffs_param.h"
+#include "ffs_result_summary.h"
 
 /**
  *  \defgroup ffs_inst FFS instance
@@ -47,7 +48,7 @@
  *    ffs_inst_create(inst_id, comm_parent, &inst);
  *    ffs_inst_start(inst, "instance.log", "w+");
  *    ffs_inst_execute(inst, config);
- *    ffs_inst_stop(inst);
+ *    ffs_inst_stop(inst, result);
  *
  *    ffs_inst_free(inst);
  *
@@ -289,12 +290,13 @@ int ffs_inst_start(ffs_inst_t * obj, const char * filename, const char * mode);
  *  \brief Close the instance log and other house-keeping at end
  *
  *  \param  obj       the FFS instance object
+ *  \param  result    a summary structure (may be NULL)
  *
  *  \retval 0         a success
  *  \retval -1        a failure
  */
 
-int ffs_inst_stop(ffs_inst_t * obj);
+int ffs_inst_stop(ffs_inst_t * obj, ffs_result_summary_t * result);
   
 /**
  *  \brief Initialise the instance from configuration

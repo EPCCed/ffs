@@ -201,7 +201,7 @@ int ffs_trial_eq(ffs_trial_arg_t * trial, ffs_state_t * state,
     proxy_lambda(trial->proxy);
     proxy_ffs(trial->proxy, &ffs);
     ffs_lambda(ffs, &lambda);
-    ffs_result_eq_accum(trial->result, 1);
+    ffs_result_aflux_neq_add(trial->flux);
 
   } while (lambda >= lambda_a);
 
@@ -310,9 +310,9 @@ int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
     MPI_Bcast(&icrossed, 1, MPI_INT, 0, comm);
 
     if (icrossed) {
+      ffs_result_aflux_ncross_add(trial->flux);
+      ffs_result_aflux_ncross_local(trial->flux, &ncross);
 
-      ffs_result_ncross_accum(trial->result, 1);
-      ffs_result_ncross(trial->result, &ncross);
       ffs_time(ffs, &t1);
       t_elapsed += (t1 - t0);
       t0 = t1;
@@ -330,8 +330,8 @@ int ffs_trial_init(ffs_trial_arg_t * trial, ffs_state_t * sinit,
   *status = FFS_TRIAL_SUCCEEDED;
   if (n >= init_nstepmax) *status = FFS_TRIAL_TIMED_OUT;
 
-  dbg_err_if( ffs_result_status_set(trial->result, nlocaltraj, *status) );
-  dbg_err_if( ffs_result_time_set(trial->result, nlocaltraj, t_elapsed) );
+  dbg_err_if( ffs_result_aflux_status_set(trial->flux, nlocaltraj, *status) );
+  dbg_err_if( ffs_result_aflux_time_set(trial->flux, nlocaltraj, t_elapsed) );
 
   return 0;
 

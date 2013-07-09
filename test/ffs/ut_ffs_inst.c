@@ -38,7 +38,7 @@ int ut_inst(u_test_case_t * tc) {
   dbg_err_if(ffs_inst_start(inst, "logs/unit-test-inst.log", "w+"));
   dbg_err_if(ffs_inst_execute(inst, config));
   dbg_err_if(ffs_inst_config(inst));
-  dbg_err_if(ffs_inst_stop(inst));
+  dbg_err_if(ffs_inst_stop(inst, NULL));
 
   u_config_free(config);
   ffs_inst_free(inst);

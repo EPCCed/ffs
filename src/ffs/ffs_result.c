@@ -11,16 +11,6 @@
 
 struct ffs_result_s {
 
-  /* Initialisation */
-
-  int ntrial;        /* Number of initial states */
-  int init_ncross;   /* Number of crossings of lambda_A */
-  int * status;      /* Final status of initialisation runs */
-  double * t0;       /* Duration of initialisation runs (simulation units) */
-  double tsum;       /* Total time of initialisation runs */
-  double tmax;       /* Maximum time initialisation run */
-  double flux_a;     /* Flux at lambda_A */
-
   /* Trials */
 
   int nlambda;       /* Number of interfaces (total) */
@@ -35,9 +25,6 @@ struct ffs_result_s {
   int * ndrop;       /* Number of trajectories dropped (Rosenbluth) */
   int * nback;       /* Number of trajectories going backward from interface */
 
-  int init_nsuccess; /* Number of successful trials reaching lambda1 */
-  int init_nto;      /* Time-outs before lambda1 */
-  int init_eq;       /* Number of equilibration runs */
 };
 
 
@@ -47,25 +34,17 @@ struct ffs_result_s {
  *
  *****************************************************************************/
 
-int ffs_result_create(int nlambda, int ntrial, ffs_result_t ** pobj) {
+int ffs_result_create(int nlambda, ffs_result_t ** pobj) {
 
   ffs_result_t * obj = NULL;
 
   dbg_return_if(pobj == NULL, -1);
   dbg_return_if(nlambda < 1, -1);
-  dbg_return_if(ntrial < 1, -1);
 
   obj = u_calloc(1, sizeof(ffs_result_t));
   dbg_err_sif(obj == NULL);
 
-  obj->ntrial = ntrial;
   obj->nlambda = nlambda;
-
-  obj->status = u_calloc(ntrial, sizeof(int));
-  dbg_err_sif(obj->status == NULL);
-
-  obj->t0 = u_calloc(ntrial, sizeof(double));
-  dbg_err_sif(obj->t0 == NULL);
 
   /* Interfaces are counted using natural numbers, so add 1 */
 
@@ -124,8 +103,6 @@ void ffs_result_free(ffs_result_t * obj) {
   if (obj->ndrop) u_free(obj->ndrop);
   if (obj->nstart) u_free(obj->nstart);
   if (obj->nto) u_free(obj->nto);
-  if (obj->status) u_free(obj->status);
-  if (obj->t0) u_free(obj->t0);
   if (obj->swt) u_free(obj->swt);
   if (obj->wt) u_free(obj->wt);
   if (obj->probs) u_free(obj->probs);
@@ -136,72 +113,6 @@ void ffs_result_free(ffs_result_t * obj) {
   u_free(obj);
 
   return;
-}
-
-/*****************************************************************************
- *
- *  ffs_result_ncross_accum
- *
- *****************************************************************************/
-
-int ffs_result_ncross_accum(ffs_result_t * obj, int iadd) {
-
-  dbg_return_if(obj == NULL, -1);
-
-  obj->init_ncross += iadd;
-
-  return 0;
-}
-
-/*****************************************************************************
- *
- *  ffs_result_ncross
- *
- *****************************************************************************/
-
-int ffs_result_ncross(ffs_result_t * obj, int * ncross) {
-
-  dbg_return_if(obj == NULL, -1);
-  dbg_return_if(ncross == NULL, -1);
-
-  *ncross = obj->init_ncross;
-
-  return 0;
-}
-
-/*****************************************************************************
- *
- *  ffs_result_status_set
- *
- *****************************************************************************/
-
-int ffs_result_status_set(ffs_result_t * obj, int n, int status) {
-
-  dbg_return_if(obj == NULL, -1);
-  dbg_return_if(n < 0, -1);
-  dbg_return_if(n >= obj->ntrial, -1);
-
-  obj->status[n] = status;
-
-  return 0;
-}
-
-/*****************************************************************************
- *
- *  ffs_result_status
- *
- *****************************************************************************/
-
-int ffs_result_status(ffs_result_t * obj, int n, int * status) {
-
-  dbg_return_if(obj == NULL, -1);
-  dbg_return_if(n < 0, -1);
-  dbg_return_if(n >= obj->ntrial, -1);
-  dbg_return_if(status == NULL, -1);
-
-  *status = obj->status[n];
-
-  return 0;
 }
 
 /*****************************************************************************
@@ -241,52 +152,9 @@ int ffs_result_weight_accum(ffs_result_t * obj, int n, double wt) {
 
 /*****************************************************************************
  *
- *  ffs_result_time_set
- *
- *****************************************************************************/
-
-int ffs_result_time_set(ffs_result_t * obj, int n, double t) {
-
-  dbg_return_if(obj == NULL, -1);
-  dbg_return_if(n < 0, -1);
-  dbg_return_if(n >= obj->ntrial, -1);
-
-  obj->t0[n] = t;
-
-  return 0;
-}
-
-/*****************************************************************************
- *
- *  ffs_result_time
- *
- *****************************************************************************/
-
-int ffs_result_time(ffs_result_t * obj, int n, double * t) {
-
-  dbg_return_if(obj == NULL, -1);
-  dbg_return_if(n < 0, -1);
-  dbg_return_if(n >= obj->ntrial, -1);
-  dbg_return_if(t == NULL, -1);
-
-  *t = obj->t0[n];
-
-  return 0;
-}
-
-/*****************************************************************************
- *
  *  ffs_result_reduce
  *
  *  We want:
- *
- *     init_nsuccess  number of trials reaching first interface 
- *     init_nto       number of trials timed out before first interface
- *     init_eq        number of equilibration runs
- *
- *     ncross = total number of initial crossings
- *     tsum   = sum of trajectory times
- *     tmax   = maximum trajectory time
  *
  *     wt     = sum of weights for each interface
  *     swt    = success wieghts for each interface (Rosenbluth)
@@ -297,39 +165,15 @@ int ffs_result_time(ffs_result_t * obj, int n, double * t) {
  *
  *****************************************************************************/
 
-int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
+int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm) {
 
   int n;
-  int ncross_local;
-  int init_nsuccess_local = 0;
-  int init_nto = 0;
-  int init_eq_local = 0;
   int mpi_errnol = 0;
 
-  double tsum_local = 0.0;
-  double tmax_local = 0.0;
-  double * wt_local = NULL;
   int * st_local = NULL;
+  double * wt_local = NULL;
 
   dbg_return_if(obj == NULL, -1);
-
-  ncross_local = obj->init_ncross;
-  init_eq_local = obj->init_eq;
-
-  for (n = 0; n < obj->ntrial; n++) {
-    tsum_local += obj->t0[n];
-    if (obj->t0[n] > tmax_local) tmax_local = obj->t0[n];
-    if (obj->status[n] == FFS_TRIAL_SUCCEEDED) init_nsuccess_local += 1;
-    if (obj->status[n] == FFS_TRIAL_TIMED_OUT) init_nto += 1;
-  }
-
-  MPI_Reduce(&init_nsuccess_local, &obj->init_nsuccess, 1, MPI_INT, MPI_SUM,
-	     root, comm);
-  MPI_Reduce(&init_nto, &obj->init_nto, 1, MPI_INT, MPI_SUM, root, comm);
-  MPI_Reduce(&init_eq_local, &obj->init_eq, 1, MPI_INT, MPI_SUM, root, comm);
-  MPI_Reduce(&ncross_local, &obj->init_ncross, 1, MPI_INT, MPI_SUM, root, comm);
-  MPI_Reduce(&tsum_local, &obj->tsum, 1, MPI_DOUBLE, MPI_SUM, root, comm);
-  MPI_Reduce(&tmax_local, &obj->tmax, 1, MPI_DOUBLE, MPI_MAX, root, comm);
 
   /* Weight at each interface. */ 
 
@@ -341,8 +185,8 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
     wt_local[n] = obj->wt[n];
   }
 
-  MPI_Reduce(wt_local, obj->wt, obj->nlambda + 1, MPI_DOUBLE, MPI_SUM, root,
-	     comm);
+  MPI_Allreduce(wt_local, obj->wt, obj->nlambda + 1, MPI_DOUBLE, MPI_SUM,
+		comm);
 
   /* Success weight (use wt_local again) */
 
@@ -350,8 +194,8 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
     wt_local[n] = obj->swt[n];
   }
 
-  MPI_Reduce(wt_local, obj->swt, obj->nlambda + 1, MPI_DOUBLE, MPI_SUM, root,
-	     comm);
+  MPI_Allreduce(wt_local, obj->swt, obj->nlambda + 1, MPI_DOUBLE, MPI_SUM,
+		comm);
 
   u_free(wt_local);
 
@@ -365,8 +209,8 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
     st_local[n] = obj->nsuccess[n];
   }
 
-  MPI_Reduce(st_local, obj->nsuccess, obj->nlambda + 1, MPI_INT, MPI_SUM,
-	     root, comm);
+  MPI_Allreduce(st_local, obj->nsuccess, obj->nlambda + 1, MPI_INT, MPI_SUM,
+		comm);
 
   /* Also use st_local for the number of pruning events */
 
@@ -374,8 +218,8 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
     st_local[n] = obj->nprune[n];
   }
 
-  MPI_Reduce(st_local, obj->nprune, obj->nlambda + 1, MPI_INT, MPI_SUM, root,
-	     comm);
+  MPI_Allreduce(st_local, obj->nprune, obj->nlambda + 1, MPI_INT, MPI_SUM,
+		comm);
 
   /* Also use st_local for the number of time outs */
 
@@ -383,8 +227,7 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
     st_local[n] = obj->nto[n];
   }
 
-  MPI_Reduce(st_local, obj->nto, obj->nlambda + 1, MPI_INT, MPI_SUM, root,
-	     comm);
+  MPI_Allreduce(st_local, obj->nto, obj->nlambda + 1, MPI_INT, MPI_SUM, comm);
 
   u_free(st_local);
 
@@ -396,38 +239,6 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm, int root) {
   if (st_local) u_free(st_local);
 
   return -1;
-}
-
-/*****************************************************************************
- *
- *  ffs_result_tmax
- *
- *****************************************************************************/
-
-int ffs_result_tmax(ffs_result_t * obj, double * tmax) {
-
-  dbg_return_if(obj == NULL, -1);
-  dbg_return_if(tmax == NULL, -1);
-
-  *tmax = obj->tmax;
-
-  return 0;
-}
-
-/*****************************************************************************
- *
- *  ffs_result_tsum
- *
- *****************************************************************************/
-
-int ffs_result_tsum(ffs_result_t * obj, double * tsum) {
-
-  dbg_return_if(obj == NULL, -1);
-  dbg_return_if(tsum == NULL, -1);
-
-  *tsum = obj->tsum;
-
-  return 0;
 }
 
 /*****************************************************************************
@@ -494,64 +305,6 @@ int ffs_result_prune(ffs_result_t * obj, int interface, int * np) {
   dbg_return_if(interface > obj->nlambda, -1);
 
   *np = obj->nprune[interface];
-
-  return 0;
-}
-
-/*****************************************************************************
- *
- *  ffs_result_success_final
- *
- *****************************************************************************/
-
-int ffs_result_status_final(ffs_result_t * obj, ffs_trial_enum_t key,
-			    int * sum) {
-
-  dbg_return_if(obj == NULL, -1);
-  dbg_return_if(sum == NULL, -1);
-
-  switch (key) {
-  case FFS_TRIAL_SUCCEEDED:
-    *sum = obj->init_nsuccess;
-    break;
-  case FFS_TRIAL_TIMED_OUT:
-    *sum = obj->init_nto;
-    break;
-  default:
-    u_dbg("ffs_trial_enum_t not handled");
-    *sum = -1;
-  }
-
-  return 0;
-}
-
-/*****************************************************************************
- *
- *  ffs_result_eq_accum
- *
- *****************************************************************************/
-
-int ffs_result_eq_accum(ffs_result_t * obj, int add) {
-
-  dbg_return_if(obj == NULL, -1);
-
-  obj->init_eq += add;
-
-  return 0;
-}
-
-/*****************************************************************************
- *
- *  ffs_result_eq_final
- *
- *****************************************************************************/
-
-int ffs_result_eq_final(ffs_result_t * obj, int * n) {
-
-  dbg_return_if(obj == NULL, -1);
-  dbg_return_if(n == NULL, -1);
-
-  *n = obj->init_eq;
 
   return 0;
 }

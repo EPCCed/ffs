@@ -34,6 +34,7 @@ struct ffs_control_type {
   u_string_t * name;           /* Run name string */
   mpilog_t * log;              /* Control log (stdout). */
   int seed;                    /* Overall RNG seed */
+  ffs_result_summary_t * res;  /* Summary */
 };
 
 static int ffs_input(ffs_control_t * obj, const char * filename,
@@ -91,6 +92,7 @@ void ffs_control_free(ffs_control_t * obj) {
   if (obj->log) mpilog_free(obj->log);
   if (obj->instance) ffs_inst_free(obj->instance);
   if (obj->input) u_config_free(obj->input);
+  if (obj->res) ffs_result_summary_free(obj->res);
 
   MPI_Comm_free(&obj->comm); /* Communictor must exist if create() was ok */
   u_free(obj);
@@ -137,9 +139,11 @@ int ffs_control_start(ffs_control_t * obj, const char * name) {
  *
  *****************************************************************************/
 
-int ffs_control_stop(ffs_control_t * obj) {
+int ffs_control_stop(ffs_control_t * obj, ffs_result_summary_t * result) {
 
   dbg_return_if(obj == NULL, -1);
+
+  if (result) ffs_result_summary_copy(obj->res, result);
 
   mpilog(obj->log, "\n");
   mpilog(obj->log, "Closing FFS. Finished.\n");
@@ -225,7 +229,9 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
 
   err_err_if(ffs_inst_start(obj->instance, u_string_c(obj->name), "w+"));
   err_err_if(ffs_inst_execute(obj->instance, config));
-  err_err_if(ffs_inst_stop(obj->instance));
+
+  dbg_err_if( ffs_result_summary_create(&obj->res) );
+  dbg_err_if( ffs_inst_stop(obj->instance, obj->res) );
 
   /* Compound statistics TODO (before finishing off instances) */
 
@@ -239,6 +245,7 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
 
  err:
 
+  if (obj->res) ffs_result_summary_free(obj->res);
   if (obj->instance) ffs_inst_free(obj->instance);
   obj->instance = NULL;
   if (ran) ranlcg_free(ran);

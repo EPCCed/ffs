@@ -250,26 +250,16 @@ static int ffs_rosenbluth_recursive(ffs_trial_arg_t * trial, int interface,
 
 int ffs_rosenbluth_results(ffs_trial_arg_t * trial) {
 
-  int ntrial, nlambda, nsuccess;
-  int n, neq, ntry, ndrop, nback, nto;
+  int nlambda, nsuccess;
+  int n, ntry, ndrop, nback, nto;
   int nsum_trial = 0, nsum_back = 0, nsum_success = 0, nsum_nto = 0;
-  double tmax, tsum, wt, swt, lambda, plambda;
+  double f1, tsum, wt, swt, lambda, plambda;
 
   dbg_return_if(trial == NULL, -1);
 
   mpilog(trial->log, "\n");
-  mpilog(trial->log, "Instance results\n\n");
-
-  ffs_init_ntrials(trial->init, &ntrial);
-  ffs_result_status_final(trial->result, FFS_TRIAL_SUCCEEDED, &nsuccess);
-  ffs_result_status_final(trial->result, FFS_TRIAL_TIMED_OUT, &n);
-  ffs_result_eq_final(trial->result, &neq);
-
-  mpilog(trial->log, "Attempts at first interface:         %d\n", ntrial);
-  mpilog(trial->log, "States generated at first interface: %d\n", nsuccess);
-  mpilog(trial->log, "Time outs at first interface:        %d\n", n);
-  mpilog(trial->log, "Number of equilibration runs:        %d\n", neq);
-  mpilog(trial->log, "\n");
+  mpilog(trial->log, "Conditional probabilities\n");
+  mpilog(trial->log, "-------------------------\n");
 
   ffs_param_nlambda(trial->param, &nlambda);
 
@@ -315,18 +305,14 @@ int ffs_rosenbluth_results(ffs_trial_arg_t * trial) {
   mpilog(trial->log, "(totals)         %9d %7d %7d %4d\n", nsum_trial,
 	 nsum_success, nsum_back, nsum_nto);
 
-  ffs_result_tmax(trial->result, &tmax);
-  ffs_result_tsum(trial->result, &tsum);
-  ffs_result_ncross(trial->result, &n);
+  ffs_result_aflux_tsum_final(trial->flux, &tsum);
+  ffs_result_aflux_ncross_final(trial->flux, &n);
+  f1 = n/tsum;
+  ffs_result_summary_stat_set(trial->summary, f1, plambda);
 
   mpilog(trial->log, "\n");
-  mpilog(trial->log, "Initial Tmax:  result   %12.6e\n", tmax);
-  mpilog(trial->log, "Initial Tsum:  result   %12.6e\n", tsum);
-  mpilog(trial->log, "Number of crossings A:  %d\n", n);
-  mpilog(trial->log, "Flux at lambda_A:       %12.6e\n", n/tsum);
-  mpilog(trial->log, "\n");
   mpilog(trial->log, "Probability P(B|A):     %12.6e\n", plambda);
-  mpilog(trial->log, "Flux * P(B|A):          %12.6e\n", (n/tsum)*plambda);
+  mpilog(trial->log, "Flux * P(B|A):          %12.6e\n", f1*plambda);
 
   return 0;
 }
