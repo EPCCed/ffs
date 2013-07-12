@@ -1,0 +1,51 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%%  library3.tex
+%%
+%%  Block diagram for FFS instance and proxy communicators.
+%%
+%%  Convert to gif and reduce to 66% for final gif for web.
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+
+\usetikzlibrary{arrows, shapes, positioning}
+
+\tikzstyle{block}
+= [draw, rectangle, minimum height = 0.5cm, minimum width = 1cm]
+\tikzstyle{proxy}
+= [draw, rectangle, minimum height = 0.5cm, minimum width = 1cm,
+font=\scriptsize]
+
+\begin{document}
+\pagestyle{empty}
+
+\pgfdeclarelayer{background}
+\pgfdeclarelayer{foreground}
+\pgfsetlayers{background,main,foreground}
+
+\begin{tikzpicture}[every node/.style={font=\scriptsize}]
+
+\node[minimum width = 0cm, minimum height = 0cm] (N0) {};
+\node[, right = 1cm of N0] (N1) {\texttt{FFS INSTANCE COMMUNICATOR}};
+\node[block, below = 0.1cm of N1, fill = blue!20] (N2)
+{INSTANCE TRIAL SCHEDULER};
+
+\node[proxy, below left = 0.2cm of N2] (P1) {\texttt{PROXY 0}};
+\node[proxy, right = 0.5cm of P1] (P2) {\texttt{PROXY 1}};
+\node[, right = 0.5cm of P2] (P3) {$\ldots$};
+
+\begin{pgfonlayer}{background}
+\path (N0)+(0,+0.2) node (a) {};
+\path (N1.south east)+(1.0,-0.7) node (b) {};
+\path [fill = blue!10, draw = black] (a) rectangle (b);
+\end{pgfonlayer}
+
+\end{tikzpicture}
+\end{document}

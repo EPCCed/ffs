@@ -180,7 +180,6 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
   mpilog(obj->log, "Attempting to read input config: %s\n", configfilename);
 
   err_err_if(ffs_input(obj, configfilename, &len));
-  MPI_Bcast(&len, 1, MPI_INT, 0, obj->comm);
 
   err_err_if(ffs_broadcast_config(obj, len));
   err_err_if(ffs_input_parse(obj));
@@ -307,15 +306,22 @@ static int ffs_input(ffs_control_t * obj, const char * filename,
  *
  *  ffs_broadcast_config
  *
+ *  Also broadcasts "len"; but be careful with size_t.
+ *
  *****************************************************************************/
 
 static int ffs_broadcast_config(ffs_control_t * obj, size_t len) {
 
   int rank;
   int mpi_errnol = 0;
+
+  unsigned int ilen = len;
   char * buf = NULL;
 
   MPI_Comm_rank(obj->comm, &rank);
+
+  MPI_Bcast(&ilen, 1, MPI_UNSIGNED, 0, obj->comm);
+  len = ilen;
 
   mpi_errnol = ((buf = u_calloc(len, sizeof(char))) == NULL);
   mpi_sync_ifm(mpi_errnol, "u_calloc(buf) failed");
