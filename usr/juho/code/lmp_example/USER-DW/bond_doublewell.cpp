@@ -68,7 +68,9 @@ void BondDoubleWell::compute(int eflag, int vflag)
     bracket1 = r - rwca[type] - w[type];
     bracket2 = 1.0 - bracket1 * bracket1/(w[type]*w[type]);
     
-    fbond = 4.0*h[type]*bracket2*bracket1/(w[type]*w[type])/r;
+    if (r > 0.0 ) {
+        fbond = 4.0*h[type]*bracket2*bracket1/(w[type]*w[type])/r;
+    }
     //printf("fbond %lf, %lf, %lf\n",fbond,r,rwca[type]);
     if (eflag) ebond = h[type]*bracket2 * bracket2;
 
@@ -176,7 +178,8 @@ void BondDoubleWell::read_restart(FILE *fp)
 
 /* ---------------------------------------------------------------------- */
 
-double BondDoubleWell::single(int type, double rsq, int i, int j)
+double BondDoubleWell::single(int type, double rsq, int i, int j,
+			      double &fforce)
 {
 
   // I assume this is ment to be energy -Juho
@@ -189,5 +192,9 @@ double BondDoubleWell::single(int type, double rsq, int i, int j)
   double r = sqrt(rsq);
   double bracket1 = bracket1 = r - rwca[type] - w[type];
   double bracket2 = 1.0 - bracket1 * bracket1/(w[type]*w[type]);
+  fforce = 0.0;
+  if (r > 0.0) {
+      fforce = 4.0*h[type]*bracket2*bracket1/(w[type]*w[type])/r;
+  }
   return(h[type] * bracket2 * bracket2);
 }
