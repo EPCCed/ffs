@@ -1,0 +1,54 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%%  library2.tex
+%%
+%%  Block diagram for library / interface / simulation.
+%%
+%%  Convert to gif and reduce to 66% for final gif for web.
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+
+\usetikzlibrary{arrows, shapes, positioning, decorations.markings}
+
+\tikzstyle{block}
+= [draw, rectangle, minimum height = 0.5cm, minimum width = 3.2cm]
+
+% From TeXample.net by Dominik Haumann
+\tikzstyle{vecArrow} = [thick, decoration={markings,mark=at position
+   1 with {\arrow[semithick]{open triangle 60}}},
+   double distance=1.4pt, shorten >= 5.5pt,
+   preaction = {decorate},
+   postaction = {draw,line width=1.4pt, white,shorten >= 4.5pt}]
+
+\begin{document}
+\pagestyle{empty}
+
+\begin{tikzpicture}[every node/.style={font=\scriptsize}]
+
+\node[block, fill=blue!10] (N1) {FFS LIBRARY};
+
+\node[block, below = 0.4 cm of N1, fill = yellow!10] (N2) {INTERFACE LAYER};
+
+\node[block, below = 0.4 cm of N2, fill = red!10] (N3) {SIMULATION};
+
+
+\node[minimum width = 1.0cm] (a) at (N1.south) {};
+\node[minimum width = 1.0cm] (b) at (N2.north) {};
+\draw[vecArrow] (a.west) to (b.west);
+\draw[vecArrow] (b.east) to (a.east);
+
+
+\node[minimum width = 1.0cm] (a) at (N2.south) {};
+\node[minimum width = 1.0cm] (b) at (N3.north) {};
+\draw[vecArrow] (a.west) to (b.west);
+\draw[vecArrow] (b.east) to (a.east);
+
+\end{tikzpicture}
+\end{document}

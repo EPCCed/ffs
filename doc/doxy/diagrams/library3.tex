@@ -20,8 +20,11 @@
 \tikzstyle{block}
 = [draw, rectangle, minimum height = 0.5cm, minimum width = 1cm]
 \tikzstyle{proxy}
-= [draw, rectangle, minimum height = 0.5cm, minimum width = 1cm,
-font=\scriptsize]
+= [draw, rectangle, minimum height = 0.5cm, minimum width = 1.0cm,
+font=\scriptsize, fill = yellow!20]
+\tikzstyle{simulation}
+= [draw, rectangle, minimum height = 0.5cm, minimum width = 1.0cm,
+font=\scriptsize, fill = red!20]
 
 \begin{document}
 \pagestyle{empty}
@@ -37,15 +40,57 @@ font=\scriptsize]
 \node[block, below = 0.1cm of N1, fill = blue!20] (N2)
 {INSTANCE TRIAL SCHEDULER};
 
-\node[proxy, below left = 0.2cm of N2] (P1) {\texttt{PROXY 0}};
-\node[proxy, right = 0.5cm of P1] (P2) {\texttt{PROXY 1}};
-\node[, right = 0.5cm of P2] (P3) {$\ldots$};
+% PROXIES
+
+\path (N2.south west)+(0.6,-0.3) node[proxy, anchor = north] (P1)
+{\begin{tabular}{l} \texttt{PROXY 0} \\ \texttt{COMMUNICATOR} \end{tabular}};
+
+\node[proxy, right = 0.2cm of P1] (P2)
+{\begin{tabular}{l} \texttt{PROXY 1} \\ \texttt{COMMUNICATOR} \end{tabular}};
+\node[, right = 0.2cm of P2] (P3) {$\ldots$};
+
+% SIMULATIONS
+\node[simulation, below = 0.3cm of P1] (S1)
+{\begin{tabular}{l} \texttt{SIMULATION 0} \\ \texttt{COMMUNICATOR}
+\end{tabular}};
+
+\node[simulation, right = 0.2cm of S1] (S2)
+{\begin{tabular}{l} \texttt{SIMULATION 1} \\ \texttt{COMMUNICATOR}
+\end{tabular}};
+\node[, right = 0.2cm of S2] (S3) {$\ldots$};
+
+% PROXY <-> SIMULATION
+
+\node[minimum width = 1.0cm] (a) at (P1.south) {};
+\node[minimum width = 1.0cm] (b) at (S1.north) {};
+\draw[->, thick] (a.west) -- (b.west) {};
+\draw[->, thick] (b.east) -- (a.east) {};
+
+\node[minimum width = 1.0cm] (a) at (P2.south) {};
+\node[minimum width = 1.0cm] (b) at (S2.north) {};
+\draw[->, thick] (a.west) -- (b.west) {};
+\draw[->, thick] (b.east) -- (a.east) {};
+
+
 
 \begin{pgfonlayer}{background}
 \path (N0)+(0,+0.2) node (a) {};
 \path (N1.south east)+(1.0,-0.7) node (b) {};
 \path [fill = blue!10, draw = black] (a) rectangle (b);
 \end{pgfonlayer}
+
+\begin{pgfonlayer}{background}
+\path (N0)+(0.0,-1.0) node (a) {};
+\path (N1.south east)+(1.0,-1.8) node (b) {};
+\path [fill = yellow!10, draw = black] (a) rectangle (b);
+\end{pgfonlayer}
+
+\begin{pgfonlayer}{background}
+\path (N0)+(0.0,-2.1) node (a) {};
+\path (N1.south east)+(1.0,-2.9) node (b) {};
+\path [fill = red!10, draw = black] (a) rectangle (b);
+\end{pgfonlayer}
+
 
 \end{tikzpicture}
 \end{document}
