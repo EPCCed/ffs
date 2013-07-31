@@ -4,10 +4,12 @@
  *
  *****************************************************************************/
 
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+
 #include "interface.h"
 #include "ffs.h"
 #include "sim_lmp.h"
@@ -676,19 +678,31 @@ int lmp_read_restart(sim_lmp_t * obj, ffs_t * ffs, const char * stub) {
   return ifail;
 }
 
+/*****************************************************************************
+ *
+ *  lmp_execute
+ *
+ *  We have added "ntimestep" to those variables which may be
+ *  accessed via lammps_extract_global() in library.cpp to allow
+ *  us to compute the current time.
+ *
+ *  Note that the default situation for LAMMPS is that the time step
+ *  is of type "bigint" which is int64_t (LAMMPS_SMALLBIG in lmptype.h).
+ *
+ *  We use int64_t here as well to compute the time n*dt
+ *
+ *****************************************************************************/
+
 int lmp_execute(sim_lmp_t * obj) {
   
   int ifail = 0;
 
-  int step; /*the current step */
-  double dt; /*timestep*/
+  int64_t step;
+  double dt;
 
   lammps_command(obj->lmp, obj->run_command);
-  
-  /* We have added ntimestep to library.cpp in LAMMPS; note
-   * that ntimestep is a 64-bit int in LAMMPS */
 
-  step = *((int *) lammps_extract_global(obj->lmp, "ntimestep"));
+  step = *((int64_t *) lammps_extract_global(obj->lmp, "ntimestep"));
   dt = *((double *) lammps_extract_global(obj->lmp, "dt"));
 
   obj->time = dt*step;

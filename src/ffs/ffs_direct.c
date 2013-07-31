@@ -554,14 +554,16 @@ int ffs_direct_results(ffs_trial_arg_t * trial) {
     if (n > 1) {
       ffs_param_ntrial(trial->param, n - 1, &ntry);
       if (wt > 1.0*ntry) wt = 1.0*ntry;   /* Can happen with pruning */
-      plambda = 0.0;
       if (ntry > 0) plambda *= (wt / ntry);
     }
 
     ffs_param_ntrial(trial->param, n, &ntry);
 
     nsuccess = 0;
-    if (n < nlambda) ffs_result_trial_success(trial->result, n+1, &nsuccess);
+    if (n < nlambda) {
+      ffs_result_trial_success(trial->result, n+1, &nsuccess);
+      if (nsuccess == 0) plambda = 0.0; /* zero if no trials & no success */
+    }
 
     mpilog(trial->log, "  %3d %11.4e  %5d %7d %7d %7d %4d %11.4e\n", n, lambda,
 	   nstates, ntry, nsuccess, nprune, nto, plambda);
