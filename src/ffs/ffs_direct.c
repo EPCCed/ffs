@@ -376,6 +376,13 @@ static int ffs_direct_advance(ffs_ensemble_t ** old, ffs_trial_arg_t * trial) {
 
   for (n = 1; n < nlambda; n++) {
 
+    /* If there are no states, leave the loop, otherwise continue */
+
+    if ((*old)->nsuccess == 0) {
+      mpilog(trial->log, "No states to continue from lambda %d.\n", n);
+      break;
+    }
+
     mpilog(trial->log, "Direct trial from interface %2d\n", n);
 
     ffs_param_nstate(trial->param, n+1, &nstate);
@@ -547,7 +554,8 @@ int ffs_direct_results(ffs_trial_arg_t * trial) {
     if (n > 1) {
       ffs_param_ntrial(trial->param, n - 1, &ntry);
       if (wt > 1.0*ntry) wt = 1.0*ntry;   /* Can happen with pruning */
-      plambda *= (wt / ntry);
+      plambda = 0.0;
+      if (ntry > 0) plambda *= (wt / ntry);
     }
 
     ffs_param_ntrial(trial->param, n, &ntry);
