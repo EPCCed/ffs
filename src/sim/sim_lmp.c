@@ -783,6 +783,53 @@ int dimer_evaluate_lambda(sim_lmp_t * obj, ffs_t * ffs, double * lambda){
   return 0;
 }
 
+int dimer_evaluate_lambda2(sim_lmp_t * obj, ffs_t * ffs, double * lambda){
+
+  double coords_dimer_local[6];
+  double coords_dimer[6];
+  int ndimer_local;
+  int ndimer;
+
+  int nlocal;
+  double **coords_local;
+  /*
+  nlocal = *((int *)) lammps_extract_global(obj, "nlocal");
+  coords_local = **((double *)) lammps_extract_atom(obj, "x");
+  */
+}
+
+int dimer_evaluate_lambda3(sim_lmp_t * obj, ffs_t * ffs, double * lambda) {
+
+  double * dist = NULL;
+  void * test = NULL;
+  MPI_Comm comm = MPI_COMM_NULL;
+  int me,step;
+  
+  ffs_comm(ffs, &comm);
+  MPI_Comm_rank(comm, &me);
+  printf ("hep me[%d]\n",me);
+  
+  //printf("%lf\n", (double *)lammps_extract_compute(obj->lmp,"1", 2, 1)));
+  //dist = *((double *) lammps_extract_compute(obj,(char *) "thermo_pe", 0, 0));
+  /* this relies on line
+   * compute 1 all bond/local dist
+   * in the input script
+   */
+  
+  //dist = ((double *) lammps_extract_compute(obj->lmp, "1", 2, 1));
+  
+  step = *((int *) lammps_extract_global(obj->lmp, "ntimestep"));
+  dist = ((double *) lammps_extract_compute(obj->lmp, "1", 2, 1));
+  if ( dist != NULL){
+    
+    printf ("me[%d] step %d dist = %lf\n", me,step,*dist);
+  
+    *lambda = *dist;
+  }
+  
+  return 0;
+}
+
 int get_coord_with_type(double * coords, int * types, int natoms, int desired_type, double * dc, int * nc)
 {
 
