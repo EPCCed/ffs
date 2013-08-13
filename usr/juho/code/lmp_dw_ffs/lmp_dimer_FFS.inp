@@ -1,0 +1,78 @@
+ffs
+{
+	ffs_instances	1
+	ffs_seed	479232831
+
+	ffs_inst
+	{
+		method			direct
+		sim_name		lmp
+		sim_mpi_tasks		1
+		sim_argv		-sc none -in dimer.FFS.in -log none
+
+ 		init_independent	 yes
+		init_ntrials 100
+		init_teq  10.0
+		init_nskip  1
+		init_nstepmax  100000
+		init_nsteplambda 1
+		init_prob_accept        1.0
+
+		trial_nstepmax          100000
+		pprune_default 1.0
+
+	}
+	
+	interfaces
+	{
+		nlambda 11
+		nstate_default          10
+		ntrial_default		100		
+		interface1
+		{
+			lambda 1.24
+		}
+		interface2
+		{
+			lambda 1.27
+		}
+		interface3
+		{
+			lambda 1.30
+		}
+		interface4
+		{
+			lambda 1.34
+		}
+		interface5
+		{
+			lambda 1.37
+		}
+		interface6
+		{
+			lambda 1.40
+		}
+		interface7
+		{
+			lambda 1.43
+		}
+		interface8
+		{
+			lambda 1.46
+		}
+		interface9
+		{
+			lambda 1.49
+		}
+		interface10
+		{
+			lambda 1.52
+		}
+		interface11
+		{
+			lambda 1.74
+			ntrial 0	
+			nstate 0
+		}
+	}
+}
