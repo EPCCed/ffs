@@ -485,12 +485,12 @@ int ffs_control_summary(ffs_control_t * obj) {
   double * f1 = NULL;        /* Instance fluxes */
   double * pb = NULL;        /* Instance conditional probabilities */
 
-  double fbar;               /* Sample mean Flux_A */
-  double pbar;               /* Sample mean P(B|A) */
-  double rbar;               /* Sample mean result = Flux_A x P(B|A) */
-  double varf;               /* Sample std dev^2. (1/N-1) x sum (a - abar)^2 */
-  double varp;               /* ... and standard error (1/sqrt(N)) x std dev */
-  double varr;
+  double fbar = 0.0;         /* Sample mean Flux_A */
+  double pbar = 0.0;         /* Sample mean P(B|A) */
+  double rbar = 0.0;         /* Sample mean result = Flux_A x P(B|A) */
+  double varf = 0.0;         /* Sample std dev^2. (1/N-1) x sum (a - abar)^2 */
+  double varp = 0.0;         /* ... and standard error (1/sqrt(N)) x std dev */
+  double varr = 0.0;
 
   dbg_return_if(obj == NULL, -1);
 
@@ -529,10 +529,6 @@ int ffs_control_summary(ffs_control_t * obj) {
   }
 
   /* Statistics */
-
-  fbar = 0.0;
-  pbar = 0.0;
-  rbar = 0.0;
 
   for (n = 0; n < obj->ninstances; n++) {
     fbar += f1[n];
