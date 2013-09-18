@@ -9,7 +9,9 @@
  *****************************************************************************/
 
 #include <stdio.h>
+#include <math.h>
 #include <mpi.h>
+
 
 #include "u/libu.h"
 #include "../../conf.h"
@@ -229,10 +231,11 @@ int ffs_control_execute(ffs_control_t * obj, const char * configfilename) {
   err_err_if(ffs_inst_start(obj->instance, u_string_c(obj->name), "w+"));
   err_err_if(ffs_inst_execute(obj->instance, config));
 
+  /* Copy out the result summary on the instance root, so
+   * have the information */
+
   dbg_err_if( ffs_result_summary_create(&obj->res) );
   dbg_err_if( ffs_inst_stop(obj->instance, obj->res) );
-
-  /* Compound statistics TODO (before finishing off instances) */
 
   ffs_inst_free(obj->instance);
   ranlcg_free(ran);
@@ -465,4 +468,120 @@ int ffs_control_log(ffs_control_t * obj) {
   dbg_return_if(ffs_control_log_to_mpilog(obj, obj->log), -1);
 
   return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_control_summary
+ *
+ *****************************************************************************/
+
+int ffs_control_summary(ffs_control_t * obj) {
+
+  int n;
+  int inst, rank;
+  double * f1_local = NULL;
+  double * pb_local = NULL;
+  double * f1 = NULL;        /* Instance fluxes */
+  double * pb = NULL;        /* Instance conditional probabilities */
+
+  double fbar;               /* Sample mean Flux_A */
+  double pbar;               /* Sample mean P(B|A) */
+  double rbar;               /* Sample mean result = Flux_A x P(B|A) */
+  double varf;               /* Sample std dev^2. (1/N-1) x sum (a - abar)^2 */
+  double varp;               /* ... and standard error (1/sqrt(N)) x std dev */
+  double varr;
+
+  dbg_return_if(obj == NULL, -1);
+
+  f1_local = u_calloc(obj->ninstances, sizeof(double));
+  pb_local = u_calloc(obj->ninstances, sizeof(double));
+
+  dbg_err_if(f1_local == NULL || pb_local == NULL);
+
+  f1 = u_calloc(obj->ninstances, sizeof(double));
+  pb = u_calloc(obj->ninstances, sizeof(double));
+
+  dbg_err_if(f1 == NULL || pb == NULL);
+
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "FFS Instance summary...\n\n");
+
+  /* Collect one copy of the instance results on control root. */
+
+  for (n = 0; n < obj->ninstances; n++) {
+    ffs_result_summary_rank(obj->res, &rank);
+    ffs_result_summary_inst(obj->res, &inst);
+    if (rank == 0) {
+      ffs_result_summary_stat(obj->res, f1_local + inst, pb_local + inst);
+    }
+  }
+
+  MPI_Reduce(f1_local, f1, obj->ninstances, MPI_DOUBLE, MPI_SUM, 0, obj->comm);
+  MPI_Reduce(pb_local, pb, obj->ninstances, MPI_DOUBLE, MPI_SUM, 0, obj->comm);
+
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "   Instance    Flux_A         P(B|A)         Final\n");
+
+  for (n = 0; n < obj->ninstances; n++) {
+    mpilog(obj->log, "       %4.4d   %14.7e %14.7e %14.7e\n",
+	   n, f1[n], pb[n], f1[n]*pb[n]);
+  }
+
+  /* Statistics */
+
+  fbar = 0.0;
+  pbar = 0.0;
+  rbar = 0.0;
+
+  for (n = 0; n < obj->ninstances; n++) {
+    fbar += f1[n];
+    pbar += pb[n];
+    rbar += f1[n]*pb[n];
+  }
+
+  fbar /= obj->ninstances;
+  pbar /= obj->ninstances;
+  rbar /= obj->ninstances;
+
+  if (obj->ninstances > 1) {
+
+    mpilog(obj->log,
+	   "----------------------------------------------------------\n");
+    mpilog(obj->log, "Sample mean:  %14.7e %14.7e %14.7e\n", fbar, pbar, rbar);
+
+    for (n = 0; n < obj->ninstances; n++) {
+      varf += (f1[n] - fbar)*(f1[n] - fbar);
+      varp += (pb[n] - pbar)*(pb[n] - pbar);
+      varr += (f1[n]*pb[n] - rbar)*(f1[n]*pb[n] - rbar);
+    }
+
+    varf = sqrt(varf) / (obj->ninstances - 1);
+    varp = sqrt(varp) / (obj->ninstances - 1);
+    varr = sqrt(varr) / (obj->ninstances - 1);
+
+    mpilog(obj->log, "Sample sigma: %14.7e %14.7e %14.7e\n", varf, varp, varr);
+
+    varf /= sqrt(1.0*obj->ninstances);
+    varp /= sqrt(1.0*obj->ninstances);
+    varr /= sqrt(1.0*obj->ninstances);
+
+    mpilog(obj->log, "Std. error:   %14.7e %14.7e %14.7e\n", varf, varp, varr);
+  }
+
+  u_free(pb);
+  u_free(f1);
+  u_free(pb_local);
+  u_free(f1_local);
+
+  return 0;
+
+ err:
+
+  if (f1_local) u_free(f1_local);
+  if (pb_local) u_free(pb_local);
+  if (f1) u_free(f1);
+  if (pb) u_free(pb);
+
+  return -1;
 }

@@ -11,7 +11,7 @@ struct ffs_result_summary_s {
 
   int ninst;           /* Number of instances */
   int inst_rank;       /* Instance rank */
-  int inst_status;     /* Instance final status */
+  int inst_id;         /* Instance id */
   double f1;           /* Flux at initial interface */
   double pab;          /* Conditional probability P(lambda_b | lambda_a) */
 
@@ -102,6 +102,70 @@ int ffs_result_summary_copy(ffs_result_summary_t * source,
 
   dest->f1 = source->f1;
   dest->pab = source->pab;
+  dest->inst_id = source->inst_id;
+  dest->inst_rank = source->inst_rank;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_summary_inst
+ *
+ *****************************************************************************/
+
+int ffs_result_summary_inst(ffs_result_summary_t * obj, int * inst) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(inst == NULL, -1);
+
+  *inst = obj->inst_id;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_summary_inst_set
+ *
+ *****************************************************************************/
+
+int ffs_result_summary_inst_set(ffs_result_summary_t * obj, int inst) {
+
+  dbg_return_if(obj == NULL, -1);
+
+  obj->inst_id = inst;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_summary_rank
+ *
+ *****************************************************************************/
+
+int ffs_result_summary_rank(ffs_result_summary_t * obj, int * rank) {
+
+  dbg_return_if(obj == NULL, -1);
+  dbg_return_if(rank == NULL, -1);
+
+  *rank = obj->inst_rank;
+
+  return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_result_summary_rank_set
+ *
+ *****************************************************************************/
+
+int ffs_result_summary_rank_set(ffs_result_summary_t * obj, int rank) {
+
+  dbg_return_if(obj == NULL, -1);
+
+  obj->inst_rank = rank;
 
   return 0;
 }

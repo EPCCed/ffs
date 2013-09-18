@@ -473,12 +473,13 @@ static int dmc_write_state(dynam_t * dyn, const char * filename, state_t * p) {
 int dmc_init(dynam_t * dyn, int argc, char ** argv) {
 
   int ifail = 0;
+  int verbose = 0;
 
   if (argc < 3) return -1;
 
   ifail += dmc_read_components(dyn, argv[1]);
   ifail += dmc_read_reactions(dyn, argv[2]);
-  ifail += dmc_print_reactions(dyn);
+  if (verbose) ifail += dmc_print_reactions(dyn);
   ifail += ranlcg_create(23, &dyn->rng);
 
   return ifail;

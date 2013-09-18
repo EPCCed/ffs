@@ -35,6 +35,7 @@ int main(int argc, char ** argv) {
 
     ffs_control_start(ffs, "testrun");
     ffs_control_execute(ffs, argv[1]);
+    ffs_control_summary(ffs);
     ffs_control_stop(ffs, NULL);
     ffs_control_free(ffs);
   }

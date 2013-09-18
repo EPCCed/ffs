@@ -194,8 +194,14 @@ int ffs_inst_start(ffs_inst_t * obj, const char * filename,
 
 int ffs_inst_stop(ffs_inst_t * obj, ffs_result_summary_t * result) {
 
+  int inst_rank;
+
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(obj->log == NULL, -1);
+
+  MPI_Comm_rank(obj->comm, &inst_rank);
+  ffs_result_summary_inst_set(obj->summary, obj->inst_id);
+  ffs_result_summary_rank_set(obj->summary, inst_rank);
 
   if (result) ffs_result_summary_copy(obj->summary, result);
 

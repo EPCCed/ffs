@@ -204,6 +204,17 @@ int ffs_control_log_to_mpilog(ffs_control_t * obj, mpilog_t * log);
 
 int ffs_control_log(ffs_control_t * obj);
 
+/**
+ *  \brief Control summary
+ *
+ *  \param  obj        the ffs_control_t object
+ *
+ *  \retval 0          a success
+ *  \retval -1         a NULL pointer was received, or a problem occured
+ *                     generating the statistics.
+ */
+
+int ffs_control_summary(ffs_control_t * obj);
 
 /**
  *  \}

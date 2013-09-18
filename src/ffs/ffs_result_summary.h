@@ -93,6 +93,53 @@ int ffs_result_summary_stat(ffs_result_summary_t * obj, double * f1,
 int ffs_result_summary_copy(ffs_result_summary_t * source,
 			    ffs_result_summary_t * dest);
 
+/**
+ *  \brief Return the result instance id
+ *
+ *  \param     obj       result structure
+ *  \param     inst      pointer to the integer id
+ *
+ *  \retval    0         a success
+ *  \retcal    -1        a NULL pointer was reeceived
+ */
+
+int ffs_result_summary_inst(ffs_result_summary_t * obj, int * inst);
+
+/**
+ *  \brief Set the summary instance rank
+ *
+ *  \param     obj       result structure
+ *  \param     inst      the integer id
+ *
+ *  \retval    0         a success
+ *  \retcal    -1        a NULL pointer was reeceived
+ */
+
+int ffs_result_summary_inst_set(ffs_result_summary_t * obj, int inst);
+
+/**
+ *  \brief Return the result instance rank
+ *
+ *  \param     obj       result structure
+ *  \param     rank      pointer to the integer rank
+ *
+ *  \retval    0         a success
+ *  \retcal    -1        a NULL pointer was reeceived
+ */
+
+int ffs_result_summary_rank(ffs_result_summary_t * obj, int * rank);
+
+/**
+ *  \brief Set the summary instance rank
+ *
+ *  \param     obj       result structure
+ *  \param     rank      the integer rank
+ *
+ *  \retval    0         a success
+ *  \retcal    -1        a NULL pointer was reeceived
+ */
+
+int ffs_result_summary_rank_set(ffs_result_summary_t * obj, int rank);
 
 /**
  *  \}

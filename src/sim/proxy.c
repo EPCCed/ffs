@@ -107,7 +107,7 @@ int proxy_delegate_create(proxy_t * obj, const char * name) {
   dbg_return_if(name == NULL, -1);
 
   err_err_if(factory_inquire(name, &present));
-  err_err_ifm(present == 0, "No proxy with %d", name);
+  err_err_ifm(present == 0, "No proxy with %s", name);
   err_err_if(factory_make(obj->comm, name, &obj->vtable, &obj->delegate));
 
   return 0;
