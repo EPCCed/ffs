@@ -7,6 +7,7 @@
  *****************************************************************************/
 
 #include <stdio.h>
+#include <math.h>
 #include <mpi.h>
 
 #include "ffs_control.h"
@@ -16,10 +17,12 @@
 int main(int argc, char ** argv) {
 
   int rank;
+  double t0;
   ffs_control_t * ffs = NULL;
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  t0 = MPI_Wtime();
 
   u_log_set_hook(util_ulog, NULL, NULL, NULL);
 
@@ -38,6 +41,15 @@ int main(int argc, char ** argv) {
     ffs_control_summary(ffs);
     ffs_control_stop(ffs, NULL);
     ffs_control_free(ffs);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    t0 = MPI_Wtime() - t0;
+    if (rank == 0) {
+      printf("\n");
+      printf("Elapsed time: %14.7e sec (%2.2d:%2.2d:%2.2d)\n", t0,
+	     (int)(t0/3600.0),
+	     (int) (fmod(t0, 3600.0)/60.0), (int)(fmod(t0, 60.0)));
+    }
   }
 
   MPI_Finalize();
