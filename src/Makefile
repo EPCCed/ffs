@@ -12,6 +12,7 @@ SRCS += ffs/ffs_control.c
 SRCS += ffs/ffs_trial.c
 SRCS += ffs/ffs_direct.c
 SRCS += ffs/ffs_branched.c
+SRCS += ffs/ffs_brute_force.c
 SRCS += ffs/ffs_rosenbluth.c
 SRCS += ffs/ffs_result.c
 SRCS += ffs/ffs_result_aflux.c

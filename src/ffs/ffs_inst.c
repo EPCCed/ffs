@@ -24,6 +24,7 @@
 #include "ffs_direct.h"
 #include "ffs_branched.h"
 #include "ffs_rosenbluth.h"
+#include "ffs_brute_force.h"
 #include "ffs_inst.h"
 
 struct ffs_inst_type {
@@ -63,6 +64,7 @@ static int ffs_inst_run(ffs_inst_t * obj);
 static int ffs_inst_compute_proxy_size(ffs_inst_t * obj);
 static int ffs_inst_start_xcomm(ffs_inst_t * obj);
 static int ffs_inst_aflux_result(ffs_result_aflux_t * flux, mpilog_t * log);
+static int ffs_inst_run_brute_force(ffs_inst_t * obj);
 
 /*****************************************************************************
  *
@@ -242,6 +244,11 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
     mpilog(obj->log, "Rosenbluth method was selected\n");
     dbg_err_if( ffs_inst_run(obj) );
     break;
+  case FFS_METHOD_BRUTE_FORCE:
+    mpilog(obj->log, "Brute force was selected\n");
+    printf("EXECUTE BRUTE FORCE HERE\n");
+    dbg_err_if( ffs_inst_run_brute_force(obj) );
+    break;
   default:
     dbg_err("Internal error: no method");
   }
@@ -313,6 +320,9 @@ int ffs_inst_init_from_config(ffs_inst_t * obj, u_config_t * input) {
   }
   else if (strcmp(method, FFS_CONFIG_METHOD_ROSENBLUTH) == 0) {
     obj->method = FFS_METHOD_ROSENBLUTH;
+  }
+  else if (strcmp(method, FFS_CONFIG_METHOD_BRUTE_FORCE) == 0) {
+    obj->method = FFS_METHOD_BRUTE_FORCE;
   }
   else {
     /* The requested method was not recognised */
@@ -492,6 +502,8 @@ const char * ffs_inst_method_name(ffs_inst_t * obj) {
     return FFS_CONFIG_METHOD_DIRECT;
   case FFS_METHOD_ROSENBLUTH:
     return FFS_CONFIG_METHOD_ROSENBLUTH;
+  case FFS_METHOD_BRUTE_FORCE:
+    return FFS_CONFIG_METHOD_BRUTE_FORCE;
   }
 
   return "unrecognised";
@@ -621,6 +633,9 @@ static int ffs_inst_run(ffs_inst_t * obj) {
     ffs_result_reduce(obj->result, obj->x_comm);
     ffs_rosenbluth_results(trial);
     break;
+
+  case FFS_METHOD_BRUTE_FORCE:
+    dbg_err("Should not being doing brute force here");
 
   default:
     dbg_err("Internal error: no method");
@@ -879,4 +894,46 @@ static int ffs_inst_aflux_result(ffs_result_aflux_t * flux, mpilog_t * log) {
   mpilog(log, "\n");
 
   return 0;
+}
+
+/*****************************************************************************
+ *
+ *  ffs_inst_run_brute_force
+ *
+ *****************************************************************************/
+
+static int ffs_inst_run_brute_force(ffs_inst_t * obj) {
+
+  ffs_trial_arg_t list;
+  ffs_trial_arg_t * trial = &list;
+
+  dbg_return_if(obj == NULL, -1);
+
+  /* Parameters */
+
+  /* Start proxy */
+
+  dbg_err_if( ffs_inst_start_proxy(obj) );
+
+  trial->init = obj->init;
+  trial->param = obj->param;
+  trial->proxy = obj->proxy;
+  trial->inst_id = obj->inst_id;
+  trial->nproxy = obj->nproxy;
+  trial->inst_seed = obj->seed;
+  trial->log = obj->log;
+  trial->xcomm = obj->x_comm;
+  trial->inst_comm = obj->comm;
+  trial->nstepmax = obj->nstepmax_trial;
+  trial->nsteplambda = obj->nsteplambda_trial;
+
+  dbg_err_if( ffs_brute_force_run(trial) );
+
+  ffs_inst_stop_proxy(obj);
+
+  return 0;
+
+ err:
+
+  return -1;
 }

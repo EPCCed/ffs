@@ -250,12 +250,12 @@ int ffs_param_check(ffs_param_t * obj) {
   dbg_return_if(obj == NULL, -1);
 
   mpilog_err_if(obj->nlambda < 2, obj->log,
-		"At least two interfaces are required");
+		"At least two interfaces are required\n");
 
   for (n = 1; n < obj->nlambda; n++) {
     mpilog_err_if(obj->interfaces[n+1].lambda <= obj->interfaces[n].lambda,
 		  obj->log,
-		  "Interface %d lambda %f <= interface %d lambda %f",
+		  "Interface %d lambda %f <= interface %d lambda %f\n",
 		  n+1, obj->interfaces[n+1].lambda,
 		  n, obj->interfaces[n].lambda);
   }
@@ -263,8 +263,8 @@ int ffs_param_check(ffs_param_t * obj) {
   obj->interfaces[0].pprune = 1.0;
 
   if (obj->interfaces[1].pprune < 1.0) {
-    mpilog(obj->log, "Note: pruning probability at lambda_a must be unity");
-    mpilog(obj->log, "Setting interface[1] pprune = 1.0");
+    mpilog(obj->log, "Note: pruning probability at lambda_a must be unity\n");
+    mpilog(obj->log, "Setting interface[1] pprune = 1.0\n");
     obj->interfaces[1].pprune = 1.0;
   }
 
@@ -275,7 +275,7 @@ int ffs_param_check(ffs_param_t * obj) {
 
  err:
 
-  mpilog(obj->log, "Please check the set of interfaces and try again");
+  mpilog(obj->log, "Please check the set of interfaces and try again\n");
 
   return -1;
 }
