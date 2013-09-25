@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include <mpi.h>
 
 #include "u/libu.h"
@@ -37,6 +38,8 @@ struct ffs_inst_type {
   MPI_Comm x_comm;      /* instance x communicator between proxies */
   ffs_param_t * param;  /* Parameters (interfaces) */
   mpilog_t * log;       /* Instance log */
+  double t0;            /* Start of instance elapsed time */ 
+  double t1;            /* End of instance elapsed time */
 
   /* Simulation (proxy) details */
 
@@ -179,6 +182,10 @@ int ffs_inst_start(ffs_inst_t * obj, const char * filename,
   mpilog(obj->log, "Running on %d MPI task%s\n", sz, (sz > 1) ? "s" : "");
   mpilog(obj->log, "The instance RNG seed is %d\n", obj->seed);
 
+  /* Record the start time for this instance */
+
+  obj->t0 = MPI_Wtime();
+
   return 0;
 
  err:
@@ -197,6 +204,7 @@ int ffs_inst_start(ffs_inst_t * obj, const char * filename,
 int ffs_inst_stop(ffs_inst_t * obj, ffs_result_summary_t * result) {
 
   int inst_rank;
+  double t;
 
   dbg_return_if(obj == NULL, -1);
   dbg_return_if(obj->log == NULL, -1);
@@ -206,6 +214,15 @@ int ffs_inst_stop(ffs_inst_t * obj, ffs_result_summary_t * result) {
   ffs_result_summary_rank_set(obj->summary, inst_rank);
 
   if (result) ffs_result_summary_copy(obj->summary, result);
+
+  /* Record the elapsed time hr:min:sec */
+
+  t = obj->t1 - obj->t0;
+
+  mpilog(obj->log, "\n");
+  mpilog(obj->log, "Instance elapsed time: %2.2d:%2.2d:%2.2d\n",
+	 (int)(t/3600.0), (int)(fmod(t, 3600.0)/60.0),
+	 (int)(fmod(t, 60.0)));
 
   mpilog(obj->log, "\n");
   mpilog(obj->log, "Instance finished cleanly\n");
@@ -257,6 +274,11 @@ int ffs_inst_execute(ffs_inst_t * obj, u_config_t * input) {
 
   ffs_param_free(obj->param);
   obj->param = NULL;
+
+  /* Record the finish time here, having synchronised */
+
+  MPI_Barrier(obj->comm);
+  obj->t1 = MPI_Wtime();
 
   return 0;
 
