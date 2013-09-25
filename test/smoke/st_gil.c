@@ -44,8 +44,8 @@ int st_dmc_branched(u_test_case_t * tc) {
 
   /* These are the results expected */
   dbg_err_if( ffs_result_summary_stat(result, &f1, &pab) );
-  dbg_err_if( util_compare_double(f1,  1.000568e-02, FLT_EPSILON) );
-  dbg_err_if( util_compare_double(pab, 8.489543e-03, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(f1,  1.2250948e-02, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(pab, 2.4882139e-03, FLT_EPSILON) );
 
 
   /* Smoke test 2 */
@@ -59,8 +59,8 @@ int st_dmc_branched(u_test_case_t * tc) {
   ffs = NULL;
 
   dbg_err_if( ffs_result_summary_stat(result, &f1, &pab) );
-  dbg_err_if( util_compare_double(f1,  2.000004e-02, FLT_EPSILON) );
-  dbg_err_if( util_compare_double(pab, 3.574820e-04, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(f1,  1.7070257e-02, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(pab, 8.5755337e-04, FLT_EPSILON) );
 
   ffs_result_summary_free(result);
 
@@ -102,8 +102,8 @@ int st_dmc_direct(u_test_case_t * tc) {
   ffs = NULL;
 
   dbg_err_if( ffs_result_summary_stat(result, &f1, &pab) );
-  dbg_err_if( util_compare_double(f1,  1.691977e-02, FLT_EPSILON) );
-  dbg_err_if( util_compare_double(pab, 2.310262e-04, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(f1,  2.3113490e-02, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(pab, 1.0939857e-03, FLT_EPSILON) );
 
   ffs_result_summary_free(result);
   u_dbg("Success\n");
@@ -148,8 +148,8 @@ int st_dmc_rosenbluth(u_test_case_t * tc) {
   ffs = NULL;
 
   dbg_err_if( ffs_result_summary_stat(result, &f1, &pab) );
-  dbg_err_if( util_compare_double(f1,  1.461348e-02, FLT_EPSILON) );
-  dbg_err_if( util_compare_double(pab, 2.864147e-03, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(f1,  2.6800538e-03, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(pab, 0.0,           FLT_EPSILON) );
 
   dbg_err_if( ffs_control_create(MPI_COMM_WORLD, &ffs) );
   dbg_err_if( ffs_control_start(ffs, log2) );
@@ -160,8 +160,8 @@ int st_dmc_rosenbluth(u_test_case_t * tc) {
   ffs = NULL;
 
   dbg_err_if( ffs_result_summary_stat(result, &f1, &pab) );
-  dbg_err_if( util_compare_double(f1,  1.169919e-02, FLT_EPSILON) );
-  dbg_err_if( util_compare_double(pab, 4.230173e-02, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(f1,  1.2106479e-02, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(pab, 1.7781842e-04, FLT_EPSILON) );
 
   ffs_result_summary_free(result);
   u_dbg("Success\n");
