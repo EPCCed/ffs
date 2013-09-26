@@ -229,6 +229,32 @@ int ffs_result_reduce(ffs_result_t * obj, MPI_Comm comm) {
 
   MPI_Allreduce(st_local, obj->nto, obj->nlambda + 1, MPI_INT, MPI_SUM, comm);
 
+  /* Also use st_local for number of starts */
+
+  for (n = 0; n <= obj->nlambda; n++) {
+    st_local[n] = obj->nstart[n];
+  }
+
+  MPI_Allreduce(st_local, obj->nstart, obj->nlambda + 1, MPI_INT, MPI_SUM, comm);
+
+  /* Also use st_local for number of backward going trajectories */
+
+  for (n = 0; n <= obj->nlambda; n++) {
+    st_local[n] = obj->nback[n];
+  }
+
+  MPI_Allreduce(st_local, obj->nback, obj->nlambda + 1, MPI_INT, MPI_SUM, comm);
+
+  /* Also for ndrop */
+
+  for (n = 0; n <= obj->nlambda; n++) {
+    st_local[n] = obj->ndrop[n];
+  }
+
+  MPI_Allreduce(st_local, obj->ndrop, obj->nlambda + 1, MPI_INT, MPI_SUM, comm);
+
+
+
   u_free(st_local);
 
 
