@@ -672,6 +672,7 @@ static int ffs_inst_run(ffs_inst_t * obj) {
  err:
 
   if (obj->result) ffs_result_free(obj->result);
+  obj->result = NULL;
   if (obj->proxy) ffs_inst_stop_proxy(obj);
 
   return -1;
