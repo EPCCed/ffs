@@ -40,11 +40,15 @@ cannot be used as the basis of future trials from the first interface.
 
 \section ffs_ex_eq Equilibration of the reference state
 
-As the reference state is fixed, it may be necessary to equilibrate
-this state in the A basin before starting a trial trajectory. An
+As the reference state is fixed, it may be important to avoid a
+bias in initial states which may be 'nearby' in state space.
+One can therefore ignore any crossings of the first interface
+which occur before some 'equilibration time' \f$ t_{eq} \f$.
+An
 equilibration time \f$ t_{eq} \f$ may be defined in the input file.
-The simulation is run for this time before attempts to identify
-initial states at \f$ \lambda_1 \f$ are made.
+The simulation is run for this time before it records any forward
+crossings of the first interface, i.e., generates any
+initial states at \f$ \lambda_1 \f$.
 The equilibration time does not
 contribute to the calculation of the flux at the first interface.
 
@@ -59,13 +63,11 @@ Relevant input file parameters are:
 which set, respectively, the initial equilibration time \f$ t_{eq}\f$
 in simulation units,
 and a maximum number of steps (simulation iterations) that the
-equilibration will run before timing out. Note that if, at the
-end of the equilibration period, the simulation is not in state A
-(ie., \f$ \lambda < \lambda_1\f$) a further attempt at equilibration
-will be made. If the equilibration fails, it may suggest a poor choice
-of initial reference state or initial interface. For problems with
+equilibration will run before timing out. For problems with
 modest barriers, the simulation may enter state B during the
 equilibration period, which may suggest \f$ t_{eq}\f$ could be reduced.
+If this does occur, the simulation is returned to the reference state,
+and a new trial started.
 
 ----
 
@@ -82,8 +84,8 @@ the basis of forward trajectories.
 ![](./init2a.gif "Single trajectory")
 
 As these states may be close together in state space, it may be desirable
-to sub-sample the initial crossing points by skipping every so many states,
-or accepting them with some probability (or some combination). However,
+to sub-sample the initial crossing points by skipping every so many states;
+this can be done by accepting them with some probability. However,
 all the crossings are
 recorded in order to compute the flux at \f$ \lambda_1 \f$.
 
@@ -93,14 +95,13 @@ Relevant entries in the input file are:
         {
                 init_independent        no
                 init_ntrials            3
-                init_nskip              10
-                init_prob_accept        1.0
+                init_prob_accept        0.1
                 init_nsteplambda        1
         }
 \endcode
 Here, the number of states (and hence initial trials) requested is
-3; every tenth crossing of the first interface generates a state,
-which is accepted with probability unity. The `init_nsteplambda`
+3; a forward crossing of the initial interface will give rise to an
+FFS trial with probability one tenth. The `init_nsteplambda`
 key states that the value of \f$ \lambda \f$ will be computed at
 every simulation iteration. If the order parameter itself is
 costly to compute, it may be desirable to decrease the frequency.

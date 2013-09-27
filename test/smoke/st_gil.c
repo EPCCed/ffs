@@ -44,8 +44,8 @@ int st_dmc_branched(u_test_case_t * tc) {
 
   /* These are the results expected */
   dbg_err_if( ffs_result_summary_stat(result, &f1, &pab) );
-  dbg_err_if( util_compare_double(f1,  1.2250948e-02, FLT_EPSILON) );
-  dbg_err_if( util_compare_double(pab, 2.4882139e-03, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(f1,  9.0845812e-03, FLT_EPSILON) );
+  dbg_err_if( util_compare_double(pab, 1.1940658e-02, FLT_EPSILON) );
 
 
   /* Smoke test 2 */

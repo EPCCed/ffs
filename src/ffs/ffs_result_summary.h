@@ -100,7 +100,7 @@ int ffs_result_summary_copy(ffs_result_summary_t * source,
  *  \param     inst      pointer to the integer id
  *
  *  \retval    0         a success
- *  \retcal    -1        a NULL pointer was reeceived
+ *  \retval    -1        a NULL pointer was reeceived
  */
 
 int ffs_result_summary_inst(ffs_result_summary_t * obj, int * inst);
@@ -112,7 +112,7 @@ int ffs_result_summary_inst(ffs_result_summary_t * obj, int * inst);
  *  \param     inst      the integer id
  *
  *  \retval    0         a success
- *  \retcal    -1        a NULL pointer was reeceived
+ *  \retval    -1        a NULL pointer was reeceived
  */
 
 int ffs_result_summary_inst_set(ffs_result_summary_t * obj, int inst);
@@ -124,7 +124,7 @@ int ffs_result_summary_inst_set(ffs_result_summary_t * obj, int inst);
  *  \param     rank      pointer to the integer rank
  *
  *  \retval    0         a success
- *  \retcal    -1        a NULL pointer was reeceived
+ *  \retval    -1        a NULL pointer was reeceived
  */
 
 int ffs_result_summary_rank(ffs_result_summary_t * obj, int * rank);
@@ -136,7 +136,7 @@ int ffs_result_summary_rank(ffs_result_summary_t * obj, int * rank);
  *  \param     rank      the integer rank
  *
  *  \retval    0         a success
- *  \retcal    -1        a NULL pointer was reeceived
+ *  \retval    -1        a NULL pointer was reeceived
  */
 
 int ffs_result_summary_rank_set(ffs_result_summary_t * obj, int rank);

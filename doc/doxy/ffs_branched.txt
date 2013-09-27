@@ -3,8 +3,60 @@
  *
  *
 
+\tableofcontents
+
 \section ffs_branched_intro Overview
 
-Overview
+In branched FFS, a successful trajectory reaching a given interface
+will generate a fixed number of new trials which will attempt to
+reach the following interface. In this way, one attempts to benefit
+from information from all successful forward trials. It has the
+advantage that only a limited number of states require storage at
+any one time. However, some care in the choice of parameters may
+be required to prevent unnecessary and expensive oversampling of
+the later interfaces where a geometric explosion in the number of
+branches is a risk. (This demerit is avoided in the \ref ffs_rosenbluth.)
+
+
+-----
+
+\section ffs_branched_desc Description
+
+Consider a trial trajectory reaching interface \f$ \lambda_i \f$.
+The branched FFS algorithm is conveniently expressed recursively:
+
+1. Fire \f$ k_i \f$ trials at the following interface \f$ \lambda_{i+1} \f$
+and store the end points of successful trials. Define a weight to be
+associated with a trial to be \f$ w_i / k_i \f$.
+2. If there are no successful trials, or the final interface has been
+reached, end the recursion.
+3. For all successful trials, go back to step 1.
+
+This is illustrated in the following diagram, where the number of
+trials \f$ k_i \f$ has been set to \f$ k = 2 \f$ for all the interfaces.
+
+![](./branched1.gif "Branched illustration")
+
+The conditional probability \f$ P(\lambda_{i+1} | \lambda_i)\f$ is
+then simply related to the fraction of the total number of trials
+reaching \f$ \lambda_{i+1} \f$:
+\f[
+P(\lambda_{i+1}| \lambda_i) = \frac{\sum_B (w_i/k_i)}{\sum_B w_i},
+\f]
+where the sum is over the incoming branches at \f$ \lambda_i \f$.
+
+The flux at the first interface is collected in the usual way.
+
+----
+
+\section ffs_branched_para In parallel
+
+In parallel, initial states may be generated independently, which
+gives rise to independent branches. All the trajectories associated
+with a given initial branch point are computed on the same MPI task,
+or group of MPI tasks. The method is therefore suited to parallel
+decomposition, although the possibility of the generation of highly
+branched structures means there is some scope for load imbalance.
+ 
 
 */

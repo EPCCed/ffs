@@ -1,0 +1,112 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%%  branched1.tex
+%%
+%%  To illustrate branched method.
+%%
+%%  Convert to gif and reduce to 66% for final gif for web.
+%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass{article}
+\usepackage{pgf}
+\usepackage{tikz}
+\usepackage{verbatim}
+\usepackage[active,tightpage]{preview}
+\PreviewEnvironment{tikzpicture}
+\setlength\PreviewBorder{5pt}%
+\usetikzlibrary{arrows, shapes, petri}
+
+\begin{document}
+\pagestyle{empty}
+
+\begin{tikzpicture}[every node/.style={font=\normalsize,
+  minimum height=0.5cm, minimum width=0.6cm},]
+
+% Here's the grid
+
+\node [matrix, column sep = 1.2cm, row sep = 0.3cm] (matrix) at (0,0) {
+
+  \node(0,0) (Lambda1Top) {}; & &  \node(0,0) (Lambda2Top) {}; & &
+   & \node(0,0) (Lambda3Top) {};\\\
+
+  & & & & & \node(0,0) (State6) {}; & \\ 
+
+  & & \node(0,0) (State2) {}; &&&& \\
+
+  & & & & & \node(0,0) (State5) {}; & \\ 
+
+  \node(0,0) (State1) {}; & & & & & & \node(0,0) () {};\\
+
+  & & & & & \node(0,0) (State4) {}; \\
+
+  & &   \node(0,0) (State3) {}; &  & & \\
+
+  & & & & & \node(0,0) () {}; & \\ 
+
+  \node(0,0) (Lambda1Bot) {}; & &  \node(0,0) (Lambda2Bot) {};& 
+  & & \node(0,0) (Lambda3Bot) {}; \\
+};
+
+
+% Label
+\node (Label) [above of=Lambda1Top] {};
+\node (LabelText) [right of=Label] {Branched};
+
+
+% Vertical Interfaces
+
+\draw
+  (Lambda1Top.north) -- (Lambda1Bot.south) node[below] {$\lambda_i$}
+  (Lambda2Top.north) -- (Lambda2Bot.south) node[below] {$\lambda_{i+1}$}
+  (Lambda3Top.north) -- (Lambda3Bot.south) node[below] {$\lambda_{i+2}$};
+
+% States
+\draw
+  (State1) node[draw,circle, fill=green!20] {$B_i^1$}
+  (State2) node[draw,circle,fill=green!60] {$B_{i+1}^2$}
+  (State3) node[draw,circle,fill=green!60] {$B_{i+1}^3$}
+  (State4) node[draw,circle,fill=green!80] {$B_{i+2}^4$}
+  (State5) node[draw,circle,fill=green!80] {$B_{i+2}^5$}
+  (State6) node[draw,circle,fill=green!80] {$B_{i+2}^6$};
+
+% Initial path with weight w = 1
+\node (Start) [left of = State1] {};
+\path[->, thick, >=stealth', shorten >=4pt]
+(Start.west) edge [out=0, in = 180] node[left, yshift = -10pt] {$w_i = 1$}
+(State1.west);
+
+% Trjectory: S1 -> S2
+\path[->, thick, >=stealth', shorten <=4pt, shorten >=8pt]
+(State1) edge [out=60, in = 180] node [above, yshift = +10pt]
+{$w_{i+1} = \frac{1}{2}$} (State2.west);
+\path[->, thick, >=stealth', shorten <=5pt, shorten >=7pt]
+(State1) edge [out=-80, in = -160] node[above, xshift = +10pt, yshift=+5pt]
+{$w_{i+1} = \frac{1}{2}$} (State3.west);
+
+% State3 -> State4
+\path[->, thick, >=stealth', shorten <=5pt, shorten >= 4pt]
+(State3.north east) edge [out=20, in = 150] node[below, yshift = -10pt]
+{$w_{i+2} = \frac{1}{2} \times \frac{1}{2}$} (State4.north west);
+
+% State2 -> State6
+\path[->, thick, >=stealth', shorten <=7pt, shorten >= 5pt]
+(State2.east) edge [out=5, in = 130] node[above, xshift = -30pt]
+{$w_{i+2} = \frac{1}{2} \times \frac{1}{2}$} (State6.north west);
+
+% State2 -> State5
+\path[->, thick, >=stealth', shorten <=7pt, shorten >= 7pt]
+(State2.east) edge [out=-5, in = 180] node[below, xshift = -10pt,
+yshift = -5pt]
+{$w_{i+2} = \frac{1}{2} \times \frac{1}{2}$} (State5.west);
+
+% Backwards going
+\path[-, shorten <=7pt, shorten >= 0pt]
+(State3.east) edge [out=-5, in = 45] node[right, yshift = -10pt]
+{$w_{i+2} = 0$} (Lambda2Bot.north east);
+\path[->, >=stealth', shorten >= 0pt]
+(Lambda2Bot.north east) edge [out=-135, in = 45] (Lambda1Bot.north east);
+
+
+\end{tikzpicture}
+\end{document}

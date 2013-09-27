@@ -117,8 +117,9 @@ initial states are generated, and the maximum duration of a single
 simulation trial.
 
 The interfaces are specified in the following section. There are
-a total of 13 interface, unevenly spaced. These correspond to
-values of the order parameter as CURRENTLY HARDWIRED.
+a total of 13 interfaces, unevenly spaced. These correspond to
+values of the order parameter as CURRENTLY HARDWIRED IN LAMBDA
+FUNCTION.
 
 ----------------------------------------------------------------------------
 
@@ -154,34 +155,36 @@ States generated at first interface: 16
 Time outs before first interface:    0
 Number of equilibration runs:        1
 
-Initial Tmax:                        2.985213e+03
-Initial Tsum:                        1.599092e+04
-Number crossings first interface:    160
-Flux at lambda_A:                    1.000568e-02
+Initial Tmax:                        5.798740e+03
+Initial Tsum:                        1.728203e+04
+Number crossings first interface:    157
+Flux at lambda_A:                    9.084581e-03
+
 
 
 Conditional probabilities
 -------------------------
 index      lambda    trials   states   pruned   wt/ntrial
 ---------------------------------------------------------
-    1 -2.4000e+01        48       16       70  1.0000e+00
-    2 -2.2000e+01        48       16       49  3.3333e-01
-    3 -2.0000e+01        78       26      100  1.8056e-01
-    4 -1.8000e+01       186       62      154  1.5743e-01
-    5 -1.5000e+01       315      105      305  8.5655e-02
-    6 -1.2000e+01       654      218      624  5.9161e-02
-    7 -9.0000e+00      1491      497      830  4.4670e-02
-    8 -5.0000e+00      2004     1002      276  3.0810e-02
-    9  0.0000e+00      1066     1066        0  1.6720e-02
-   10  7.0000e+00       546      546        0  9.2898e-03
-   11  1.5000e+01       498      498        0  8.6325e-03
-   12  2.0000e+01       493      493        0  8.5610e-03
-   13  2.5000e+01         0      490        0  8.4895e-03
+    1 -2.4000e+01        48       16       78  1.0000e+00
+    2 -2.2000e+01        48       16       38  3.3333e-01
+    3 -2.0000e+01        66       22       74  1.5278e-01
+    4 -1.8000e+01       138       46      146  1.1575e-01
+    5 -1.5000e+01       273       91      269  7.7944e-02
+    6 -1.2000e+01       612      204      562  5.9682e-02
+    7 -9.0000e+00      1416      472      778  5.1117e-02
+    8 -5.0000e+00      1900      950      252  3.5109e-02
+    9  0.0000e+00      1001     1001        0  1.9973e-02
+   10  7.0000e+00       533      533        0  1.2198e-02
+   11  1.5000e+01       504      504        0  1.1941e-02
+   12  2.0000e+01       503      503        0  1.1941e-02
+   13  2.5000e+01         0      503        0  1.1941e-02
 ----------------------------------------------------------
-(sum/success/fail)     7427     5019     2408
+(sum/success/fail)     7042     4845     2197
 
-Probability P(B|A):     8.489543e-03
-Flux * P(B|A):          8.494361e-05
+Probability P(B|A):     1.194066e-02
+Flux * P(B|A):          1.084759e-04
+
 \endcode
 
 This shows that 16 states have been used at the first interface.
@@ -192,7 +195,7 @@ pruned trajectories at each interface is also shown.)
 The tabulated numbers show the probability that a trial reached a
 given interface (13 interfaces starting at A). The final probability
 is the flux at A multiplied by the conditional probability P(B|A) which
-gives here approximately 3.06e-05.
+gives here approximately 1.08e-04.
 
 Clearly, using only 16 trials is likely to give rather poor statistics.
 To increase the number of trials, edit the initialisation conditions in
@@ -213,16 +216,19 @@ minutes). Note that the original result file
 
 The estimate of the final probability is now:
 \code
-Initial Tsum:                        7.671122e+05
-Number crossings first interface:    10240
-Flux at lambda_A:                    1.334876e-02
+Initial Tsum:                        8.013200e+05
+Number crossings first interface:    10223
+Flux at lambda_A:                    1.275770e-02
 
-Probability P(B|A):                  3.178032e-03
-Flux * P(B|A):                       4.242280e-05
+...
+
+Probability P(B|A):     3.116996e-03
+Flux * P(B|A):          3.976570e-05
 \endcode
 
 How accurate is this result? Some estimate can be gained by, for example,
-running a new FFS instance with a different random number seed.
+running a new FFS instance with a different random number seed. A mechanism
+to do this is discussed ELSEWHERE.
 
 ----------------------------------------------------------------------------
 
@@ -243,7 +249,6 @@ For the same set of interfaces as was used above one can set:
                 init_independent        yes
 		init_ntrials            16
                 init_teq                1.0
-                init_nskip              1
                 init_nstepmax           10000000
                 init_nsteplambda        1
                 init_prob_accept        0.1
@@ -265,24 +270,17 @@ Results at initial interface
 Trials to first interface:           16
 States generated at first interface: 16
 Time outs before first interface:    0
-Number of equilibration runs:        24
 
-Initial Tmax:                        1.663454e+03
-Initial Tsum:                        6.749986e+03
-Number crossings first interface:    135
-Flux at lambda_A:                    2.000004e-02
+Initial Tmax:                        2.209693e+03
+Initial Tsum:                        1.035384e+04
+Number crossings first interface:    141
+Flux at lambda_A:                    1.361813e-02
 
 ...
 
-Probability P(B|A):                  3.574820e-04
-Flux * P(B|A):                       7.149654e-06
+Probability P(B|A):     1.028978e-03
+Flux * P(B|A):          1.401276e-05
 \endcode
-Note that the number of equilibration runs is now larger than it was,
-as each separate trial requires a separate equilibration. Some of
-the initial trials have reached state B (requiring re-equilibration)
-and the total count of equilibration runs is 24. If the initial
-trial time ('init_nstepmax') is too short, some trials may fail
-and are 'timed out'.
 
 If we now increase the number of MPI tasks available to the job
 (usually done via mpirun), the instance will decompose the trials

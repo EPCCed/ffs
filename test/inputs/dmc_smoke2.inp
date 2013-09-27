@@ -18,7 +18,6 @@ ffs
 		init_independent	yes
 		init_ntrials            16
 		init_teq		1.0
-		init_nskip		1
 		init_nstepmax		10000000
 		init_nsteplambda	1
 		init_prob_accept        0.1

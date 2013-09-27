@@ -294,7 +294,6 @@ int ffs_init_log_to_mpilog(ffs_init_t * obj, mpilog_t * log) {
   mpilog(log, "No. trials:    %d\n", obj->ntrials);
   mpilog(log, "independent:   %d\n", obj->independent);
   mpilog(log, "nstepmax:      %d\n", obj->nstepmax);
-  mpilog(log, "nskip:         %d\n", obj->nskip);
   mpilog(log, "nsteplambda:   %d\n", obj->nsteplambda);
   mpilog(log, "prob. accept:  %f\n", obj->prob_accept);
   mpilog(log, "t_equilib:     %f\n", obj->teq);
