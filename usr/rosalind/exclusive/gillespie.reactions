@@ -1,0 +1,31 @@
+14		Number_of_reaction_channels
+
+5.000000	2	1	RateConstant_k_Nreactants_Nproducts
+X 0 + X 0 -> 1 X 2
+5.000000	1	2	RateConstant_k_Nreactants_Nproducts
+X 2 -> 1 X 0 + 1 X 0
+5.000000	2	1	RateConstant_k_Nreactants_Nproducts
+X 1 + X 1 -> 1 X 3
+5.000000	1	2	RateConstant_k_Nreactants_Nproducts
+X 3 -> 1 X 1 + 1 X 1
+5.000000	2	1	RateConstant_k_Nreactants_Nproducts
+X 4 + X 2 -> 1 X 5
+1.000000	1	2	RateConstant_k_Nreactants_Nproducts
+X 5 -> 1 X 4 + 1 X 2
+5.000000	2	1	RateConstant_k_Nreactants_Nproducts
+X 4 + X 3 -> 1 X 6
+1.000000	1	2	RateConstant_k_Nreactants_Nproducts
+X 6 -> 1 X 4 + 1 X 3
+1.000000	1	2	RateConstant_k_Nreactants_Nproducts
+X 4 -> 1 X 4 + 1 X 0
+1.000000	1	2	RateConstant_k_Nreactants_Nproducts
+X 5 -> 1 X 5 + 1 X 0
+1.000000	1	2	RateConstant_k_Nreactants_Nproducts
+X 4 -> 1 X 4 + 1 X 1
+1.000000	1	2	RateConstant_k_Nreactants_Nproducts
+X 6 -> 1 X 6 + 1 X 1
+0.250000	1	0	RateConstant_k_Nreactants_Nproducts
+X 0 -> 0
+0.250000	1	0	RateConstant_k_Nreactants_Nproducts
+X 1 -> 0
+

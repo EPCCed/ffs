@@ -18,7 +18,11 @@ There are a number of example simulations available:
 
 
 If you want to use a different type of simulation, you should read
-the section on \subpage user_add_sim Adding support for a simulation.
+the section on \subpage user_add_sim.
+
+----
+
+\section user_sim_and_lambda Simulation and Order Parameter
 
 The order parameter required for a given FFS computation is almost
 certainly problem-specific. The library cannot, therefore, anticipate
@@ -41,10 +45,72 @@ If you wish to compute the order parameter in serial, you can still
 use multiple independent instances of FFS to gather statistics on the
 serial problem.
 
-\section user_sim_and_lambda Simulation and Order Parameter
+----
 
 \section user_input_file The FFS Input File
 
+If you have a simulation, and an order parameter calculation, the
+FFS process is then controlled via a single input file. This is a
+text file with a standard format, which is a
+[libu configuration file]
+(http://www.koanlogic.com/libu/api/html/group__config.html).
+
+The file must have the overall form
+\code
+ffs
+{
+  # ffs key value pairs and subsections
+  ...
+}
+\endcode
+
+The subsections describe the number and position of the interfaces
+used in the FFS process, and the instance details which controls
+the exact details of the FFS algorithm, and the simulation. These
+sections are described in the \ref ffs_param and \ref ffs_inst
+modules.
+
+The input file is used as the first command line argument for the
+FFS executable:
+\code
+./ffs_executable input_file.inp [file2 ...]
+\endcode
+Additional command line arguments are passed to the simulation as
+required.
+
+----
+
 \section user_results Results
 
+On execution, a limited amount of information is channelled to standard
+output (including a statement of the final result). A longer record of
+the results is sent to a log file specfic for each FFS instance. For
+a single instance the default log file will look like
+\code
+$ more testrun-inst-0000.log
+FFS instance log for instance id 0
+Running on 1 MPI task
+The instance RNG seed is 53
+...
+\endcode
+
+Simulation-specific results need to be trested with some care,
+as the FFS process will run many many simulations to reach a result.
+
+----
+
+\section user_parallelism Parallelism
+
+There are potentially three levels of parallelism in the FFS process:
+
+-# parallelisation of independent FFS instances (trivial parallelism);
+-# parallelisation of independent trials within an instance (slightly less
+trivial);
+-# parallelisation of the simulation and order parameter calcualtion.
+
+Consistent with standard practice, we use MPI to implement parallelism at
+the highest level (the first two above). MPI may also be used at the
+simulation level if available, although other forms of parallelism
+(e.g., OpenMP) are not precluded. The entire process can be run in serial
+if required.
  */

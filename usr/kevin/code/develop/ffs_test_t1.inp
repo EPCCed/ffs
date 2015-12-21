@@ -1,0 +1,13 @@
+test
+1		grand_master_rng_seed
+100.0		equil_time
+100000.0	run_time
+10		take_every_nth_crossing
+100000          nstepmax
+1		nsteplambda
+3		Number_of_interfaces_to_follow
+1	-24.0	100	2000    1.0	0
+2	-22.0	100	2000    0.4	0
+3	-20.0	100	2000    0.4	0
+
+
