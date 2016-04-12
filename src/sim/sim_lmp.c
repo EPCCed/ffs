@@ -799,6 +799,7 @@ int dimer_evaluate_lambda(sim_lmp_t * obj, ffs_t * ffs, double * lambda){
 
 int dimer_evaluate_lambda2(sim_lmp_t * obj, ffs_t * ffs, double * lambda){
 
+  /* Code not active
   double coords_dimer_local[6];
   double coords_dimer[6];
   int ndimer_local;
@@ -806,16 +807,16 @@ int dimer_evaluate_lambda2(sim_lmp_t * obj, ffs_t * ffs, double * lambda){
 
   int nlocal;
   double **coords_local;
-  /*
+
   nlocal = *((int *)) lammps_extract_global(obj, "nlocal");
   coords_local = **((double *)) lammps_extract_atom(obj, "x");
   */
+  return 0;
 }
 
 int dimer_evaluate_lambda3(sim_lmp_t * obj, ffs_t * ffs, double * lambda) {
 
   double * dist = NULL;
-  void * test = NULL;
   MPI_Comm comm = MPI_COMM_NULL;
   int me,step;
   

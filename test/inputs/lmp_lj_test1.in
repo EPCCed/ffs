@@ -25,7 +25,7 @@ group all type 1 2
 
 neighbor	1 multi
 neigh_modify	delay 0
-communicate	multi
+comm_modify     mode multi
 
 # colloid potential
 

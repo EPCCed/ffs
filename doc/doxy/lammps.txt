@@ -16,20 +16,22 @@ http://lammps.sandia.gov/doc/Section_start.html .
 
 ### Addition to the LAMMPS source code
 
-At the moment, we require one addition to the LAMMPS library code to
-be able to run the FFS library. We use the latest version of the
-source from the LAMMPS repository. In the LAMMPS source file
-`src/library.cpp` we have
-added to the function `lammps_extract_global()` the following line:
+For recent versions of LAMMPS (e.g., `lammps-16Feb16` and later) no alterations
+to the LAMMPS source code should be required.
+
+For some earlier versions, we require one addition to the LAMMPS library
+code to
+be able to run the FFS library. In the LAMMPS source file
+`src/library.cpp` we need to
+add to the function `lammps_extract_global()` the following line:
 
 \code
   if (strcmp(name,"ntimestep") == 0) return (void *) &lmp->update->ntimestep;
 \endcode
 
-to be able to extract the current time step. We hope this line can be added
-to the LAMMPS repository in future to prevent the need for manual update.
+to be able to extract the current time step.
 
-Having built the LAMMPS library with this modification, one can proceed
+Having built the LAMMPS library, one can proceed
 to build the FFS library.
 
 ___

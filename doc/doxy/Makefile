@@ -11,7 +11,7 @@ all:
 	install -m 0644 ../../README html/README
 install: all
 	echo "Make sure right directory is available"
-	cp -R html/* /Volumes/kevin/html/ffs;
+	cp -R html/* /Users/kevin/html/ffs;
 
 uninstall:
 	rm -rf html latex

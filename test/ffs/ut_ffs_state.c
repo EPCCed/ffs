@@ -13,7 +13,7 @@ int u_test_ffs_state_create(u_test_case_t * tc) {
 
   ffs_state_t * state = NULL;
   int id = 0;
-  int * pidref;
+  int * pidref = NULL;
   int * pid = NULL;
 
   u_dbg("Start");
