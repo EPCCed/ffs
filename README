@@ -24,16 +24,16 @@
      $ wget http://koanlogic.com/download/makl/makl-1.9.0.tar.gz
      $ tar zvf makl-1.9.0.tar.gz
      $ cd makl-1.9.0
-     $ sh configure.sh --prefix=/install/path/for/makl
+     $ sh configure.sh --prefix=/install/path/makl
      $ make install
 
    Please see the MaKL INSTALL file for further details. Note that
-   /install/path/for/makl may need to be distinct from `pwd` on some
+   /install/path/makl may need to be distinct from `pwd` on some
    platforms.
 
    Remember to add the appropriate bin directory to your PATH, e.g.,
-   if you specified --prefix=/install/path/for/makl then
-     $ export PATH=$PATH:/install/path/for/makl/bin
+   if you specified --prefix=/install/path/makl then
+     $ export PATH=$PATH:/install/path/makl/bin
 
 3. Install Libu
 
@@ -48,43 +48,36 @@
    at this point. The following may suffice in the top-level directory
    for libu:
 
-     $ makl-conf --prefix=/install/path/to/libu
+     $ makl-conf --prefix=/install/path/libu
      $ makl
      $ makl -C test
      $ makl install
+
+   See also troubleshooting section below if there are problems.
 
 4. FFS
 
    In the top level FFS directory, configure via
 
-     $ makl-conf --u-path=/install/path/to/libu
+     $ makl-conf --u-path=/install/path/libu
      $ makl
 
    This will automatically build the library. To run the tests
 
      $ makl -C test
 
-   If you want to use a pre-defined tool chain, a selection of
-   which can be found in the $FSS/makl-etc directory, set the
-   MAKL_ETC environment variable before building, e.g.,
-
-     $ export MAKL_ETC=`pwd`/makl-etc/linux-mpi
-     $ makl
-
-   If you do not set MAKL_ETC, makl will use its defaults for your system,
-   which may or may not work.
-
+   See also troubleshooting section below if there are problems.
 
 5. FFS with LAMMPS
 
-   If there is a LAMMPS library available in directory /install/path/to/lammps
+   If there is a LAMMPS library available in directory /install/path/lammps
    you can specify at the configure stage
 
-     $ makl-conf  --u-path=/install/path/to/libu \
-                   --lammps-path=/install/path/to/lammps
+     $ makl-conf  --u-path=/install/path/libu \
+                  --lammps-path=/install/path/lammps
 
-   in which case /install/path/to/lammps/include holds the LAMMPS library.h
-   header file, and /install/path/to/lammps/lib holds the static library
+   in which case /install/path/lammps/include holds the LAMMPS library.h
+   header file, and /install/path/lammps/lib holds the static library
    liblmp.a
 
    (Note that LAMMPS usually builds the library in its src directory; you
@@ -94,9 +87,39 @@
    the FFTW library, in which case specify
 
 
-     $ makl-conf  --u-path=/install/path/to/libu \
-                   --fftw-path=/install/path/to/fftw \
-                   --lammps-path=/install/path/to/lammps
+     $ makl-conf  --u-path=/install/path/libu \
+                  --fftw-path=/install/path/fftw \
+                  --lammps-path=/install/path/lammps
 
    The configure script will check that these libraries are available.
    Failures at the configure stage can be investigated via makl-conf --verbose
+
+Troubelshooting
+
+1. Problems during configuration and compilation can occur. Use
+
+     $ makl-conf --verbose
+
+   to help to identify what is actually happening. Extremely verbose
+   output to be compilation stage can be obtained with, e.g.,
+
+     $ makl -d
+
+   Makl uses a "toolchain" to find relevant compilers and so forth.
+   If the defaults do not work, it is necessary to define a separate
+   toolchain. This may be done via a .tc (some examples are given in
+   the ./tc sub-directory).
+
+   To update the toolchain settings using the file e.g., ./tc/darwin-mpi.tc
+   (which is appropriate for mpicc on a Mac) use
+
+     $ makl-tc --makl-etc=`pwd`/makl-etc/darwin-mpi \
+               --makl-tc-file=./tc/darwin-mpi.tc \
+               --makl-shlib=null
+
+   where `pwd`/makl-etc/darwin-mpi is the destination directory for
+   the resulting .mk and .cf files.
+
+     $ export MAKL_ETC=`pwd`/makl-etc/darwin-mpi
+
+   to allow makl to locate these files.
