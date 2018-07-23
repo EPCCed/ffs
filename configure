@@ -173,11 +173,11 @@ then
     lmpdir=`makl_get_var_mk "LAMMPSDIR"`
     libs=`makl_get_var_mk "LDFLAGS"`
     ${ECHO} "Looking for LAMMPS library in ${lmpdir}..."
-    makl_compile_cxx "build/lammps.c" "-I${lmpdir}/include" \
-	"-L${lmpdir}/lib -llammps -lstdc++ ${libs}"
+    makl_compile_cxx "build/lammps.c" "-I${lmpdir}" \
+	"-L${lmpdir} -llammps -lstdc++ ${libs}"
     [ $? == 0 ] || makl_err 1 "could not compile LAMMPS test"
-    makl_append_var_mk "CFLAGS" "-I${lmpdir}/include"
-    makl_append_var_mk "LDFLAGS" "-L${lmpdir}/lib -llammps -lstdc++"
+    makl_append_var_mk "CFLAGS" "-I${lmpdir}"
+    makl_append_var_mk "LDFLAGS" "-L${lmpdir} -llammps -lstdc++"
 else
     ${ECHO} "No LAMMPS config (ok)"
 fi
