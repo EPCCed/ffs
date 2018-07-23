@@ -94,6 +94,9 @@
    The configure script will check that these libraries are available.
    Failures at the configure stage can be investigated via makl-conf --verbose
 
+   If you have doxygen installed, you can compile the documentation by
+   adding a --docs flag.
+
 Troubelshooting
 
 1. Problems during configuration and compilation can occur. Use
@@ -123,3 +126,16 @@ Troubelshooting
      $ export MAKL_ETC=`pwd`/makl-etc/darwin-mpi
 
    to allow makl to locate these files.
+
+2. It may be necessary to create separate toolchains for compiling in serial
+   and parallel, e.g. through issuing another command like 
+
+     $ makl-tc --makl-etc=`pwd`/makl-etc/darwin-gcc \
+               --makl-tc-file=./tc/darwin-gcc.tc \
+               --makl-shlib=null
+
+   This allows to compile e.g. Libu in serial and LAMMPS in parallel.
+
+   Note that for each compilation step you will have to export the environmental
+   variable MAKL_ETC anew.
+
